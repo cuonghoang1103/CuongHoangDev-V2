@@ -1,0 +1,24 @@
+spring:
+  application:
+    name: api-backend
+
+  datasource:
+    url: jdbc:postgresql://localhost:5432/cuonghoangdev_db
+    username: postgres
+    password: ${POSTGRES_PASSWORD:123456}   # Nên dùng biến môi trường
+    driver-class-name: org.postgresql.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: none         # ← Nên đổi từ "none" sang "validate"
+    show-sql: true                # Tạm thời để true khi dev
+
+  flyway:
+    enabled: true
+    locations: classpath:db/migration     # ← Thiếu dòng này
+    baseline-on-migrate: true
+    validate-on-migrate: true             # ← Nên thêm
+  
+  kind: Application
+
+kind: Application
