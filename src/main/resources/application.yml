@@ -2,23 +2,105 @@ spring:
   application:
     name: api-backend
 
+  springdoc:
+    api-docs:
+      path: /v3/api-docs
+    swagger-ui:
+      path: /swagger-ui.html
+      operations-sorter: method
+      tags-sorter: alpha
+      try-it-out-enabled: true
+    group-configs:
+      - group: 'Authentication'
+        paths-to-match: '/api/v1/auth/**'
+        packages-to-scan: com.cuonghoangdev.api_backend.controller
+      - group: 'Blog'
+        paths-to-match: '/api/v1/blog/**'
+      - group: 'AI Chat'
+        paths-to-match: '/api/v1/ai/**'
+      - group: 'System'
+        paths-to-match: '/api/v1/system/**'
+
   datasource:
     url: jdbc:postgresql://localhost:5432/cuonghoangdev_db
     username: postgres
-    password: ${POSTGRES_PASSWORD:123456}   # Nên dùng biến môi trường
+    password: ${POSTGRES_PASSWORD:123456}
     driver-class-name: org.postgresql.Driver
 
   jpa:
     hibernate:
-      ddl-auto: none         # ← Nên đổi từ "none" sang "validate"
-    show-sql: true                # Tạm thời để true khi dev
+      ddl-auto: none
+    show-sql: false
 
   flyway:
     enabled: true
-    locations: classpath:db/migration     # ← Thiếu dòng này
+    locations: classpath:db/migration
     baseline-on-migrate: true
-    validate-on-migrate: true             # ← Nên thêm
-  
-  kind: Application
+    validate-on-migrate: true
 
-kind: Application
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      timeout: 60000
+
+  cache:
+    type: redis
+    redis:
+      time-to-live: 3600000
+      cache-null-values: false
+
+  ai:
+    model:
+      embedding: openai
+    openai:
+      api-key: ${OPENAI_API_KEY:your-api-key-here}
+      chat:
+        options:
+          model: gpt-4o-mini
+          temperature: 0.7
+
+server:
+  port: 8081
+
+  oauth2:
+    client:
+      registration:
+        google:
+          client-id: ${GOOGLE_CLIENT_ID:your-google-client-id}
+          client-secret: ${GOOGLE_CLIENT_SECRET:your-google-client-secret}
+          scope:
+            - email
+            - profile
+        github:
+          client-id: ${GITHUB_CLIENT_ID:your-github-client-id}
+          client-secret: ${GITHUB_CLIENT_SECRET:your-github-client-secret}
+          scope:
+            - read:user
+            - user:email
+      provider:
+        google:
+          authorization-uri: https://accounts.google.com/o/oauth2/v2/auth
+          token-uri: https://oauth2.googleapis.com/token
+          user-info-uri: https://www.googleapis.com/oauth2/v3/userinfo
+          user-name-attribute: email
+        github:
+          authorization-uri: https://github.com/login/oauth/authorize
+          token-uri: https://github.com/login/oauth/access_token
+          user-info-uri: https://api.github.com/user
+          user-name-attribute: login
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:CuongHoangDevV2SecretKeyNangCao2026NheMaNayCanItNhat256BitNhe}
+    expiration-ms: 86400000
+  base-url: ${APP_BASE_URL:http://localhost:8081}
+  ai:
+    embedding:
+      dimensions: 1536
+    vectorstore:
+      dimension: 1536
+      index-type: HNSW
+      distance-type: COSINE_DISTANCE
+    auto-index-on-startup: ${AI_AUTO_INDEX:false}
+    seed-default-config: true
