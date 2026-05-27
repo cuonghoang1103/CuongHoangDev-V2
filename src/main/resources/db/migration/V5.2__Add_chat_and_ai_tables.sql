@@ -1,27 +1,6 @@
--- V5: pgvector Extension + Document Chunks for RAG + Chat Tables
--- Enable pgvector extension
-CREATE EXTENSION IF NOT EXISTS vector;
-
--- Bang luu tru document chunks (da embed thanh vector)
-CREATE TABLE document_chunks (
-    id              BIGSERIAL PRIMARY KEY,
-    content         TEXT NOT NULL,
-    metadata        JSONB,
-    embedding       VECTOR(1536),
-    chunk_index     INT NOT NULL DEFAULT 0,
-    document_id     VARCHAR(100) NOT NULL,
-    document_type   VARCHAR(50) NOT NULL,
-    created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
-
--- Index cho vector similarity search (HNSW)
-CREATE INDEX idx_document_chunks_embedding ON document_chunks
-    USING hnsw (embedding vector_cosine_ops);
-CREATE INDEX idx_document_chunks_type ON document_chunks(document_type);
-CREATE INDEX idx_document_chunks_doc_id ON document_chunks(document_id);
-
--- Bang chat sessions
-CREATE TABLE chat_sessions (
+-- V5.2: Chat tables + AI Config (không dùng pgvector vì Spring AI đã disable)
+-- Bảng chat sessions
+CREATE TABLE IF NOT EXISTS chat_sessions (
     id              BIGSERIAL PRIMARY KEY,
     session_id      VARCHAR(100) NOT NULL UNIQUE,
     user_id         BIGINT REFERENCES users(id) ON DELETE CASCADE,
@@ -30,8 +9,8 @@ CREATE TABLE chat_sessions (
     updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Bang chat messages
-CREATE TABLE chat_messages (
+-- Bảng chat messages
+CREATE TABLE IF NOT EXISTS chat_messages (
     id              BIGSERIAL PRIMARY KEY,
     session_id      VARCHAR(100) NOT NULL REFERENCES chat_sessions(session_id) ON DELETE CASCADE,
     role            VARCHAR(20) NOT NULL,
@@ -40,8 +19,8 @@ CREATE TABLE chat_messages (
     created_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Bang cau hinh AI
-CREATE TABLE ai_config (
+-- Bảng AI config
+CREATE TABLE IF NOT EXISTS ai_config (
     id              BIGSERIAL PRIMARY KEY,
     config_key      VARCHAR(100) NOT NULL UNIQUE,
     config_value    TEXT,
@@ -49,12 +28,12 @@ CREATE TABLE ai_config (
     updated_at      TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
--- Indexes
-CREATE INDEX idx_chat_messages_session ON chat_messages(session_id);
-CREATE INDEX idx_chat_sessions_user ON chat_sessions(user_id);
-CREATE INDEX idx_ai_config_key ON ai_config(config_key);
+-- Indexes (IF NOT EXISTS để tránh lỗi nếu đã có)
+CREATE INDEX IF NOT EXISTS idx_chat_messages_session ON chat_messages(session_id);
+CREATE INDEX IF NOT EXISTS idx_chat_sessions_user ON chat_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_ai_config_key ON ai_config(config_key);
 
--- Du lieu mac dinh cho AI config
+-- Dữ liệu mặc định cho AI config (ignore nếu đã có)
 INSERT INTO ai_config (config_key, config_value, description) VALUES
     ('embedding_model', 'text-embedding-3-small', 'Model su dung de tao embedding'),
     ('chat_model', 'gpt-4o-mini', 'Model su dung cho chat'),
@@ -62,4 +41,5 @@ INSERT INTO ai_config (config_key, config_value, description) VALUES
     ('temperature', '0.7', 'Do sang tao cua AI (0-1)'),
     ('chunk_size', '1000', 'Kich thuoc moi chunk khi chia nho document'),
     ('chunk_overlap', '200', 'Do chong lan giua cac chunk'),
-    ('similarity_threshold', '0.7', 'Nguong similarity toi thieu');
+    ('similarity_threshold', '0.7', 'Nguong similarity toi thieu')
+ON CONFLICT (config_key) DO NOTHING;

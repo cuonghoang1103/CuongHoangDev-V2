@@ -2,7 +2,6 @@ package com.cuonghoangdev.api_backend.security;
 
 import com.cuonghoangdev.api_backend.entity.User;
 import com.cuonghoangdev.api_backend.repository.UserRepository;
-import com.cuonghoangdev.api_backend.security.JwtTokenProvider;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -27,7 +26,7 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
     @Autowired
     private UserRepository userRepository;
 
-    @Value("${app.base-url:http://localhost:8080}")
+    @Value("${app.base-url:http://localhost:8082}")
     private String appBaseUrl;
 
     @Override

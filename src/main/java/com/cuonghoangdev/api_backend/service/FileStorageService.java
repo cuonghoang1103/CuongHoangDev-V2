@@ -33,7 +33,7 @@ public class FileStorageService {
 
     public FileStorageService(
             @Value("${app.file.storage-path:./uploads}") String storagePath,
-            @Value("${app.base-url:http://localhost:8080}") String baseUrl) {
+            @Value("${app.base-url:http://localhost:8082}") String baseUrl) {
         this.rootLocation = Paths.get(storagePath).toAbsolutePath().normalize();
         this.baseUrl = baseUrl;
         init();

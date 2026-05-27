@@ -2,7 +2,7 @@ package com.cuonghoangdev.api_backend.config;
 
 import com.cuonghoangdev.api_backend.security.CustomUserDetailsService;
 import com.cuonghoangdev.api_backend.security.JwtAuthenticationFilter;
-import com.cuonghoangdev.api_backend.security.OAuth2AuthenticationSuccessHandler;
+import com.cuonghoangdev.api_backend.security.OAuth2SuccessHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -38,7 +38,7 @@ public class SecurityConfig {
     private JwtAuthenticationFilter jwtAuthenticationFilter;
 
     @Autowired
-    private OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
+    private OAuth2SuccessHandler oAuth2AuthenticationSuccessHandler;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -60,33 +60,36 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
-                .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-                .csrf(AbstractHttpConfigurer::disable)
-                .sessionManagement(session -> session
-                        .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
-                .authorizeHttpRequests(auth -> auth
-                        .requestMatchers(HttpMethod.GET, "/api/v1/system/**").permitAll()
-                        .requestMatchers("/api/v1/auth/**").permitAll()
-                        .requestMatchers("/api/v1/roles/**").permitAll()
-                        .requestMatchers("/api/v1/blog/posts/**").permitAll()
-                        .requestMatchers("/api/v1/blog/categories/**").permitAll()
-                        .requestMatchers("/api/v1/ai/chat").permitAll()
-                        .requestMatchers("/api/v1/ai/admin/**").hasRole("ADMIN")
-                        // Swagger/OpenAPI endpoints
-                        .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
-                        // OAuth2 endpoints
-                        .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
-                        .anyRequest().authenticated()
-                )
-                .authenticationProvider(authenticationProvider())
-                .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
-                .oauth2Login(oauth2 -> oauth2
-                        .authorizationEndpoint(authorization -> authorization
-                                .baseUri("/oauth2/authorization"))
-                        .redirectionEndpoint(redirection -> redirection
-                                .baseUri("/login/oauth2/code/*"))
-                        .successHandler(oAuth2AuthenticationSuccessHandler)
-                );
+            .cors(cors -> cors.configurationSource(corsConfigurationSource()))
+            .csrf(AbstractHttpConfigurer::disable)
+            .sessionManagement(session -> session
+                    .sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+            .authorizeHttpRequests(auth -> auth
+                    .requestMatchers(HttpMethod.GET, "/api/v1/system/**").permitAll()
+                    .requestMatchers("/api/v1/auth/**").permitAll()
+                    .requestMatchers("/api/v1/roles/**").permitAll()
+                    .requestMatchers("/api/v1/blog/posts/**").permitAll()
+                    .requestMatchers("/api/v1/blog/categories/**").permitAll()
+                    .requestMatchers("/api/v1/ai/chat").permitAll()
+                    .requestMatchers("/api/v1/ai/admin/**").hasRole("ADMIN")
+                    .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
+                    .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+                    .anyRequest().authenticated()
+            )
+            .authenticationProvider(authenticationProvider())
+            .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
+
+        // Only enable OAuth2 if credentials are provided
+        String googleClientId = System.getenv("GOOGLE_CLIENT_ID");
+        String githubClientId = System.getenv("GITHUB_CLIENT_ID");
+        if ((googleClientId != null && !googleClientId.isEmpty())
+                || (githubClientId != null && !githubClientId.isEmpty())) {
+            http.oauth2Login(oauth2 -> oauth2
+                    .authorizationEndpoint(authorization -> authorization.baseUri("/oauth2/authorization"))
+                    .redirectionEndpoint(redirection -> redirection.baseUri("/login/oauth2/code/*"))
+                    .successHandler(oAuth2AuthenticationSuccessHandler)
+            );
+        }
 
         return http.build();
     }
@@ -94,7 +97,7 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:5173"));
+        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002", "http://127.0.0.1:3003"));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
         configuration.setAllowCredentials(true);

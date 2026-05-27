@@ -1,0 +1,3 @@
+-- V5: Base migration placeholder
+-- All tables moved to V5.2 for correct execution order
+-- This file is kept for reference only

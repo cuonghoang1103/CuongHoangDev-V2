@@ -51,7 +51,7 @@ public class EmailService {
             return;
         }
 
-        String resetLink = "http://localhost:3000/reset-password?token=" + token;
+        String resetLink = "http://localhost:3002/reset-password?token=" + token;
         String subject = "[" + appName + "] Reset Mat Khau";
         String body = "Xin chao,\n\n"
                 + "Ban yeu cau dat lai mat khau cho tai khoan tai " + appName + ".\n"
