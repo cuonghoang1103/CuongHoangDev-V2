@@ -8,7 +8,7 @@ import { Menu, X, User, LogOut, Settings, ChevronDown, BookOpen } from 'lucide-r
 
 const navLinks = [
   { href: '/', label: 'Home' },
-  { href: '/courses', label: 'Academy' },
+  { href: '/academy', label: 'Academy' },
   { href: '/blog', label: 'Blog' },
   { href: '/projects', label: 'Projects' },
   { href: '/chat', label: 'AI Chat' },

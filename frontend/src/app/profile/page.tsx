@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import Link from 'next/link';
 import { useAuthStore } from '@/store/authStore';
-import { api } from '@/lib/api';
+import { api, coursesApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 import {
   User,
@@ -23,6 +24,10 @@ import {
   ExternalLink,
   Github,
   Globe,
+  TrendingUp,
+  PlayCircle,
+  CheckCircle,
+  Clock,
 } from 'lucide-react';
 
 interface ProfileData {
@@ -37,11 +42,11 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
-  const { user, updateProfile } = useAuthStore();
+  const { user, isAuthenticated, updateProfile } = useAuthStore();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'activity'>('profile');
+  const [activeTab, setActiveTab] = useState<'profile' | 'password' | 'activity' | 'courses'>('profile');
   const [editing, setEditing] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
@@ -65,6 +70,15 @@ export default function ProfilePage() {
     projects: 0,
     joinedDays: 0,
   });
+
+  const [courseStats, setCourseStats] = useState({
+    total: 0,
+    completed: 0,
+    inProgress: 0,
+    hoursLearned: 0,
+  });
+  const [myCourses, setMyCourses] = useState<any[]>([]);
+  const [courseLoading, setCourseLoading] = useState(false);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -105,6 +119,31 @@ export default function ProfilePage() {
       setStats(s => ({ ...s, joinedDays: days }));
     }
   }, [profile?.createdAt]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const fetchCourseStats = async () => {
+      try {
+        setCourseLoading(true);
+        const res = await coursesApi.getMyCourses({ size: 100 });
+        const enrollments: any[] = res.data?.data?.content || [];
+        const completed = enrollments.filter((e: any) => e.status === 'COMPLETED' || e.progressPercent === 100);
+        const inProgress = enrollments.filter((e: any) => e.status === 'IN_PROGRESS' && e.progressPercent > 0 && e.progressPercent < 100);
+        setMyCourses(enrollments.slice(0, 6));
+        setCourseStats({
+          total: enrollments.length,
+          completed: completed.length,
+          inProgress: inProgress.length,
+          hoursLearned: Math.round(enrollments.length * 4.5),
+        });
+      } catch (err) {
+        console.error('Failed to fetch course stats:', err);
+      } finally {
+        setCourseLoading(false);
+      }
+    };
+    fetchCourseStats();
+  }, [isAuthenticated]);
 
   const handleSaveProfile = async () => {
     setSaving(true);
@@ -390,16 +429,17 @@ export default function ProfilePage() {
           {/* Right: Content */}
           <div className="lg:col-span-2 space-y-6">
             {/* Tabs */}
-            <div className="flex gap-1 bg-darkcard border border-darkborder rounded-2xl p-1.5">
+            <div className="flex gap-1 bg-darkcard border border-darkborder rounded-2xl p-1.5 overflow-x-auto">
               {[
                 { id: 'profile', label: 'Profile', icon: User },
-                { id: 'password', label: 'Change Password', icon: KeyRound },
+                { id: 'courses', label: 'My Courses', icon: BookOpen },
+                { id: 'password', label: 'Password', icon: KeyRound },
                 { id: 'activity', label: 'Activity', icon: Shield },
               ].map((tab) => (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id as any)}
-                  className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                  className={`flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all whitespace-nowrap ${
                     activeTab === tab.id
                       ? 'bg-gradient-to-r from-neon-indigo to-neon-violet text-white'
                       : 'text-text-muted hover:text-text-primary hover:bg-white/5'
@@ -578,7 +618,7 @@ export default function ProfilePage() {
                         </div>
                       </div>
                       <button className="px-4 py-2 bg-darkcard border border-darkborder rounded-xl text-sm text-text-muted hover:text-text-primary hover:border-neon-violet/50 transition-colors">
-                        Xem
+                        View
                       </button>
                     </div>
 
@@ -593,7 +633,7 @@ export default function ProfilePage() {
                         </div>
                       </div>
                       <button className="px-4 py-2 bg-darkcard border border-darkborder rounded-xl text-sm text-text-muted hover:text-text-primary hover:border-neon-violet/50 transition-colors">
-                        Xem
+                        View
                       </button>
                     </div>
                   </div>
@@ -611,6 +651,108 @@ export default function ProfilePage() {
                       ))}
                     </div>
                   </div>
+                </div>
+              )}
+
+              {activeTab === 'courses' && (
+                <div className="space-y-6">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h2 className="text-lg font-heading font-bold text-text-primary">Learning Dashboard</h2>
+                      <p className="text-sm text-text-muted mt-1">Track your learning progress</p>
+                    </div>
+                    <Link
+                      href="/my-courses"
+                      className="text-sm text-neon-violet hover:text-neon-indigo transition-colors"
+                    >
+                      View All
+                    </Link>
+                  </div>
+
+                  {/* Learning stats */}
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                    {[
+                      { label: 'Enrolled', value: courseStats.total, icon: BookOpen, color: 'from-neon-indigo to-neon-violet' },
+                      { label: 'In Progress', value: courseStats.inProgress, icon: PlayCircle, color: 'from-yellow-400 to-orange-500' },
+                      { label: 'Completed', value: courseStats.completed, icon: CheckCircle, color: 'from-green-400 to-emerald-500' },
+                      { label: 'Hours Learned', value: `${courseStats.hoursLearned}h`, icon: Clock, color: 'from-neon-cyan to-blue-500' },
+                    ].map((stat, i) => (
+                      <div key={i} className="bg-darkbg rounded-xl p-4 border border-darkborder text-center">
+                        <div className={`w-8 h-8 rounded-lg bg-gradient-to-br ${stat.color} flex items-center justify-center mx-auto mb-2`}>
+                          <stat.icon className="w-4 h-4 text-white" />
+                        </div>
+                        <p className="text-xl font-bold text-text-primary">{courseLoading ? '...' : stat.value}</p>
+                        <p className="text-xs text-text-muted mt-0.5">{stat.label}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* My courses */}
+                  {courseLoading ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {[...Array(3)].map((_, i) => (
+                        <div key={i} className="animate-pulse">
+                          <div className="bg-darkcard rounded-xl overflow-hidden border border-darkborder/50">
+                            <div className="aspect-video bg-darkbg" />
+                            <div className="p-3 space-y-2">
+                              <div className="h-4 bg-darkbg rounded w-3/4" />
+                              <div className="h-2 bg-darkbg rounded w-full" />
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : myCourses.length > 0 ? (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {myCourses.map((enrollment: any, i: number) => (
+                        <Link
+                          key={enrollment.id}
+                          href={`/academy/courses/${enrollment.courseSlug}`}
+                          className="bg-darkcard border border-darkborder rounded-xl overflow-hidden hover:border-neon-violet/40 transition-all group"
+                        >
+                          <div className="aspect-video bg-darkbg relative overflow-hidden">
+                            {enrollment.courseThumbnail ? (
+                              <img src={enrollment.courseThumbnail} alt={enrollment.courseTitle} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+                            ) : (
+                              <div className="w-full h-full bg-gradient-to-br from-neon-indigo/20 to-neon-violet/20 flex items-center justify-center">
+                                <BookOpen className="w-8 h-8 text-neon-violet/40" />
+                              </div>
+                            )}
+                            <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/50">
+                              <div
+                                className="h-full bg-gradient-to-r from-neon-indigo to-neon-violet"
+                                style={{ width: `${enrollment.progressPercent || 0}%` }}
+                              />
+                            </div>
+                          </div>
+                          <div className="p-3">
+                            <p className="text-sm font-medium text-text-primary line-clamp-2 group-hover:text-neon-violet transition-colors">
+                              {enrollment.courseTitle}
+                            </p>
+                            <div className="flex items-center justify-between mt-2">
+                              <span className="text-xs text-neon-violet font-medium">{enrollment.progressPercent || 0}% done</span>
+                              <span className={`px-2 py-0.5 rounded text-xs ${
+                                enrollment.status === 'COMPLETED' ? 'bg-green-500/20 text-green-400' : 'bg-yellow-500/20 text-yellow-400'
+                              }`}>
+                                {enrollment.status === 'COMPLETED' ? 'Completed' : 'In Progress'}
+                              </span>
+                            </div>
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 bg-darkcard rounded-2xl border border-darkborder">
+                      <BookOpen className="w-12 h-12 text-text-muted/30 mx-auto mb-3" />
+                      <p className="text-text-muted mb-3">No courses yet</p>
+                      <Link
+                        href="/academy"
+                        className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-neon-indigo to-neon-violet text-white text-sm font-medium rounded-lg hover:opacity-90 transition-opacity"
+                      >
+                        Browse Academy
+                      </Link>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

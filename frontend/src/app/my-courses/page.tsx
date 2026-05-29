@@ -1,190 +1,185 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { BookOpen, Clock, TrendingUp, Loader2, Play, X } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { BookOpen, PlayCircle, CheckCircle, Clock, TrendingUp, Award, Target } from 'lucide-react';
 import { coursesApi } from '@/lib/api';
-import { useAuthStore } from '@/store/authStore';
-import toast from 'react-hot-toast';
 import type { Enrollment } from '@/types';
+import MyCourseCard from '@/components/academy/MyCourseCard';
 
-function formatDuration(seconds: number): string {
-  if (!seconds) return '0 min';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m}m`;
-  return `${m} min`;
-}
+type TabType = 'in_progress' | 'completed' | 'wishlist';
+
+const TABS: { id: TabType; label: string; icon: typeof PlayCircle }[] = [
+  { id: 'in_progress', label: 'In Progress', icon: PlayCircle },
+  { id: 'completed', label: 'Completed', icon: CheckCircle },
+  { id: 'wishlist', label: 'Wishlist', icon: BookOpen },
+];
 
 export default function MyCoursesPage() {
-  const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const [activeTab, setActiveTab] = useState<TabType>('in_progress');
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
-  const [cancelling, setCancelling] = useState<number | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/login');
-      return;
-    }
-    loadEnrollments();
-  }, [isAuthenticated]);
+    const fetchMyCourses = async () => {
+      try {
+        setLoading(true);
+        const params = activeTab === 'completed'
+          ? { status: 'COMPLETED' }
+          : activeTab === 'in_progress'
+          ? { status: 'IN_PROGRESS' }
+          : {};
 
-  const loadEnrollments = async () => {
-    setLoading(true);
-    try {
-      const res = await coursesApi.getMyCourses({ status: 'ACTIVE' });
-      setEnrollments(res.data.data?.content || []);
-    } catch {
-      setEnrollments([]);
-    } finally {
-      setLoading(false);
-    }
-  };
+        const res = await coursesApi.getMyCourses(params);
+        setEnrollments(res.data?.data?.content || []);
+      } catch (err) {
+        console.error('Failed to fetch my courses:', err);
+        setEnrollments([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchMyCourses();
+  }, [activeTab]);
 
-  const handleCancel = async (courseId: number) => {
-    if (!confirm('Are you sure you want to unenroll from this course?')) return;
-    setCancelling(courseId);
-    try {
-      await coursesApi.cancelEnrollment(courseId);
-      setEnrollments(prev => prev.filter(e => e.courseId !== courseId));
-      toast.success('Unenrolled successfully');
-    } catch {
-      toast.error('Unenrollment failed');
-    } finally {
-      setCancelling(null);
-    }
+  const inProgress = enrollments.filter(e => e.status === 'IN_PROGRESS');
+  const completed = enrollments.filter(e => e.status === 'COMPLETED');
+
+  // Stats
+  const stats = {
+    total: inProgress.length + completed.length,
+    inProgress: inProgress.length,
+    completed: completed.length,
+    totalHours: Math.round((inProgress.length + completed.length) * 4.5), // estimate 4.5h per course
   };
 
   return (
-    <div className="min-h-screen bg-darkbg">
+    <div className="min-h-screen bg-darkbg pt-20">
       {/* Hero */}
-      <section className="relative py-16 overflow-hidden">
-        <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-neon-indigo/10 rounded-full blur-[150px]" />
-          <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-neon-violet/10 rounded-full blur-[150px]" />
+      <section className="relative py-12 overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-1/4 w-[400px] h-[400px] bg-neon-indigo/20 rounded-full blur-[150px]" />
+          <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-neon-violet/20 rounded-full blur-[150px]" />
         </div>
-        <div className="relative max-w-6xl mx-auto px-4 text-center">
-          <h1 className="text-4xl font-heading font-bold text-text-primary mb-4">
-            My <span className="bg-gradient-to-r from-neon-indigo to-neon-violet bg-clip-text text-transparent">Courses</span>
-          </h1>
-          <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-            Track your learning progress and continue with enrolled courses.
-          </p>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+            className="text-center"
+          >
+            <h1 className="text-4xl md:text-5xl font-heading font-bold text-text-primary mb-4">
+              My Learning <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-indigo to-neon-violet">Journey</span>
+            </h1>
+            <p className="text-lg text-text-secondary">Track your progress and continue learning</p>
+          </motion.div>
+
+          {/* Stats */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-10"
+          >
+            {[
+              { label: 'Enrolled Courses', value: stats.total, icon: BookOpen, color: 'from-neon-indigo to-neon-violet' },
+              { label: 'In Progress', value: stats.inProgress, icon: PlayCircle, color: 'from-yellow-400 to-orange-500' },
+              { label: 'Completed', value: stats.completed, icon: CheckCircle, color: 'from-green-400 to-emerald-500' },
+              { label: 'Learning Hours', value: `${stats.totalHours}h`, icon: Clock, color: 'from-neon-cyan to-blue-500' },
+            ].map((stat, i) => (
+              <div key={i} className="bg-darkcard/50 border border-darkborder/50 rounded-2xl p-5 text-center backdrop-blur-sm">
+                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center mx-auto mb-3`}>
+                  <stat.icon className="w-5 h-5 text-white" />
+                </div>
+                <p className="text-2xl font-bold text-text-primary">{stat.value}</p>
+                <p className="text-xs text-text-muted mt-1">{stat.label}</p>
+              </div>
+            ))}
+          </motion.div>
         </div>
       </section>
 
-      <div className="max-w-6xl mx-auto px-4 pb-20">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <Loader2 className="w-8 h-8 animate-spin text-neon-violet" />
-          </div>
-        ) : enrollments.length === 0 ? (
-          <div className="text-center py-20">
-            <div className="text-6xl mb-4">📚</div>
-            <h3 className="text-2xl font-semibold text-text-primary mb-2">No courses yet</h3>
-            <p className="text-text-muted mb-6">Enroll in a course to start learning.</p>
-            <Link
-              href="/courses"
-              className="inline-block px-6 py-3 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-semibold rounded-xl hover:opacity-90 transition-opacity"
-            >
-              Explore Courses
-            </Link>
-          </div>
-        ) : (
-          <div className="space-y-4">
-            {enrollments.map(enrollment => (
-              <div
-                key={enrollment.id}
-                className="bg-darkcard border border-darkborder/50 rounded-2xl overflow-hidden hover:border-neon-violet/20 transition-all"
+      {/* Tabs */}
+      <section className="sticky top-16 z-30 bg-darkbg/90 backdrop-blur-md border-b border-darkborder">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex gap-1 py-3 overflow-x-auto">
+            {TABS.map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
+                  activeTab === tab.id
+                    ? 'bg-gradient-to-r from-neon-indigo to-neon-violet text-white'
+                    : 'text-text-muted hover:text-text-primary hover:bg-white/5'
+                }`}
               >
-                <div className="flex flex-col md:flex-row">
-                  {/* Thumbnail */}
-                  <div className="md:w-64 shrink-0">
-                    <img
-                      src={enrollment.courseThumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=400'}
-                      alt={enrollment.courseTitle}
-                      className="w-full h-36 md:h-full object-cover"
-                    />
-                  </div>
+                <tab.icon className="w-4 h-4" />
+                {tab.label}
+                <span className={`px-1.5 py-0.5 rounded text-xs ${
+                  activeTab === tab.id ? 'bg-white/20' : 'bg-darkcard'
+                }`}>
+                  {tab.id === 'in_progress' ? inProgress.length : tab.id === 'completed' ? completed.length : 0}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      </section>
 
-                  {/* Content */}
-                  <div className="flex-1 p-5">
-                    <div className="flex items-start justify-between gap-4 mb-3">
-                      <div>
-                        <h3 className="text-lg font-semibold text-text-primary mb-1">
-                          {enrollment.courseTitle}
-                        </h3>
-                        <div className="flex items-center gap-4 text-text-muted text-xs">
-                          <span className="flex items-center gap-1">
-                            <Clock className="w-3.5 h-3.5" />
-                            Enrolled {new Date(enrollment.enrolledAt).toLocaleDateString('vi-VN')}
-                          </span>
-                          {enrollment.lastLessonTitle && (
-                            <span className="text-text-muted">
-                              Last: {enrollment.lastLessonTitle}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                      <button
-                        onClick={() => handleCancel(enrollment.courseId)}
-                        disabled={cancelling === enrollment.courseId}
-                        className="p-2 text-text-muted hover:text-red-400 transition-colors shrink-0"
-                        title="Unenroll"
-                      >
-                        {cancelling === enrollment.courseId
-                          ? <Loader2 className="w-4 h-4 animate-spin" />
-                          : <X className="w-4 h-4" />
-                        }
-                      </button>
-                    </div>
-
-                    {/* Progress bar */}
-                    <div className="mb-4">
-                      <div className="flex items-center justify-between text-xs text-text-muted mb-1.5">
-                          <span className="flex items-center gap-1">
-                            <TrendingUp className="w-3.5 h-3.5" />
-                            Learning Progress
-                          </span>
-                        <span className="text-neon-violet font-medium">
-                          {Number(enrollment.progressPercent || 0).toFixed(0)}%
-                        </span>
-                      </div>
-                      <div className="w-full h-2 bg-darkbg rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-gradient-to-r from-neon-indigo to-neon-violet rounded-full transition-all"
-                          style={{ width: `${enrollment.progressPercent || 0}%` }}
-                        />
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-3">
-                      <Link
-                        href={`/courses/${enrollment.courseSlug}/learn`}
-                        className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-medium rounded-xl hover:opacity-90 transition-opacity text-sm"
-                      >
-                        {enrollment.progressPercent && Number(enrollment.progressPercent) > 0 ? 'Continue Learning' : 'Start Learning'}
-                        <Play className="w-4 h-4" />
-                      </Link>
-                      <Link
-                        href={`/courses/${enrollment.courseSlug}`}
-                        className="flex items-center gap-2 px-4 py-2 bg-darkbg border border-darkborder rounded-xl text-text-primary hover:border-neon-violet/30 transition-colors text-sm"
-                      >
-                        <BookOpen className="w-4 h-4" />
-                        View Details
-                      </Link>
+      {/* Content */}
+      <section className="py-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {loading ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="bg-darkcard rounded-2xl overflow-hidden border border-darkborder/50">
+                    <div className="aspect-video bg-darkbg" />
+                    <div className="p-4 space-y-3">
+                      <div className="h-4 bg-darkbg rounded w-3/4" />
+                      <div className="h-2 bg-darkbg rounded w-full" />
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+              ))}
+            </div>
+          ) : enrollments.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {enrollments.map((enrollment, i) => (
+                <MyCourseCard key={enrollment.id} enrollment={enrollment} index={i} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20">
+              {activeTab === 'in_progress' ? (
+                <>
+                  <Target className="w-16 h-16 text-text-muted/30 mx-auto mb-4" />
+                  <h3 className="text-xl font-heading font-bold text-text-primary mb-2">No courses in progress</h3>
+                  <p className="text-text-muted mb-6">Start learning something new today</p>
+                  <a
+                    href="/academy"
+                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-medium rounded-xl hover:opacity-90 transition-opacity"
+                  >
+                    Browse Courses
+                  </a>
+                </>
+              ) : activeTab === 'completed' ? (
+                <>
+                  <Award className="w-16 h-16 text-text-muted/30 mx-auto mb-4" />
+                  <h3 className="text-xl font-heading font-bold text-text-primary mb-2">No completed courses yet</h3>
+                  <p className="text-text-muted mb-6">Keep going, you're doing great!</p>
+                </>
+              ) : (
+                <>
+                  <BookOpen className="w-16 h-16 text-text-muted/30 mx-auto mb-4" />
+                  <h3 className="text-xl font-heading font-bold text-text-primary mb-2">Wishlist is empty</h3>
+                  <p className="text-text-muted mb-6">Save courses you want to take later</p>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }
