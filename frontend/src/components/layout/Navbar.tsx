@@ -4,13 +4,14 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
-import { Menu, X, User, LogOut, Settings, ChevronDown, BookOpen } from 'lucide-react';
+import { Menu, X, User, LogOut, Settings, ChevronDown, BookOpen, Music } from 'lucide-react';
 
 const navLinks = [
   { href: '/', label: 'Home' },
   { href: '/academy', label: 'Academy' },
   { href: '/blog', label: 'Blog' },
   { href: '/projects', label: 'Projects' },
+  { href: '/music', label: 'Music' },
   { href: '/chat', label: 'AI Chat' },
 ];
 
@@ -123,6 +124,14 @@ export default function Navbar() {
                         >
                           <BookOpen className="w-4 h-4" />
                           My Courses
+                        </Link>
+                        <Link
+                          href="/music"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors"
+                        >
+                          <Music className="w-4 h-4" />
+                          Music
                         </Link>
                         <button
                           onClick={handleLogout}
