@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Headphones, ListMusic } from 'lucide-react';
 import MusicPlayer from '@/components/music/MusicPlayer';
 import TrackList from '@/components/music/TrackList';
+import UploadTrackModal from '@/components/music/UploadTrackModal';
 import { useMusicStore } from '@/store/musicStore';
 import type { Track } from '@/types';
 
@@ -76,12 +77,28 @@ const SAMPLE_TRACKS: Track[] = [
 ];
 
 export default function MusicPage() {
-  const setTracks = useMusicStore((s) => s.setTracks);
-  const currentTrack = useMusicStore((s) => s.currentTrack);
+  const { tracks, setTracks } = useMusicStore();
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   useEffect(() => {
-    setTracks(SAMPLE_TRACKS);
-  }, [setTracks]);
+    if (tracks.length === 0) {
+      setTracks(SAMPLE_TRACKS);
+    }
+  }, [tracks.length, setTracks]);
+
+  const displayTracks = tracks.length > 0 ? tracks : SAMPLE_TRACKS;
+
+  const totalSeconds = displayTracks.reduce((acc, t) => {
+    const parts = t.duration.split(':').map(Number);
+    return acc + (parts[0] * 60 + (parts[1] || 0));
+  }, 0);
+
+  const formatTotal = (s: number) => {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    if (h > 0) return `${h}h ${m}m`;
+    return `${m}m`;
+  };
 
   return (
     <div className="min-h-screen bg-darkbg">
@@ -153,9 +170,9 @@ export default function MusicPage() {
                   <div className="flex items-center gap-4 mt-3 text-sm text-text-muted">
                     <span className="flex items-center gap-1.5">
                       <ListMusic className="w-4 h-4" />
-                      {SAMPLE_TRACKS.length} tracks
+                      {displayTracks.length} tracks
                     </span>
-                    <span>36 min</span>
+                    <span>{formatTotal(totalSeconds)}</span>
                     <span>By CuongHoang</span>
                   </div>
                 </div>
@@ -164,7 +181,7 @@ export default function MusicPage() {
 
             {/* Track List */}
             <div className="bg-darkcard rounded-2xl border border-darkborder p-5">
-              <TrackList tracks={SAMPLE_TRACKS} />
+              <TrackList tracks={displayTracks} onUploadClick={() => setUploadOpen(true)} />
             </div>
           </motion.div>
 
@@ -181,6 +198,8 @@ export default function MusicPage() {
           </motion.div>
         </div>
       </section>
+
+      <UploadTrackModal isOpen={uploadOpen} onClose={() => setUploadOpen(false)} />
     </div>
   );
 }

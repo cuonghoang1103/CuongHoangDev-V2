@@ -24,6 +24,8 @@ interface MusicState {
 
   // Actions
   setTracks: (tracks: Track[]) => void;
+  addTrack: (track: Track) => void;
+  deleteTrack: (id: string) => void;
   playTrack: (track: Track) => void;
   playTrackAtIndex: (index: number) => void;
   togglePlay: () => void;
@@ -78,6 +80,53 @@ export const useMusicStore = create<MusicState>()((set, get) => ({
       originalOrder: tracks,
       currentTrack: first,
       currentIndex: first ? 0 : -1,
+    });
+  },
+
+  addTrack: (track) => {
+    set((s) => {
+      const newTracks = [...s.tracks, track];
+      const newOriginal = [...s.originalOrder, track];
+      const wasEmpty = s.tracks.length === 0;
+      return {
+        tracks: newTracks,
+        queue: newTracks,
+        originalOrder: newOriginal,
+        currentTrack: wasEmpty ? track : s.currentTrack,
+        currentIndex: wasEmpty ? 0 : s.currentIndex,
+      };
+    });
+  },
+
+  deleteTrack: (id) => {
+    set((s) => {
+      const newTracks = s.tracks.filter((t) => t.id !== id);
+      const newOriginal = s.originalOrder.filter((t) => t.id !== id);
+      const deletedIndex = s.tracks.findIndex((t) => t.id === id);
+      let newIndex = s.currentIndex;
+      let newCurrent = s.currentTrack;
+
+      if (newTracks.length === 0) {
+        newCurrent = null;
+        newIndex = -1;
+      } else if (s.currentTrack?.id === id) {
+        // Currently playing track was deleted
+        if (deletedIndex >= newTracks.length) {
+          newIndex = newTracks.length - 1;
+        }
+        newCurrent = newTracks[newIndex];
+      } else if (deletedIndex < s.currentIndex) {
+        newIndex = s.currentIndex - 1;
+      }
+
+      return {
+        tracks: newTracks,
+        queue: newTracks,
+        originalOrder: newOriginal,
+        currentTrack: newCurrent,
+        currentIndex: newIndex,
+        isPlaying: newCurrent ? s.isPlaying : false,
+      };
     });
   },
 
