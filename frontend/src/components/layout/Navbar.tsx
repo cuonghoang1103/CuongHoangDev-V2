@@ -31,7 +31,7 @@ export default function Navbar() {
   const isAuthPage = pathname === '/login' || pathname === '/register';
   if (isAuthPage) return null;
 
-  const isAdmin = user?.roles?.some((r: string) => r.toUpperCase() === 'ADMIN');
+  const isAdmin = user?.roles?.some((r: string) => r.replace('ROLE_', '').toUpperCase() === 'ADMIN');
 
   const handleLogout = () => {
     logout();

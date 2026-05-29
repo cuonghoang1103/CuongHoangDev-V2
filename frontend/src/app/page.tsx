@@ -2,8 +2,9 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { blogApi } from '@/lib/api';
-import type { Post, Category } from '@/types';
+import { motion } from 'framer-motion';
+import { blogApi, api } from '@/lib/api';
+import type { Post, Category, Project } from '@/types';
 import BlogCard from '@/components/blog/BlogCard';
 import ServicesSection from '@/components/home/ServicesSection';
 import ContactSection from '@/components/home/ContactSection';
@@ -13,17 +14,20 @@ import { formatNumber } from '@/lib/utils';
 export default function HomePage() {
   const [featuredPosts, setFeaturedPosts] = useState<Post[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [featuredProjects, setFeaturedProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [postsRes, categoriesRes] = await Promise.all([
+        const [postsRes, categoriesRes, projectsRes] = await Promise.all([
           blogApi.getPosts({ size: 6 }),
           blogApi.getCategories(),
+          api.get('/api/v1/projects/featured'),
         ]);
         setFeaturedPosts(postsRes.data.data?.content || []);
         setCategories(categoriesRes.data.data || []);
+        setFeaturedProjects(projectsRes.data.data?.slice(0, 4) || []);
       } catch (err) {
         console.error('Failed to fetch data:', err);
       } finally {
@@ -83,13 +87,14 @@ export default function HomePage() {
               {/* Core Values */}
               <div className="grid grid-cols-3 gap-4 mb-8">
                 {[
-                  { icon: '⚡', label: 'Fast Delivery' },
-                  { icon: '🧠', label: 'AI-Powered' },
-                  { icon: '💎', label: 'High Quality' },
+                  { icon: '⚡', label: 'Fast Delivery', desc: 'On-time quality solutions' },
+                  { icon: '🧠', label: 'AI-Powered', desc: 'Intelligent web experiences' },
+                  { icon: '💎', label: 'High Quality', desc: 'Clean, scalable code & UX' },
                 ].map((value) => (
-                  <div key={value.label} className="text-center p-3 bg-darkcard/50 rounded-xl border border-darkborder/30">
-                    <div className="text-2xl mb-1">{value.icon}</div>
-                    <div className="text-xs text-text-muted font-medium">{value.label}</div>
+                  <div key={value.label} className="group text-center p-4 bg-darkcard/50 rounded-xl border border-darkborder/30 hover:border-neon-violet/40 hover:bg-darkcard/70 transition-all duration-300 cursor-default">
+                    <div className="text-3xl mb-2">{value.icon}</div>
+                    <div className="text-sm font-semibold text-text-primary mb-1">{value.label}</div>
+                    <div className="text-xs text-text-muted">{value.desc}</div>
                   </div>
                 ))}
               </div>
@@ -124,11 +129,12 @@ export default function HomePage() {
             {/* Right - Avatar */}
             <div className="hidden lg:flex justify-center">
               <div className="relative">
-                <div className="w-[420px] h-[420px] rounded-3xl bg-gradient-to-br from-neon-indigo/30 to-neon-violet/30 border border-neon-violet/20 p-3">
+                <div className="w-[420px] h-[420px] rounded-3xl bg-gradient-to-br from-neon-indigo/30 to-neon-violet/30 border border-neon-violet/20 p-3 max-w-full max-h-full overflow-hidden">
                   <img
                     src="/images/avatar.png"
                     alt="CuongHoang"
                     className="w-full h-full rounded-2xl object-cover"
+                    style={{ maxWidth: '100%', maxHeight: '100%' }}
                   />
                 </div>
                 {/* Decorative Elements */}
@@ -170,14 +176,197 @@ export default function HomePage() {
               { label: 'Technologies Used', value: '15+' },
               { label: 'Happy Clients', value: '50+' },
             ].map((stat, i) => (
-              <div key={i} className="text-center">
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: i * 0.1 }}
+                className="text-center"
+              >
                 <div className="text-4xl md:text-5xl font-heading font-bold bg-clip-text text-transparent bg-gradient-to-r from-neon-indigo to-neon-violet">
                   {stat.value}
                 </div>
                 <div className="text-text-muted mt-2">{stat.label}</div>
-              </div>
+              </motion.div>
             ))}
           </div>
+        </div>
+      </section>
+
+      {/* Featured Projects */}
+      <section className="py-20 relative">
+        <div className="max-w-7xl mx-auto px-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-14"
+          >
+            <span className="inline-block px-4 py-1.5 bg-neon-fuchsia/10 border border-neon-fuchsia/20 rounded-full text-sm text-neon-fuchsia font-medium mb-4">
+              My Work
+            </span>
+            <h2 className="text-4xl md:text-5xl font-heading font-bold text-text-primary mb-4">
+              Featured <span className="text-neon-fuchsia">Projects</span>
+            </h2>
+            <p className="text-text-secondary text-lg max-w-2xl mx-auto">
+              Real-world projects showcasing my skills and experience
+            </p>
+          </motion.div>
+
+          {featuredProjects.length > 0 ? (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {featuredProjects.map((project, index) => (
+                <motion.div
+                  key={project.id}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="group bg-darkcard rounded-2xl border border-darkborder/50 hover:border-neon-fuchsia/40 transition-all duration-300 overflow-hidden"
+                >
+                  <div className="aspect-[4/3] overflow-hidden bg-darkbg">
+                    {project.thumbnailUrl ? (
+                      <img
+                        src={project.thumbnailUrl}
+                        alt={project.title}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neon-indigo/20 to-neon-violet/20">
+                        <span className="text-4xl opacity-30">{project.title.charAt(0)}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-start justify-between mb-2 gap-2">
+                      <h3 className="text-base font-heading font-bold text-text-primary group-hover:text-neon-fuchsia transition-colors line-clamp-1">
+                        {project.title}
+                      </h3>
+                      <span className={`shrink-0 px-2 py-0.5 text-xs rounded-md border ${
+                        project.status === 'COMPLETED'
+                          ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                          : project.status === 'IN_PROGRESS'
+                          ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                          : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                      }`}>
+                        {project.status === 'IN_PROGRESS' ? 'In Progress' : project.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-secondary line-clamp-2 mb-3">{project.description}</p>
+                    {project.technologies && project.technologies.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mb-4">
+                        {project.technologies.slice(0, 3).map((tech) => (
+                          <span key={tech} className="px-2 py-0.5 bg-darkbg text-text-muted text-xs rounded-md border border-darkborder">
+                            {tech}
+                          </span>
+                        ))}
+                        {project.technologies.length > 3 && (
+                          <span className="px-2 py-0.5 bg-darkbg text-text-muted text-xs rounded-md border border-darkborder">
+                            +{project.technologies.length - 3}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    <Link
+                      href={`/projects/${project.slug}`}
+                      className="inline-flex items-center gap-1 text-sm text-neon-fuchsia hover:text-neon-violet transition-colors group/link"
+                    >
+                      View Details
+                      <svg className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                      </svg>
+                    </Link>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {[
+                {
+                  title: 'CuongHoang Portfolio V2',
+                  desc: 'Next-gen portfolio with AI chatbot & RAG architecture',
+                  tags: ['Java', 'Next.js', 'AI'],
+                  status: 'IN_PROGRESS',
+                  emoji: 'P',
+                  gradient: 'from-neon-indigo',
+                },
+                {
+                  title: 'E-Commerce Platform',
+                  desc: 'Full e-commerce with payment integration',
+                  tags: ['Spring Boot', 'React', 'Stripe'],
+                  status: 'COMPLETED',
+                  emoji: 'E',
+                  gradient: 'from-green-500',
+                },
+                {
+                  title: 'Microservices Demo',
+                  desc: 'Spring Cloud, Eureka, API Gateway',
+                  tags: ['Java', 'Docker', 'K8s'],
+                  status: 'COMPLETED',
+                  emoji: 'M',
+                  gradient: 'from-blue-500',
+                },
+                {
+                  title: 'AI Chat Application',
+                  desc: 'Smart chatbot with RAG knowledge base',
+                  tags: ['Next.js', 'OpenAI', 'PostgreSQL'],
+                  status: 'COMPLETED',
+                  emoji: 'A',
+                  gradient: 'from-neon-violet',
+                },
+              ].map((project, index) => (
+                <motion.div
+                  key={project.title}
+                  initial={{ opacity: 0, y: 30 }}
+                  whileInView={{ opacity: 1, y: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5, delay: index * 0.1 }}
+                  className="group bg-darkcard rounded-2xl border border-darkborder/50 hover:border-neon-fuchsia/40 transition-all duration-300 overflow-hidden"
+                >
+                  <div className="aspect-[4/3] bg-gradient-to-br from-darkcard to-darkbg flex items-center justify-center relative overflow-hidden">
+                    <div className={`absolute inset-0 bg-gradient-to-br ${project.gradient}/10 to-neon-fuchsia/5`} />
+                    <span className="relative text-5xl font-heading font-bold text-neon-fuchsia/30 group-hover:text-neon-fuchsia/50 transition-colors">
+                      {project.emoji}
+                    </span>
+                  </div>
+                  <div className="p-5">
+                    <div className="flex items-start justify-between mb-2 gap-2">
+                      <h3 className="text-base font-heading font-bold text-text-primary group-hover:text-neon-fuchsia transition-colors line-clamp-1">
+                        {project.title}
+                      </h3>
+                      <span className={`shrink-0 px-2 py-0.5 text-xs rounded-md border ${
+                        project.status === 'COMPLETED'
+                          ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                          : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                      }`}>
+                        {project.status === 'In Progress' ? 'In Progress' : project.status}
+                      </span>
+                    </div>
+                    <p className="text-xs text-text-secondary line-clamp-2 mb-3">{project.desc}</p>
+                    <div className="flex flex-wrap gap-1 mb-4">
+                      {project.tags.map((tag) => (
+                        <span key={tag} className="px-2 py-0.5 bg-darkbg text-text-muted text-xs rounded-md border border-darkborder">
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                    <Link
+                      href="/projects"
+                      className="inline-flex items-center gap-1 text-sm text-neon-fuchsia hover:text-neon-violet transition-colors group/link"
+                    >
+                      View Details
+                      <svg className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                      </svg>
+                    </Link>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
@@ -185,7 +374,12 @@ export default function HomePage() {
       <section className="py-24">
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div>
+            <motion.div
+              initial={{ opacity: 0, x: -30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+            >
               <h2 className="text-4xl font-heading font-bold text-text-primary mb-6">
                 About <span className="text-neon-violet">Me</span>
               </h2>
@@ -202,19 +396,25 @@ export default function HomePage() {
                   </span>
                 ))}
               </div>
-            </div>
-            <div className="relative">
-              <div className="aspect-square rounded-3xl bg-gradient-to-br from-neon-indigo/20 to-neon-violet/20 border border-neon-violet/20 p-8">
+            </motion.div>
+            <motion.div
+              initial={{ opacity: 0, x: 30 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.6 }}
+              className="relative"
+            >
+              <div className="aspect-square rounded-3xl bg-gradient-to-br from-neon-indigo/20 to-neon-violet/20 border border-neon-violet/20 p-8 overflow-hidden">
                 <img
                   src="/images/avatar.png"
                   alt="CuongHoang"
                   className="w-full h-full rounded-2xl object-cover"
+                  style={{ maxWidth: '100%', maxHeight: '100%' }}
                 />
               </div>
-              {/* Decorative Elements */}
               <div className="absolute -top-4 -right-4 w-24 h-24 bg-neon-fuchsia/20 rounded-full blur-xl" />
               <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-neon-indigo/20 rounded-full blur-xl" />
-            </div>
+            </motion.div>
           </div>
         </div>
       </section>
@@ -222,14 +422,20 @@ export default function HomePage() {
       {/* Blog Section */}
       <section className="py-24 bg-gradient-to-b from-darkbg to-darkcard">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
+          >
             <h2 className="text-4xl font-heading font-bold text-text-primary mb-4">
               Latest <span className="text-neon-violet">Articles</span>
             </h2>
             <p className="text-text-secondary text-lg max-w-2xl mx-auto">
               Explore the latest articles about technology and programming experience
             </p>
-          </div>
+          </motion.div>
 
           {loading ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -249,7 +455,15 @@ export default function HomePage() {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {featuredPosts.slice(0, 6).map((post, index) => (
-                  <BlogCard key={post.id} post={post} variant={index === 0 ? 'featured' : 'default'} />
+                  <motion.div
+                    key={post.id}
+                    initial={{ opacity: 0, y: 30 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.5, delay: index * 0.08 }}
+                  >
+                    <BlogCard post={post} variant={index === 0 ? 'featured' : 'default'} />
+                  </motion.div>
                 ))}
               </div>
               <div className="text-center mt-12">
@@ -275,22 +489,34 @@ export default function HomePage() {
       {/* Categories Section */}
       <section className="py-24">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
+          >
             <h2 className="text-4xl font-heading font-bold text-text-primary mb-4">
               Blog <span className="text-neon-fuchsia">Categories</span>
             </h2>
             <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-              Find articles by topics you're interested in
+              Find articles by topics you&apos;re interested in
             </p>
-          </div>
+          </motion.div>
 
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {categories.length > 0 ? categories.map((category, i) => (
-              <Link
+              <motion.div
                 key={category.id}
-                href={`/blog?category=${category.slug}`}
-                className="group p-6 bg-darkcard rounded-2xl border border-darkborder/50 hover:border-neon-violet transition-all duration-300"
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.08 }}
               >
+                <Link
+                  href={`/blog?category=${category.slug}`}
+                  className="group block p-6 bg-darkcard rounded-2xl border border-darkborder/50 hover:border-neon-violet transition-all duration-300"
+                >
                 <div className={`w-12 h-12 rounded-xl mb-4 flex items-center justify-center ${
                   i % 4 === 0 ? 'bg-neon-indigo/20 text-neon-indigo' :
                   i % 4 === 1 ? 'bg-neon-violet/20 text-neon-violet' :
@@ -325,6 +551,7 @@ export default function HomePage() {
                   {category.description || 'Explore articles about ' + category.name.toLowerCase()}
                 </p>
               </Link>
+              </motion.div>
             )) : (
               <div className="col-span-4 text-center py-12">
                 <p className="text-text-muted text-lg">No categories yet</p>
@@ -337,14 +564,20 @@ export default function HomePage() {
       {/* Skills Section */}
       <section className="py-24">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-16">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.5 }}
+            className="text-center mb-16"
+          >
             <h2 className="text-4xl font-heading font-bold text-text-primary mb-4">
               Skills & <span className="text-neon-indigo">Technologies</span>
             </h2>
             <p className="text-text-secondary text-lg max-w-2xl mx-auto">
               Technologies and skills I use to build products
             </p>
-          </div>
+          </motion.div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
             {[
@@ -359,7 +592,14 @@ export default function HomePage() {
               { name: 'Redis', level: 75, color: 'from-red-500 to-orange-500' },
               { name: 'AWS', level: 65, color: 'from-orange-400 to-yellow-500' },
             ].map((skill, i) => (
-              <div key={skill.name} className="p-4 bg-darkcard rounded-xl border border-darkborder/50 hover:border-neon-violet/30 transition-all group cursor-default">
+              <motion.div
+                key={skill.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.4, delay: i * 0.06 }}
+                className="p-4 bg-darkcard rounded-xl border border-darkborder/50 hover:border-neon-violet/30 transition-all group cursor-default"
+              >
                 <div className="flex items-center justify-between mb-3">
                   <span className="text-sm font-medium text-text-primary group-hover:text-neon-violet transition-colors">
                     {skill.name}
@@ -372,7 +612,7 @@ export default function HomePage() {
                     style={{ width: `${skill.level}%` }}
                   />
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>

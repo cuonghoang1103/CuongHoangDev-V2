@@ -18,8 +18,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  const authToken = request.cookies.get('__auth__');
   const authCookie = request.cookies.get('auth-storage');
-  const isAuthenticated = !!authCookie?.value && authCookie.value.length > 10;
+  const isAuthenticated = !!(authToken?.value) || (!!authCookie?.value && authCookie.value.length > 10);
 
   if (isAdminPath) {
     if (!isAuthenticated) {

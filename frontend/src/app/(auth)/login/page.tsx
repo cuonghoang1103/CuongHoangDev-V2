@@ -40,8 +40,9 @@ export default function LoginPage() {
       setAuth(authData);
       toast.success(`Welcome, ${authData.username}!`);
 
-      const role = (authData.role || '').toUpperCase();
-      router.push(role.includes('ADMIN') ? '/admin' : '/');
+      const roles = authData.roles || (authData.role ? [authData.role] : []);
+      const isAdmin = roles.some((r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN');
+      router.push(isAdmin ? '/admin' : '/');
     } catch (err: unknown) {
       const error = err as { response?: { data?: { message?: string } } };
       const msg = error?.response?.data?.message || 'Login failed';
