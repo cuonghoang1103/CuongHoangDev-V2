@@ -47,7 +47,7 @@ function BlogContent() {
       setTotalPages(data.totalPages || 1);
     } catch (err) {
       console.error('Failed to fetch posts:', err);
-      setError('Không thể tải bài viết. Vui lòng thử lại.');
+      setError('Unable to load posts. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -71,7 +71,7 @@ function BlogContent() {
           <div className="relative flex-1">
             <input
               type="text"
-              placeholder="Tìm kiếm bài viết..."
+              placeholder="Search posts..."
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
               className="w-full px-4 py-3 pl-12 rounded-xl bg-darkcard border border-darkborder text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
@@ -81,7 +81,7 @@ function BlogContent() {
             </svg>
           </div>
           <button type="submit" className="px-6 py-3 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-medium rounded-xl hover:opacity-90 transition-opacity">
-            Tìm kiếm
+            Search
           </button>
         </form>
       </div>
@@ -119,7 +119,7 @@ function BlogContent() {
           </div>
           <p className="text-text-secondary">{error}</p>
           <button onClick={() => fetchPosts()} className="mt-4 px-6 py-2 bg-neon-violet/20 text-neon-violet rounded-xl hover:bg-neon-violet/30 transition-colors">
-            Thử lại
+            Try Again
           </button>
         </div>
       )}
@@ -131,9 +131,9 @@ function BlogContent() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
             </svg>
           </div>
-          <h3 className="text-xl font-heading font-semibold text-text-primary mb-2">Chưa có bài viết nào</h3>
+          <h3 className="text-xl font-heading font-semibold text-text-primary mb-2">No posts found</h3>
           <p className="text-text-secondary">
-            {categorySlug ? 'Danh mục này hiện chưa có bài viết.' : 'Hãy là người đầu tiên đăng bài viết!'}
+            {categorySlug ? 'This category has no posts yet.' : 'Be the first to write a post!'}
           </p>
         </div>
       )}
@@ -147,6 +147,12 @@ function BlogContent() {
           </div>
           <Pagination currentPage={currentPage} totalPages={totalPages} onPageChange={setCurrentPage} />
         </>
+      )}
+
+      {!loading && (
+        <div className="lg:w-80 mt-8 lg:mt-0">
+          <CategorySidebar categories={categories} />
+        </div>
       )}
     </>
   );
@@ -189,13 +195,13 @@ export default function BlogPage() {
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-text-primary mb-6">
-            Blog của{' '}
+            Blog by{' '}
             <span className="bg-clip-text text-transparent bg-gradient-to-r from-neon-indigo via-neon-violet to-neon-fuchsia">
-              CuongHoangDev
+              CuongHoang
             </span>
           </h1>
           <p className="text-lg md:text-xl text-text-secondary max-w-2xl mx-auto">
-            Khám phá những bài viết về công nghệ, lập trình và chia sẻ kinh nghiệm phát triển phần mềm
+            Explore articles about technology, programming, and software development insights
           </p>
         </div>
       </section>
@@ -205,9 +211,6 @@ export default function BlogPage() {
           <Suspense fallback={<BlogLoading />}>
             <BlogContent />
           </Suspense>
-          <div className="lg:w-80">
-            <CategorySidebar categories={[]} />
-          </div>
         </div>
       </section>
     </div>

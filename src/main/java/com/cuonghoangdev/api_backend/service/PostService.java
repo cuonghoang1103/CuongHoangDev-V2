@@ -59,10 +59,9 @@ public class PostService {
 
     // ============ PUBLIC (Cached) ============
 
-    @Cacheable(value = "posts", key = "'published:page:' + #page + ':size:' + #size")
-    public PageResponse<PostDto> getPublishedPosts(int page, int size) {
+    public PageResponse<PostDto> getPublishedPosts(int page, int size, String categorySlug) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("publishedAt").descending());
-        Page<Post> posts = postRepository.findByStatus("PUBLISHED", pageable);
+        Page<Post> posts = postRepository.findByStatusAndCategorySlug("PUBLISHED", categorySlug, pageable);
         return toPageResponse(posts);
     }
 
@@ -85,7 +84,6 @@ public class PostService {
         return toDto(post);
     }
 
-    @Cacheable(value = "posts", key = "'search:' + #keyword + ':cat:' + #categorySlug + ':page:' + #page + ':size:' + #size")
     public PageResponse<PostDto> searchPosts(String keyword, String categorySlug, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         Page<Post> posts = postRepository.searchPosts(keyword, categorySlug, pageable);
@@ -94,10 +92,15 @@ public class PostService {
 
     // ============ ADMIN (Evict cache) ============
 
-    @Cacheable(value = "posts", key = "'admin:all:page:' + #page + ':size:' + #size")
     public PageResponse<PostDto> getAllPostsForAdmin(int page, int size) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("updatedAt").descending());
         Page<Post> posts = postRepository.findAll(pageable);
+        return toPageResponse(posts);
+    }
+
+    public PageResponse<PostDto> searchPostsAdmin(String keyword, String status, int page, int size) {
+        Pageable pageable = PageRequest.of(page, size, Sort.by("createdAt").descending());
+        Page<Post> posts = postRepository.searchPostsAdmin(keyword, status, pageable);
         return toPageResponse(posts);
     }
 
@@ -307,6 +310,7 @@ public class PostService {
         if (post.getCategory() != null) {
             dto.setCategoryId(post.getCategory().getId());
             dto.setCategoryName(post.getCategory().getName());
+            dto.setCategorySlug(post.getCategory().getSlug());
         }
         if (post.getAuthor() != null) {
             dto.setAuthorId(post.getAuthor().getId());

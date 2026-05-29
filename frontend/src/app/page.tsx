@@ -5,6 +5,9 @@ import { useState, useEffect } from 'react';
 import { blogApi } from '@/lib/api';
 import type { Post, Category } from '@/types';
 import BlogCard from '@/components/blog/BlogCard';
+import ServicesSection from '@/components/home/ServicesSection';
+import ContactSection from '@/components/home/ContactSection';
+import Footer from '@/components/home/Footer';
 import { formatNumber } from '@/lib/utils';
 
 export default function HomePage() {
@@ -33,7 +36,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-darkbg">
       {/* Hero Section */}
-      <section className="relative min-h-[80vh] flex items-center justify-center overflow-hidden">
+      <section className="relative min-h-[85vh] flex items-center overflow-hidden">
         {/* Background Effects */}
         <div className="absolute inset-0">
           <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-neon-indigo/20 rounded-full blur-[150px] animate-pulse" />
@@ -48,50 +51,108 @@ export default function HomePage() {
           backgroundSize: '50px 50px'
         }} />
 
-        <div className="relative z-10 max-w-6xl mx-auto px-4 text-center">
-          {/* Badge */}
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-neon-violet/10 border border-neon-violet/20 rounded-full mb-8">
-            <span className="w-2 h-2 bg-neon-violet rounded-full animate-pulse" />
-            <span className="text-sm text-neon-violet font-medium">Portfolio & AI Platform</span>
-          </div>
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left - Text Content */}
+            <div>
+              {/* Badge */}
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-neon-violet/10 border border-neon-violet/20 rounded-full mb-6">
+                <span className="w-2 h-2 bg-neon-violet rounded-full animate-pulse" />
+                <span className="text-sm text-neon-violet font-medium">Available for Projects</span>
+              </div>
 
-          {/* Main Title */}
-          <h1 className="text-5xl md:text-7xl lg:text-8xl font-heading font-bold mb-6">
-            <span className="text-text-primary">Xin chào, tôi là </span>
-            <br />
-            <span className="bg-clip-text text-transparent bg-gradient-to-r from-neon-indigo via-neon-violet to-neon-fuchsia">
-              CuongHoangDev
-            </span>
-          </h1>
+              {/* Main Title */}
+              <h1 className="text-5xl md:text-6xl lg:text-7xl font-heading font-bold mb-4 leading-tight">
+                <span className="text-text-primary">Hi, I am </span>
+                <br />
+                <span className="bg-clip-text text-transparent bg-gradient-to-r from-neon-indigo via-neon-violet to-neon-fuchsia">
+                  CuongHoang
+                </span>
+              </h1>
 
-          {/* Subtitle */}
-          <p className="text-xl md:text-2xl text-text-secondary max-w-2xl mx-auto mb-10">
-            Full Stack Developer | AI Enthusiast | Building modern web applications
-          </p>
+              {/* Tagline */}
+              <p className="text-xl md:text-2xl text-neon-violet font-semibold mb-4">
+                Full-Stack Developer & AI Builder
+              </p>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            <Link
-              href="/blog"
-              className="group px-8 py-4 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-semibold rounded-2xl hover:shadow-lg hover:shadow-neon-violet/30 transition-all duration-300"
-            >
-              <span className="flex items-center gap-2">
-                Đọc Blog
-                <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                </svg>
-              </span>
-            </Link>
-            <Link
-              href="#projects"
-              className="px-8 py-4 bg-darkcard border border-darkborder text-text-primary font-semibold rounded-2xl hover:border-neon-violet hover:text-neon-violet transition-all duration-300"
-            >
-              Xem Dự án
-            </Link>
+              {/* Description */}
+              <p className="text-lg text-text-secondary max-w-xl mb-8 leading-relaxed">
+                I help startups and small businesses build modern websites, fast and powered by intelligent AI solutions.
+              </p>
+
+              {/* Core Values */}
+              <div className="grid grid-cols-3 gap-4 mb-8">
+                {[
+                  { icon: '⚡', label: 'Fast Delivery' },
+                  { icon: '🧠', label: 'AI-Powered' },
+                  { icon: '💎', label: 'High Quality' },
+                ].map((value) => (
+                  <div key={value.label} className="text-center p-3 bg-darkcard/50 rounded-xl border border-darkborder/30">
+                    <div className="text-2xl mb-1">{value.icon}</div>
+                    <div className="text-xs text-text-muted font-medium">{value.label}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                <a
+                  href="#projects"
+                  className="group px-8 py-4 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-semibold rounded-2xl hover:shadow-lg hover:shadow-neon-violet/30 transition-all duration-300"
+                >
+                  <span className="flex items-center gap-2">
+                    View Projects
+                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </span>
+                </a>
+                <a
+                  href="/courses"
+                  className="group px-8 py-4 bg-darkcard border border-darkborder text-text-primary font-semibold rounded-2xl hover:border-neon-violet hover:text-neon-violet transition-all duration-300"
+                >
+                  <span className="flex items-center gap-2">
+                    Explore Academy
+                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                    </svg>
+                  </span>
+                </a>
+              </div>
+            </div>
+
+            {/* Right - Avatar */}
+            <div className="hidden lg:flex justify-center">
+              <div className="relative">
+                <div className="w-[420px] h-[420px] rounded-3xl bg-gradient-to-br from-neon-indigo/30 to-neon-violet/30 border border-neon-violet/20 p-3">
+                  <img
+                    src="/images/avatar.png"
+                    alt="CuongHoang"
+                    className="w-full h-full rounded-2xl object-cover"
+                  />
+                </div>
+                {/* Decorative Elements */}
+                <div className="absolute -top-4 -right-4 w-32 h-32 bg-neon-fuchsia/20 rounded-full blur-2xl" />
+                <div className="absolute -bottom-4 -left-4 w-40 h-40 bg-neon-indigo/20 rounded-full blur-2xl" />
+                {/* Floating badges */}
+                <div className="absolute -top-4 left-8 px-4 py-2 bg-darkcard/90 backdrop-blur-md border border-darkborder rounded-xl shadow-xl">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
+                    <span className="text-text-primary font-medium">3+ Years Experience</span>
+                  </div>
+                </div>
+                <div className="absolute -bottom-4 right-8 px-4 py-2 bg-darkcard/90 backdrop-blur-md border border-darkborder rounded-xl shadow-xl">
+                  <div className="flex items-center gap-2 text-sm">
+                    <span className="text-yellow-400">★★★★★</span>
+                    <span className="text-text-primary font-medium">50+ Happy Clients</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Scroll Indicator */}
-          <div className="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce">
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
             <svg className="w-6 h-6 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
             </svg>
@@ -104,10 +165,10 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {[
-              { label: 'Năm kinh nghiệm', value: '3+' },
-              { label: 'Dự án hoàn thành', value: '20+' },
-              { label: 'Công nghệ sử dụng', value: '15+' },
-              { label: 'Khách hàng hài lòng', value: '50+' },
+              { label: 'Years of Experience', value: '3+' },
+              { label: 'Projects Delivered', value: '20+' },
+              { label: 'Technologies Used', value: '15+' },
+              { label: 'Happy Clients', value: '50+' },
             ].map((stat, i) => (
               <div key={i} className="text-center">
                 <div className="text-4xl md:text-5xl font-heading font-bold bg-clip-text text-transparent bg-gradient-to-r from-neon-indigo to-neon-violet">
@@ -126,15 +187,13 @@ export default function HomePage() {
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div>
               <h2 className="text-4xl font-heading font-bold text-text-primary mb-6">
-                Về <span className="text-neon-violet">Tôi</span>
+                About <span className="text-neon-violet">Me</span>
               </h2>
               <p className="text-text-secondary text-lg leading-relaxed mb-6">
-                Tôi là một Full Stack Developer đam mê công nghệ, luôn tìm kiếm những giải pháp sáng tạo 
-                và hiệu quả cho các vấn đề phức tạp. Với kinh nghiệm trong việc xây dựng các ứng dụng web 
-                hiện đại, tôi chuyên về React, Next.js, Spring Boot và tích hợp AI.
+                CuongHoang is a passionate Full Stack Developer who loves building creative and efficient solutions for complex problems. With experience in modern web development, he specializes in React, Next.js, Spring Boot, and AI integration.
               </p>
               <p className="text-text-secondary text-lg leading-relaxed mb-8">
-                Ngoài công việc, tôi thích chia sẻ kiến thức qua blog và tham gia các dự án mã nguồn mở.
+                When not coding, he enjoys sharing knowledge through blog posts and contributing to open source projects.
               </p>
               <div className="flex flex-wrap gap-3">
                 {['JavaScript', 'TypeScript', 'React', 'Next.js', 'Java', 'Spring Boot', 'PostgreSQL', 'Redis', 'Docker'].map((skill) => (
@@ -146,9 +205,11 @@ export default function HomePage() {
             </div>
             <div className="relative">
               <div className="aspect-square rounded-3xl bg-gradient-to-br from-neon-indigo/20 to-neon-violet/20 border border-neon-violet/20 p-8">
-                <div className="w-full h-full rounded-2xl bg-gradient-to-br from-neon-indigo via-neon-violet to-neon-fuchsia flex items-center justify-center">
-                  <span className="text-8xl font-bold text-white opacity-50">CH</span>
-                </div>
+                <img
+                  src="/images/avatar.png"
+                  alt="CuongHoang"
+                  className="w-full h-full rounded-2xl object-cover"
+                />
               </div>
               {/* Decorative Elements */}
               <div className="absolute -top-4 -right-4 w-24 h-24 bg-neon-fuchsia/20 rounded-full blur-xl" />
@@ -163,10 +224,10 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-heading font-bold text-text-primary mb-4">
-              Bài viết <span className="text-neon-violet">mới nhất</span>
+              Latest <span className="text-neon-violet">Articles</span>
             </h2>
             <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-              Khám phá những bài viết mới nhất về công nghệ và kinh nghiệm lập trình
+              Explore the latest articles about technology and programming experience
             </p>
           </div>
 
@@ -196,7 +257,7 @@ export default function HomePage() {
                   href="/blog"
                   className="inline-flex items-center gap-2 px-8 py-4 bg-darkcard border border-darkborder text-text-primary font-semibold rounded-2xl hover:border-neon-violet hover:text-neon-violet transition-all duration-300"
                 >
-                  Xem tất cả bài viết
+                  View All Articles
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
@@ -205,7 +266,7 @@ export default function HomePage() {
             </>
           ) : (
             <div className="text-center py-12">
-              <p className="text-text-muted text-lg">Chưa có bài viết nào</p>
+              <p className="text-text-muted text-lg">No articles yet</p>
             </div>
           )}
         </div>
@@ -216,10 +277,10 @@ export default function HomePage() {
         <div className="max-w-6xl mx-auto px-4">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-heading font-bold text-text-primary mb-4">
-              Danh mục <span className="text-neon-fuchsia">Blog</span>
+              Blog <span className="text-neon-fuchsia">Categories</span>
             </h2>
             <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-              Tìm kiếm bài viết theo chủ đề bạn quan tâm
+              Find articles by topics you're interested in
             </p>
           </div>
 
@@ -261,48 +322,157 @@ export default function HomePage() {
                   {category.name}
                 </h3>
                 <p className="text-sm text-text-muted line-clamp-2">
-                  {category.description || 'Khám phá các bài viết về ' + category.name.toLowerCase()}
+                  {category.description || 'Explore articles about ' + category.name.toLowerCase()}
                 </p>
               </Link>
             )) : (
               <div className="col-span-4 text-center py-12">
-                <p className="text-text-muted text-lg">Chưa có danh mục nào</p>
+                <p className="text-text-muted text-lg">No categories yet</p>
               </div>
             )}
           </div>
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-12 border-t border-darkborder">
+      {/* Skills Section */}
+      <section className="py-24">
         <div className="max-w-6xl mx-auto px-4">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-            <div className="text-center md:text-left">
-              <h3 className="text-xl font-heading font-bold text-text-primary mb-2">
-                CuongHoangDev
-              </h3>
-              <p className="text-text-muted text-sm">
-                Full Stack Developer | AI Enthusiast
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <a href="#" className="p-3 bg-darkcard rounded-xl hover:bg-neon-violet/10 hover:text-neon-violet transition-colors">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
-                </svg>
-              </a>
-              <a href="#" className="p-3 bg-darkcard rounded-xl hover:bg-neon-violet/10 hover:text-neon-violet transition-colors">
-                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-                </svg>
-              </a>
-            </div>
-            <p className="text-text-muted text-sm">
-              © 2026 CuongHoangDev. All rights reserved.
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-heading font-bold text-text-primary mb-4">
+              Skills & <span className="text-neon-indigo">Technologies</span>
+            </h2>
+            <p className="text-text-secondary text-lg max-w-2xl mx-auto">
+              Technologies and skills I use to build products
             </p>
           </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+            {[
+              { name: 'Java', level: 95, color: 'from-orange-500 to-red-500' },
+              { name: 'Spring Boot', level: 90, color: 'from-green-500 to-emerald-500' },
+              { name: 'JavaScript', level: 85, color: 'from-yellow-400 to-orange-500' },
+              { name: 'React', level: 85, color: 'from-cyan-400 to-blue-500' },
+              { name: 'TypeScript', level: 80, color: 'from-blue-500 to-indigo-500' },
+              { name: 'Next.js', level: 80, color: 'from-gray-600 to-gray-900' },
+              { name: 'PostgreSQL', level: 85, color: 'from-blue-600 to-indigo-700' },
+              { name: 'Docker', level: 80, color: 'from-blue-400 to-cyan-500' },
+              { name: 'Redis', level: 75, color: 'from-red-500 to-orange-500' },
+              { name: 'AWS', level: 65, color: 'from-orange-400 to-yellow-500' },
+            ].map((skill, i) => (
+              <div key={skill.name} className="p-4 bg-darkcard rounded-xl border border-darkborder/50 hover:border-neon-violet/30 transition-all group cursor-default">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm font-medium text-text-primary group-hover:text-neon-violet transition-colors">
+                    {skill.name}
+                  </span>
+                  <span className="text-xs text-text-muted">{skill.level}%</span>
+                </div>
+                <div className="h-1.5 bg-darkbg rounded-full overflow-hidden">
+                  <div
+                    className={`h-full bg-gradient-to-r ${skill.color} rounded-full transition-all duration-1000`}
+                    style={{ width: `${skill.level}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
         </div>
-      </footer>
+      </section>
+
+      {/* Services Section */}
+      <ServicesSection />
+
+      {/* Projects Section */}
+      <section className="py-24 bg-gradient-to-b from-darkbg to-darkcard">
+        <div className="max-w-6xl mx-auto px-4">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-heading font-bold text-text-primary mb-4">
+              Featured <span className="text-neon-fuchsia">Projects</span>
+            </h2>
+            <p className="text-text-secondary text-lg max-w-2xl mx-auto">
+              Outstanding products I have built
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[
+              {
+                title: 'CuongHoang Portfolio V2',
+                desc: 'Next-generation portfolio system with AI chatbot integrated with RAG architecture',
+                tags: ['Java', 'Spring Boot', 'Next.js', 'AI'],
+                status: 'IN_PROGRESS',
+                color: 'from-neon-indigo',
+              },
+              {
+                title: 'E-Commerce Platform',
+                desc: 'Complete e-commerce platform with online payment integration',
+                tags: ['Java', 'React', 'PostgreSQL', 'Stripe'],
+                status: 'COMPLETED',
+                color: 'from-green-500',
+              },
+              {
+                title: 'Microservices Demo',
+                desc: 'Microservices system with Spring Cloud, Eureka and API Gateway',
+                tags: ['Java', 'Spring Cloud', 'Docker', 'K8s'],
+                status: 'COMPLETED',
+                color: 'from-blue-500',
+              },
+            ].map((project, i) => (
+              <div key={project.title} className="group bg-darkcard rounded-2xl border border-darkborder/50 hover:border-neon-violet/40 transition-all overflow-hidden">
+                <div className={`h-2 bg-gradient-to-r ${project.color} to-neon-violet`} />
+                <div className="p-6">
+                  <div className="flex items-start justify-between mb-3">
+                    <h3 className="text-lg font-heading font-bold text-text-primary group-hover:text-neon-violet transition-colors line-clamp-1">
+                      {project.title}
+                    </h3>
+                    <span className={`ml-2 px-2 py-0.5 text-xs rounded-md border shrink-0 ${
+                      project.status === 'COMPLETED'
+                        ? 'bg-green-500/20 text-green-400 border-green-500/30'
+                        : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                    }`}>
+                      {project.status === 'COMPLETED' ? 'Completed' : 'In Progress'}
+                    </span>
+                  </div>
+                  <p className="text-sm text-text-secondary line-clamp-2 mb-4">{project.desc}</p>
+                  <div className="flex flex-wrap gap-1.5 mb-4">
+                    {project.tags.map((tag) => (
+                      <span key={tag} className="px-2 py-0.5 bg-darkbg text-text-muted text-xs rounded-md border border-darkborder">
+                        {tag}
+                      </span>
+                    ))}
+                  </div>
+                  <Link
+                    href="/projects"
+                    className="inline-flex items-center gap-1 text-sm text-neon-violet hover:text-neon-indigo transition-colors group/link"
+                  >
+                    View Details
+                    <svg className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <Link
+              href="/projects"
+              className="inline-flex items-center gap-2 px-8 py-4 bg-darkcard border border-darkborder text-text-primary font-semibold rounded-2xl hover:border-neon-violet hover:text-neon-violet transition-all duration-300"
+            >
+              View All Projects
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+              </svg>
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Contact Section */}
+      <ContactSection />
+
+      {/* Footer */}
+      <Footer />
     </div>
   );
 }

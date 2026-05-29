@@ -30,8 +30,9 @@ public class BlogController {
     @GetMapping("/posts")
     public ResponseEntity<PageResponse<PostDto>> getPublishedPosts(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(postService.getPublishedPosts(page, size));
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String category) {
+        return ResponseEntity.ok(postService.getPublishedPosts(page, size, category));
     }
 
     @GetMapping("/posts/featured")

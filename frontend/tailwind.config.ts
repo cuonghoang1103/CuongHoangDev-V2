@@ -20,8 +20,11 @@ const config: Config = {
           fuchsia: "#d946ef",
           cyan: "#22d3ee",
           green: "#4ade80",
+          emerald: "#10b981",
+          blue: "#3b82f6",
           orange: "#fb923c",
           red: "#f43f5e",
+          pink: "#ec4899",
         },
         text: {
           primary: "#f8fafc",

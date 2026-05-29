@@ -23,6 +23,8 @@ export interface User {
   username: string;
   email: string;
   fullName?: string;
+  avatarUrl?: string;
+  bio?: string;
   roles: string[];
   enabled: boolean;
   accountNonLocked: boolean;
@@ -45,10 +47,46 @@ export interface RegisterRequest {
 
 export interface AuthResponse {
   token: string;
-  id: number;
+  userId: number;
   username: string;
   email: string;
   role: string;
+  roles: string[];
+}
+
+// Skill & Project types
+export interface Skill {
+  id: number;
+  name: string;
+  slug: string;
+  category: string;
+  proficiency: number;
+  description?: string;
+  yearsExperience?: number;
+  isFeatured: boolean;
+  displayOrder: number;
+}
+
+export interface Project {
+  id: number;
+  title: string;
+  slug: string;
+  description?: string;
+  content?: string;
+  thumbnailUrl?: string;
+  projectUrl?: string;
+  githubUrl?: string;
+  technologies?: string[];
+  role?: string;
+  duration?: string;
+  status: string;
+  featured: boolean;
+  startDate?: string;
+  endDate?: string;
+  skillNames?: string[];
+  viewCount?: number;
+  createdAt: string;
+  updatedAt?: string;
 }
 
 // Blog types
@@ -83,6 +121,7 @@ export interface Post {
   updatedAt?: string;
   categoryId?: number;
   categoryName?: string;
+  categorySlug?: string;
   authorId?: number;
   authorName?: string;
   tagNames?: string[];
@@ -183,4 +222,127 @@ export interface FileUploadResponse {
   fileSize: number;
   url: string;
   uploadedAt: string;
+}
+
+// === COURSE TYPES ===
+
+export interface CourseCategory {
+  id: number;
+  name: string;
+  slug: string;
+  description?: string;
+  icon?: string;
+  sortOrder: number;
+  courseCount?: number;
+}
+
+export interface LessonDto {
+  id: number;
+  sectionId?: number;
+  title: string;
+  slug?: string;
+  description?: string;
+  content?: string;
+  lessonType: string;
+  videoUrl?: string;
+  videoDurationSeconds: number;
+  thumbnailUrl?: string;
+  isFreePreview: boolean;
+  isPublished: boolean;
+  sortOrder: number;
+  documents?: CourseDocument[];
+}
+
+export interface CourseDocument {
+  id: number;
+  lessonId?: number;
+  title: string;
+  fileUrl: string;
+  fileSizeBytes: number;
+  fileType?: string;
+  downloadCount: number;
+}
+
+export interface CourseSection {
+  id: number;
+  title: string;
+  description?: string;
+  sortOrder: number;
+  isLocked: boolean;
+  lessonCount: number;
+  totalDurationSeconds: number;
+  lessons?: LessonDto[];
+}
+
+export interface Course {
+  id: number;
+  title: string;
+  slug: string;
+  shortDescription?: string;
+  description?: string;
+  thumbnailUrl?: string;
+  previewVideoUrl?: string;
+  price: number;
+  discountPrice?: number;
+  discountExpiresAt?: string;
+  level: string;
+  language: string;
+  isFree: boolean;
+  isFeatured: boolean;
+  isPublished: boolean;
+  publishedAt?: string;
+  totalDurationSeconds: number;
+  totalLessons: number;
+  totalStudents: number;
+  totalReviews: number;
+  avgRating: number;
+  requirements?: string;
+  whatYouLearn?: string;
+  status: string;
+  createdAt: string;
+  categoryId?: number;
+  categoryName?: string;
+  categorySlug?: string;
+  instructorId?: number;
+  instructorName?: string;
+  instructorAvatar?: string;
+  sections?: CourseSection[];
+  tags?: string[];
+  isEnrolled?: boolean;
+  enrollmentProgress?: number;
+}
+
+export interface Enrollment {
+  id: number;
+  userId?: number;
+  courseId: number;
+  courseTitle: string;
+  courseSlug: string;
+  courseThumbnail?: string;
+  enrolledAt: string;
+  expiresAt?: string;
+  status: string;
+  progressPercent: number;
+  lastLessonId?: number;
+  lastLessonTitle?: string;
+  lastAccessedAt?: string;
+}
+
+export interface CourseReview {
+  id: number;
+  courseId?: number;
+  userId?: number;
+  userFullName: string;
+  userAvatar?: string;
+  rating: number;
+  title?: string;
+  content?: string;
+  createdAt: string;
+}
+
+export interface LessonProgress {
+  lessonId: number;
+  isCompleted: boolean;
+  watchTimeSeconds: number;
+  lastPositionSeconds: number;
 }

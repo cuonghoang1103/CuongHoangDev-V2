@@ -1,5 +1,6 @@
 import '@/app/globals.css'
 import type { Metadata } from 'next'
+import Navbar from '@/components/layout/Navbar'
 
 export const metadata: Metadata = {
   title: 'CuongHoangDev V2',
@@ -14,6 +15,7 @@ export default function RootLayout({
   return (
     <html lang="vi">
       <body className="bg-darkbg text-text-primary antialiased">
+        <Navbar />
         {children}
       </body>
     </html>

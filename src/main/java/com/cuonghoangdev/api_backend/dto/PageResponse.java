@@ -46,6 +46,11 @@ public class PageResponse<T> {
         return new PageResponse<>(page, content);
     }
 
+    public static <T> PageResponse<T> of(Page<T> page) {
+        List<T> content = page.getContent();
+        return new PageResponse<>(page, content);
+    }
+
     // Getter & Setter
     public List<T> getContent() {
         return content;

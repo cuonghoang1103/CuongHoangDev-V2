@@ -12,6 +12,8 @@ public class UserDto {
     private String username;
     private String email;
     private String fullName;
+    private String bio;
+    private String avatarUrl;
     private Set<String> roles;
     private LocalDateTime createdAt;
 
@@ -21,6 +23,8 @@ public class UserDto {
         dto.setUsername(user.getUsername());
         dto.setEmail(user.getEmail());
         dto.setFullName(user.getFullName());
+        dto.setBio(user.getBio());
+        dto.setAvatarUrl(user.getAvatarUrl());
         dto.setRoles(user.getRoles().stream()
                 .map(r -> r.getName())
                 .collect(Collectors.toSet()));
@@ -59,6 +63,22 @@ public class UserDto {
 
     public void setFullName(String fullName) {
         this.fullName = fullName;
+    }
+
+    public String getBio() {
+        return bio;
+    }
+
+    public void setBio(String bio) {
+        this.bio = bio;
+    }
+
+    public String getAvatarUrl() {
+        return avatarUrl;
+    }
+
+    public void setAvatarUrl(String avatarUrl) {
+        this.avatarUrl = avatarUrl;
     }
 
     public Set<String> getRoles() {

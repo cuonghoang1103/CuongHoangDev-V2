@@ -1,6 +1,8 @@
 package com.cuonghoangdev.api_backend.controller;
 
-import com.cuonghoangdev.api_backend.dto.*;
+import com.cuonghoangdev.api_backend.dto.ApiResponse;
+import com.cuonghoangdev.api_backend.dto.CreateUserRequest;
+import com.cuonghoangdev.api_backend.dto.UpdateUserRequest;
 import com.cuonghoangdev.api_backend.entity.Role;
 import com.cuonghoangdev.api_backend.entity.User;
 import com.cuonghoangdev.api_backend.exception.BadRequestException;
@@ -20,11 +22,11 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 @RestController
 @RequestMapping("/api/v1/admin/users")
+@PreAuthorize("hasRole('ADMIN')")
 public class AdminUserController {
 
     @Autowired
@@ -37,39 +39,24 @@ public class AdminUserController {
     private UserService userService;
 
     @GetMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<PageResponse<UserDto>>> getAllUsers(
+    public ResponseEntity<ApiResponse<Page<User>>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size,
-            @RequestParam(defaultValue = "id") String sortBy,
-            @RequestParam(defaultValue = "asc") String sortDir,
+            @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword) {
 
-        Sort sort = sortDir.equalsIgnoreCase("desc")
-                ? Sort.by(sortBy).descending()
-                : Sort.by(sortBy).ascending();
-        Pageable pageable = PageRequest.of(page, size, sort);
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
 
         Page<User> userPage;
         if (keyword != null && !keyword.isBlank()) {
-            userPage = userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(
-                    keyword, keyword, pageable);
+            userPage = userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(keyword, keyword, pageable);
         } else {
             userPage = userRepository.findAll(pageable);
         }
 
-        PageResponse<UserDto> response = PageResponse.from(userPage, UserDto::fromEntity);
-        return ResponseEntity.ok(ApiResponse.ok(response));
-    }
-
-    @GetMapping("/count")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Long>> countUsers() {
-        return ResponseEntity.ok(ApiResponse.ok(userRepository.count()));
+        return ResponseEntity.ok(ApiResponse.ok(userPage));
     }
 
     @GetMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<User>> getUserById(@PathVariable Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
@@ -77,10 +64,7 @@ public class AdminUserController {
     }
 
     @PostMapping
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<UserDto>> createUser(
-            @Valid @RequestBody CreateUserRequest request) {
-
+    public ResponseEntity<ApiResponse<User>> createUser(@Valid @RequestBody CreateUserRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new BadRequestException("Username da ton tai");
         }
@@ -106,12 +90,11 @@ public class AdminUserController {
         user.setRoles(roles);
 
         User saved = userService.createUser(user);
-        return ResponseEntity.ok(ApiResponse.ok("Tao user thanh cong", UserDto.fromEntity(saved)));
+        return ResponseEntity.ok(ApiResponse.ok("Tao user thanh cong", saved));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<UserDto>> updateUser(
+    public ResponseEntity<ApiResponse<User>> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -162,11 +145,48 @@ public class AdminUserController {
         }
 
         User saved = userService.updateUser(id, user);
-        return ResponseEntity.ok(ApiResponse.ok("Cap nhat user thanh cong", UserDto.fromEntity(saved)));
+        return ResponseEntity.ok(ApiResponse.ok("Cap nhat user thanh cong", saved));
+    }
+
+    @PutMapping("/{id}/roles")
+    public ResponseEntity<ApiResponse<User>> updateUserRoles(
+            @PathVariable Long id,
+            @RequestBody Map<String, List<String>> body) {
+
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+
+        List<String> roleNames = body.get("roles");
+        if (roleNames == null || roleNames.isEmpty()) {
+            throw new BadRequestException("Roles cannot be empty");
+        }
+
+        Set<Role> newRoles = new HashSet<>();
+        for (String roleName : roleNames) {
+            String normalized = roleName.toUpperCase().startsWith("ROLE_")
+                    ? roleName.toUpperCase()
+                    : "ROLE_" + roleName.toUpperCase();
+            Role role = roleRepository.findByName(normalized)
+                    .orElseThrow(() -> new BadRequestException("Role not found: " + roleName));
+            newRoles.add(role);
+        }
+
+        user.setRoles(newRoles);
+        User saved = userRepository.save(user);
+        return ResponseEntity.ok(ApiResponse.ok("Cap nhat roles thanh cong", saved));
+    }
+
+    @PatchMapping("/{id}/toggle-enabled")
+    public ResponseEntity<ApiResponse<Void>> toggleEnabled(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        user.setEnabled(!user.getEnabled());
+        userRepository.save(user);
+        return ResponseEntity.ok(ApiResponse.ok(
+                user.getEnabled() ? "Da kich hoat tai khoan" : "Da vo hieu hoa tai khoan", null));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<ApiResponse<Void>> deleteUser(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -181,25 +201,5 @@ public class AdminUserController {
 
         userService.deleteUser(id);
         return ResponseEntity.ok(ApiResponse.<Void>ok("Da xoa user thanh cong", null));
-    }
-
-    @PatchMapping("/{id}/lock")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> lockUser(@PathVariable Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
-        user.setAccountNonLocked(false);
-        userRepository.save(user);
-        return ResponseEntity.ok(ApiResponse.<Void>ok("Da khoa user: " + user.getUsername(), null));
-    }
-
-    @PatchMapping("/{id}/unlock")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<ApiResponse<Void>> unlockUser(@PathVariable Long id) {
-        User user = userRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
-        user.setAccountNonLocked(true);
-        userRepository.save(user);
-        return ResponseEntity.ok(ApiResponse.<Void>ok("Da mo khoa user: " + user.getUsername(), null));
     }
 }

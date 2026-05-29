@@ -5,6 +5,8 @@ import com.cuonghoangdev.api_backend.entity.ChatAnalytics;
 import com.cuonghoangdev.api_backend.entity.ChatFeedback;
 import com.cuonghoangdev.api_backend.repository.ChatAnalyticsRepository;
 import com.cuonghoangdev.api_backend.repository.ChatFeedbackRepository;
+import com.cuonghoangdev.api_backend.repository.ChatMessageRepository;
+import com.cuonghoangdev.api_backend.repository.ChatSessionRepository;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -18,11 +20,17 @@ public class ChatAnalyticsService {
 
     private final ChatFeedbackRepository chatFeedbackRepository;
     private final ChatAnalyticsRepository chatAnalyticsRepository;
+    private final ChatMessageRepository chatMessageRepository;
+    private final ChatSessionRepository chatSessionRepository;
 
     public ChatAnalyticsService(ChatFeedbackRepository chatFeedbackRepository,
-                              ChatAnalyticsRepository chatAnalyticsRepository) {
+                              ChatAnalyticsRepository chatAnalyticsRepository,
+                              ChatMessageRepository chatMessageRepository,
+                              ChatSessionRepository chatSessionRepository) {
         this.chatFeedbackRepository = chatFeedbackRepository;
         this.chatAnalyticsRepository = chatAnalyticsRepository;
+        this.chatMessageRepository = chatMessageRepository;
+        this.chatSessionRepository = chatSessionRepository;
     }
 
     /**
@@ -118,6 +126,10 @@ public class ChatAnalyticsService {
     public Map<String, Object> getOverviewStats() {
         Map<String, Object> stats = new HashMap<>();
 
+        stats.put("totalSessions", chatSessionRepository.count());
+        stats.put("totalMessages", chatMessageRepository.count());
+        stats.put("totalTokens", 0);
+
         LocalDate today = LocalDate.now();
         LocalDate weekAgo = today.minusDays(7);
         LocalDate monthAgo = today.minusDays(30);
@@ -139,6 +151,29 @@ public class ChatAnalyticsService {
         // Average response time (tuần này)
         Double avgResponseTime = chatAnalyticsRepository.getAverageResponseTime(weekAgo, today);
         stats.put("avgResponseTimeMs", avgResponseTime != null ? avgResponseTime.intValue() : 0);
+
+        // Positive feedback percent
+        long totalFeedbacks = chatFeedbackRepository.count();
+        long positiveCount = 0;
+        long negativeCount = 0;
+        if (totalFeedbacks > 0) {
+            List<Object[]> typeCounts = chatFeedbackRepository.countByFeedbackType();
+            for (Object[] row : typeCounts) {
+                String type = (String) row[0];
+                Long count = (Long) row[1];
+                if ("helpful".equalsIgnoreCase(type) || "accurate".equalsIgnoreCase(type)) {
+                    positiveCount += count;
+                } else if ("not_helpful".equalsIgnoreCase(type) || "inaccurate".equalsIgnoreCase(type)) {
+                    negativeCount += count;
+                }
+            }
+        }
+        stats.put("totalFeedbacks", totalFeedbacks);
+        stats.put("positiveCount", positiveCount);
+        stats.put("negativeCount", negativeCount);
+        stats.put("positiveFeedbackPercent", totalFeedbacks > 0
+                ? Math.round((positiveCount * 100.0) / totalFeedbacks)
+                : 0);
 
         return stats;
     }

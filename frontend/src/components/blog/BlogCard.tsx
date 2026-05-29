@@ -78,7 +78,7 @@ export default function BlogCard({ post, variant = 'default' }: BlogCardProps) {
           {/* Featured Badge */}
           {post.isFeatured && (
             <div className="absolute top-4 left-4 px-3 py-1 bg-neon-violet/90 backdrop-blur-sm rounded-full">
-              <span className="text-xs font-medium text-white">Nổi bật</span>
+              <span className="text-xs font-medium text-white">Featured</span>
             </div>
           )}
 

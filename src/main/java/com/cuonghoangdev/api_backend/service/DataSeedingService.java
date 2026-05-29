@@ -1,7 +1,11 @@
 package com.cuonghoangdev.api_backend.service;
 
 import com.cuonghoangdev.api_backend.entity.AIConfig;
+import com.cuonghoangdev.api_backend.entity.Role;
+import com.cuonghoangdev.api_backend.entity.User;
 import com.cuonghoangdev.api_backend.repository.AIConfigRepository;
+import com.cuonghoangdev.api_backend.repository.RoleRepository;
+import com.cuonghoangdev.api_backend.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -9,6 +13,7 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
+import org.springframework.security.crypto.password.PasswordEncoder;
 
 /**
  * Service chạy khi ứng dụng khởi động để:
@@ -103,6 +108,59 @@ public class DataSeedingService {
                 log.info("Hoan tat index tri thuc: {}", result);
             } catch (Exception e) {
                 log.error("Loi khi index tri thuc: {}", e.getMessage());
+            }
+        };
+    }
+
+    /**
+     * Seed default users (admin & testuser) on startup
+     */
+    @Bean
+    @Order(0)
+    public CommandLineRunner seedUsers(UserRepository userRepository,
+                                      RoleRepository roleRepository,
+                                      PasswordEncoder passwordEncoder) {
+        return args -> {
+            Role adminRole = roleRepository.findByName("ROLE_ADMIN")
+                    .orElseGet(() -> {
+                        Role r = new Role();
+                        r.setName("ROLE_ADMIN");
+                        return roleRepository.save(r);
+                    });
+
+            Role userRole = roleRepository.findByName("ROLE_USER")
+                    .orElseGet(() -> {
+                        Role r = new Role();
+                        r.setName("ROLE_USER");
+                        return roleRepository.save(r);
+                    });
+
+            // Tạo hoặc update admin
+            User admin = userRepository.findByUsername("admin").orElse(null);
+            if (admin == null) {
+                admin = new User("admin", passwordEncoder.encode("admin123"), "admin@test.com");
+                admin.setFullName("Admin");
+                admin.getRoles().add(adminRole);
+                userRepository.save(admin);
+                log.info("Da tao tai khoan admin/admin123");
+            } else {
+                // Upgrade existing admin: đảm bảo có ROLE_ADMIN
+                boolean hasAdmin = admin.getRoles().stream()
+                        .anyMatch(r -> r.getName().equals("ROLE_ADMIN"));
+                if (!hasAdmin) {
+                    admin.getRoles().add(adminRole);
+                    userRepository.save(admin);
+                    log.info("Da gan quyen ADMIN cho tai khoan admin hien co");
+                }
+            }
+
+            // Tạo testuser nếu chưa có
+            if (!userRepository.existsByUsername("testuser")) {
+                User user = new User("testuser", passwordEncoder.encode("test123"), "test@test.com");
+                user.setFullName("Test User");
+                user.getRoles().add(userRole);
+                userRepository.save(user);
+                log.info("Da tao tai khoan testuser/test123");
             }
         };
     }

@@ -70,7 +70,18 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/roles/**").permitAll()
                     .requestMatchers("/api/v1/blog/posts/**").permitAll()
                     .requestMatchers("/api/v1/blog/categories/**").permitAll()
+                    .requestMatchers("/api/v1/posts/**").permitAll()
+                    .requestMatchers("/api/v1/skills/**").permitAll()
+                    .requestMatchers("/api/v1/projects/**").permitAll()
+                    .requestMatchers("/api/v1/contact/**").permitAll()
+                    .requestMatchers("/api/v1/courses/featured").permitAll()
+                    .requestMatchers("/api/v1/courses").permitAll()
+                    .requestMatchers("/api/v1/courses/{slug}").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/courses/*/reviews").permitAll()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/courses/*/curriculum").permitAll()
+                    .requestMatchers("/api/v1/course-categories/**").permitAll()
                     .requestMatchers("/api/v1/ai/chat").permitAll()
+                    .requestMatchers("/api/v1/ai/chat/stream").permitAll()
                     .requestMatchers("/api/v1/ai/admin/**").hasRole("ADMIN")
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                     .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
@@ -97,9 +108,23 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOrigins(List.of("http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002", "http://127.0.0.1:3003"));
+        configuration.setAllowedOrigins(List.of(
+            "http://localhost:3000", "http://localhost:3001", "http://localhost:3002", "http://localhost:3003",
+            "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002", "http://127.0.0.1:3003",
+            "http://[::1]:3000", "http://[::1]:3001", "http://[::1]:3002", "http://[::1]:3003",
+            "http://localhost", "http://127.0.0.1", "http://[::1]",
+            "http://localhost:5173"
+        ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
-        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type", "X-Requested-With"));
+        configuration.setAllowedHeaders(Arrays.asList(
+            "Authorization",
+            "Content-Type",
+            "X-Requested-With",
+            "Accept",
+            "Accept-Language",
+            "Origin",
+            "Cache-Control"
+        ));
         configuration.setAllowCredentials(true);
         configuration.setMaxAge(3600L);
 

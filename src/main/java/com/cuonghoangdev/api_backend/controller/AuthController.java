@@ -2,12 +2,14 @@ package com.cuonghoangdev.api_backend.controller;
 
 import com.cuonghoangdev.api_backend.dto.*;
 import com.cuonghoangdev.api_backend.entity.User;
+import com.cuonghoangdev.api_backend.security.UserPrincipal;
 import com.cuonghoangdev.api_backend.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -47,5 +49,14 @@ public class AuthController {
             @Valid @RequestBody ResetPasswordRequest request) {
         authService.resetPassword(request.getToken(), request.getNewPassword());
         return ResponseEntity.ok(ApiResponse.<Void>ok("Dat lai mat khau thanh cong", null));
+    }
+
+    @PostMapping("/change-password")
+    @Operation(summary = "Đổi mật khẩu", description = "Đổi mật khẩu khi đã đăng nhập")
+    public ResponseEntity<ApiResponse<Void>> changePassword(
+            @AuthenticationPrincipal UserPrincipal currentUser,
+            @Valid @RequestBody ChangePasswordRequest request) {
+        authService.changePassword(currentUser, request);
+        return ResponseEntity.ok(ApiResponse.<Void>ok("Doi mat khau thanh cong", null));
     }
 }

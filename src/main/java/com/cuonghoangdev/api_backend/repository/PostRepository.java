@@ -24,6 +24,15 @@ public interface PostRepository extends JpaRepository<Post, Long> {
 
     Page<Post> findByStatusAndCategoryId(String status, Long categoryId, Pageable pageable);
 
+    @Query("SELECT p FROM Post p WHERE p.status = :status " +
+           "AND (:categorySlug IS NULL OR p.category.slug = :categorySlug) " +
+           "ORDER BY p.publishedAt DESC")
+    Page<Post> findByStatusAndCategorySlug(
+            @Param("status") String status,
+            @Param("categorySlug") String categorySlug,
+            Pageable pageable
+    );
+
     @Query("SELECT p FROM Post p LEFT JOIN FETCH p.tags WHERE p.id = :id")
     Optional<Post> findByIdWithTags(@Param("id") Long id);
 
@@ -41,6 +50,17 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> searchPosts(
             @Param("keyword") String keyword,
             @Param("categorySlug") String categorySlug,
+            Pageable pageable
+    );
+
+    @Query("SELECT p FROM Post p WHERE " +
+           "(:keyword IS NULL OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
+           "OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
+           "AND (:status IS NULL OR p.status = :status) " +
+           "ORDER BY p.createdAt DESC")
+    Page<Post> searchPostsAdmin(
+            @Param("keyword") String keyword,
+            @Param("status") String status,
             Pageable pageable
     );
 

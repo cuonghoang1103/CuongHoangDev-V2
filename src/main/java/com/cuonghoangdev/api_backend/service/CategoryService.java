@@ -48,6 +48,10 @@ public class CategoryService {
         return toDto(category, postRepository.countByCategoryId(category.getId()));
     }
 
+    public Category getCategoryEntityByName(String name) {
+        return categoryRepository.findByName(name).orElse(null);
+    }
+
     @Caching(evict = {
             @CacheEvict(value = "categories", key = "'all'"),
             @CacheEvict(value = "categories", allEntries = true)

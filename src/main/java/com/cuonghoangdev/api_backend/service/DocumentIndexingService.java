@@ -4,6 +4,7 @@ import com.cuonghoangdev.api_backend.dto.DocumentIndexRequest;
 import com.cuonghoangdev.api_backend.entity.DocumentChunk;
 import com.cuonghoangdev.api_backend.repository.DocumentChunkRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
@@ -23,7 +24,7 @@ public class DocumentIndexingService {
     /**
      * Index một document - chia nhỏ thành chunks và tạo embeddings
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<DocumentChunk> indexDocument(DocumentIndexRequest request) {
         // Xóa chunks cũ nếu có
         documentChunkRepository.deleteByDocumentId(request.getDocumentId());
@@ -60,7 +61,7 @@ public class DocumentIndexingService {
     /**
      * Tái index một document - xóa và tạo lại
      */
-    @Transactional
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public List<DocumentChunk> reindexDocument(DocumentIndexRequest request) {
         return indexDocument(request);
     }

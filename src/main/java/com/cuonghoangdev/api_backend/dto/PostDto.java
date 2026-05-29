@@ -13,6 +13,7 @@ public class PostDto {
     private String status;
     private Long categoryId;
     private String categoryName;
+    private String categorySlug;
     private Long authorId;
     private String authorName;
     private Integer viewCount;
@@ -43,6 +44,8 @@ public class PostDto {
     public void setCategoryId(Long categoryId) { this.categoryId = categoryId; }
     public String getCategoryName() { return categoryName; }
     public void setCategoryName(String categoryName) { this.categoryName = categoryName; }
+    public String getCategorySlug() { return categorySlug; }
+    public void setCategorySlug(String categorySlug) { this.categorySlug = categorySlug; }
     public Long getAuthorId() { return authorId; }
     public void setAuthorId(Long authorId) { this.authorId = authorId; }
     public String getAuthorName() { return authorName; }

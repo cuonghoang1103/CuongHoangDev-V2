@@ -1,6 +1,7 @@
 package com.cuonghoangdev.api_backend.service;
 
 import com.cuonghoangdev.api_backend.dto.AuthResponse;
+import com.cuonghoangdev.api_backend.dto.ChangePasswordRequest;
 import com.cuonghoangdev.api_backend.dto.LoginRequest;
 import com.cuonghoangdev.api_backend.dto.RegisterRequest;
 import com.cuonghoangdev.api_backend.entity.PasswordResetToken;
@@ -150,5 +151,22 @@ public class AuthService {
 
         resetToken.setUsed(true);
         passwordResetTokenRepository.save(resetToken);
+    }
+
+    @Transactional
+    public void changePassword(UserPrincipal currentUser, ChangePasswordRequest request) {
+        if (!request.getNewPassword().equals(request.getConfirmPassword())) {
+            throw new BadRequestException("Mat khau xac nhan khong khop");
+        }
+
+        User user = userRepository.findById(currentUser.getId())
+                .orElseThrow(() -> new BadRequestException("Khong tim thay nguoi dung"));
+
+        if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
+            throw new BadRequestException("Mat khau hien tai khong dung");
+        }
+
+        user.setPassword(passwordEncoder.encode(request.getNewPassword()));
+        userRepository.save(user);
     }
 }
