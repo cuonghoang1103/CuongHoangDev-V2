@@ -1,0 +1,25 @@
+{
+  "nav": {
+    "home": "Home",
+    "academy": "Academy",
+    "blog": "Blog",
+    "projects": "Projects",
+    "music": "Music",
+    "aiChat": "AI Chat",
+    "login": "Login",
+    "signUp": "Sign Up",
+    "admin": "Admin",
+    "myCourses": "My Courses",
+    "logout": "Logout"
+  },
+  "hero": {
+    "title": "Welcome",
+    "subtitle": "I build products & share knowledge"
+  },
+  "contact": {
+    "phone": "Phone",
+    "zalo": "Zalo",
+    "email": "Email",
+    "facebook": "Facebook"
+  }
+}

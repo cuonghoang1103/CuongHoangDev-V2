@@ -1,0 +1,25 @@
+{
+  "nav": {
+    "home": "Trang chủ",
+    "academy": "Học viện",
+    "blog": "Blog",
+    "projects": "Dự án",
+    "music": "Nhạc",
+    "aiChat": "AI Chat",
+    "login": "Đăng nhập",
+    "signUp": "Đăng ký",
+    "admin": "Quản trị",
+    "myCourses": "Khóa học",
+    "logout": "Đăng xuất"
+  },
+  "hero": {
+    "title": "Chào bạn",
+    "subtitle": "Tôi xây dựng sản phẩm & chia sẻ kiến thức"
+  },
+  "contact": {
+    "phone": "Điện thoại",
+    "zalo": "Zalo",
+    "email": "Email",
+    "facebook": "Facebook"
+  }
+}
