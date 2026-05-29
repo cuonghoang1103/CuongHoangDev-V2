@@ -346,3 +346,24 @@ export interface LessonProgress {
   watchTimeSeconds: number;
   lastPositionSeconds: number;
 }
+
+// === MUSIC TYPES ===
+
+export interface Track {
+  id: string;
+  title: string;
+  artist: string;
+  duration: string;
+  audioUrl: string;
+  coverImage: string;
+}
+
+export interface Playlist {
+  id: string;
+  name: string;
+  description: string;
+  coverUrl: string;
+  trackCount: number;
+  totalDuration: string;
+  tracks: Track[];
+}
