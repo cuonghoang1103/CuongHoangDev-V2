@@ -7,7 +7,6 @@ public class CreatePostRequest {
     @NotBlank(message = "Title is required")
     private String title;
 
-    @NotBlank(message = "Slug is required")
     private String slug;
 
     private String excerpt;

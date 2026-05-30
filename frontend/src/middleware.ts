@@ -26,6 +26,16 @@ export function middleware(request: NextRequest) {
     if (!isAuthenticated) {
       return NextResponse.redirect(new URL('/login?redirect=' + pathname, request.url));
     }
+    try {
+      const authCookieVal = authToken?.value ? JSON.parse(decodeURIComponent(authToken.value)) : null;
+      const roles = authCookieVal?.roles || [];
+      const isAdmin = roles.some((r) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN');
+      if (!isAdmin) {
+        return NextResponse.redirect(new URL('/', request.url));
+      }
+    } catch {
+      return NextResponse.redirect(new URL('/', request.url));
+    }
     return NextResponse.next();
   }
 

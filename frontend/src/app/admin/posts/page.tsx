@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { api, blogApi } from '@/lib/api';
+import { api, blogApi, fileApi } from '@/lib/api';
 import toast from 'react-hot-toast';
 import {
   Plus,
@@ -73,6 +73,8 @@ export default function AdminPostsPage() {
   const [form, setForm] = useState<PostForm>(emptyForm);
   const [tagInputs, setTagInputs] = useState(['', '', '']);
   const [saving, setSaving] = useState(false);
+  const [uploadingThumbnail, setUploadingThumbnail] = useState(false);
+  const [uploadingContentImage, setUploadingContentImage] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
   const pageSize = 10;
 
@@ -86,7 +88,7 @@ export default function AdminPostsPage() {
         ...(search && { keyword: search }),
         ...(statusFilter && { status: statusFilter }),
       });
-      const res = await api.get(`/api/v1/posts?${params}`);
+      const res = await api.get(`/api/v1/posts/admin/all?${params}`);
       const data = res.data?.data;
       setPosts(data?.content || []);
       setTotalPages(data?.totalPages || 0);
@@ -144,6 +146,65 @@ export default function AdminPostsPage() {
     return tagInputs.map((t) => t.trim()).filter(Boolean);
   };
 
+  const handleThumbnailUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      toast.error('Vui lòng chọn file ảnh');
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Ảnh tối đa 5MB');
+      return;
+    }
+    try {
+      setUploadingThumbnail(true);
+      const res = await fileApi.upload(file, 'thumbnails');
+      const url = res.data?.data?.downloadUrl;
+      if (url) {
+        setForm((prev) => ({ ...prev, thumbnailUrl: url }));
+        toast.success('Tải ảnh thành công');
+      } else {
+        toast.error('Tải ảnh thất bại');
+      }
+    } catch {
+      toast.error('Tải ảnh thất bại');
+    } finally {
+      setUploadingThumbnail(false);
+    }
+  };
+
+  const handleContentImageUpload = async () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.onchange = async (e) => {
+      const file = (e.target as HTMLInputElement).files?.[0];
+      if (!file) return;
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Ảnh tối đa 5MB');
+        return;
+      }
+      try {
+        setUploadingContentImage(true);
+        const res = await fileApi.upload(file, 'content');
+        const url = res.data?.data?.downloadUrl;
+        if (url) {
+          const mdImage = `\n![${file.name}](${url})\n`;
+          setForm((prev) => ({ ...prev, content: prev.content + mdImage }));
+          toast.success('Chèn ảnh thành công');
+        } else {
+          toast.error('Chèn ảnh thất bại');
+        }
+      } catch {
+        toast.error('Chèn ảnh thất bại');
+      } finally {
+        setUploadingContentImage(false);
+      }
+    };
+    input.click();
+  };
+
   const handleSave = async () => {
     if (!form.title.trim()) { toast.error('Tiêu đề không được trống'); return; }
     if (!form.content.trim()) { toast.error('Nội dung không được trống'); return; }
@@ -159,7 +220,7 @@ export default function AdminPostsPage() {
         await api.put(`/api/v1/posts/admin/${editingPost.id}`, payload);
         toast.success('Cập nhật bài viết thành công!');
       } else {
-        await api.post('/api/v1/posts/admin', payload);
+        await api.post('/api/v1/blog/admin/posts', payload);
         toast.success('Tạo bài viết thành công!');
       }
       closeForm();
@@ -174,7 +235,7 @@ export default function AdminPostsPage() {
   const handleDelete = async (id: number) => {
     if (!confirm('Bạn có chắc muốn xóa bài viết này?')) return;
     try {
-      await api.delete(`/api/v1/posts/${id}`);
+      await api.delete(`/api/v1/blog/admin/posts/${id}`);
       toast.success('Đã xóa bài viết');
       fetchPosts();
     } catch {
@@ -432,7 +493,18 @@ export default function AdminPostsPage() {
 
                   {/* Content */}
                   <div>
-                    <label className="block text-sm font-medium text-text-primary mb-1.5">Nội dung *</label>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label className="block text-sm font-medium text-text-primary">Nội dung *</label>
+                      <button
+                        type="button"
+                        onClick={handleContentImageUpload}
+                        disabled={uploadingContentImage}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-darkcard border border-darkborder rounded-lg text-xs text-text-secondary hover:text-neon-violet hover:border-neon-violet/30 transition-colors disabled:opacity-50"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="3" rx="2" ry="2"/><circle cx="9" cy="9" r="2"/><path d="m21 15-3.086-3.086a2 2 0 0 0-2.828 0L6 21"/></svg>
+                        {uploadingContentImage ? 'Đang tải...' : 'Chèn ảnh'}
+                      </button>
+                    </div>
                     <textarea
                       value={form.content}
                       onChange={(e) => setForm({ ...form, content: e.target.value })}
@@ -472,14 +544,51 @@ export default function AdminPostsPage() {
 
                   {/* Thumbnail */}
                   <div>
-                    <label className="block text-sm font-medium text-text-primary mb-1.5">Ảnh thumbnail URL</label>
-                    <input
-                      type="url"
-                      value={form.thumbnailUrl}
-                      onChange={(e) => setForm({ ...form, thumbnailUrl: e.target.value })}
-                      placeholder="https://..."
-                      className="w-full px-4 py-2.5 bg-darkcard border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
-                    />
+                    <label className="block text-sm font-medium text-text-primary mb-1.5">Ảnh thumbnail</label>
+                    <div className="flex flex-col gap-3">
+                      {/* Preview */}
+                      {form.thumbnailUrl && (
+                        <div className="relative w-full h-40 rounded-xl overflow-hidden border border-darkborder bg-darkbg">
+                          <img
+                            src={form.thumbnailUrl}
+                            alt="Thumbnail preview"
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.target as HTMLImageElement).style.display = 'none';
+                            }}
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setForm({ ...form, thumbnailUrl: '' })}
+                            className="absolute top-2 right-2 p-1.5 bg-black/50 hover:bg-black/80 rounded-lg text-white transition-colors"
+                          >
+                            <X className="w-4 h-4" />
+                          </button>
+                        </div>
+                      )}
+                      {/* Upload button */}
+                      <label className="flex items-center justify-center gap-2 px-4 py-3 bg-darkcard border border-darkborder rounded-xl text-sm text-text-secondary hover:text-text-primary hover:border-neon-violet/30 cursor-pointer transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                        {uploadingThumbnail ? 'Đang tải lên...' : (form.thumbnailUrl ? 'Thay ảnh khác' : 'Tải ảnh lên')}
+                        <input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleThumbnailUpload}
+                          disabled={uploadingThumbnail}
+                        />
+                      </label>
+                      {/* Manual URL fallback */}
+                      {form.thumbnailUrl && (
+                        <input
+                          type="url"
+                          value={form.thumbnailUrl}
+                          onChange={(e) => setForm({ ...form, thumbnailUrl: e.target.value })}
+                          placeholder="Hoặc dán URL ảnh..."
+                          className="w-full px-4 py-2.5 bg-darkcard border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
+                        />
+                      )}
+                    </div>
                   </div>
 
                   {/* Tags */}

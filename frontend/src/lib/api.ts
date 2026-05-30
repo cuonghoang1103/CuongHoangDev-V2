@@ -96,6 +96,19 @@ export const authApi = {
     api.post('/api/v1/auth/reset-password', { token, newPassword }),
 };
 
+// File Upload API
+export const fileApi = {
+  upload: (file: File, category: string = 'thumbnails') => {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('category', category);
+    return api.post('/api/v1/files/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+  },
+  delete: (id: number) => api.delete(`/api/v1/files/${id}`),
+};
+
 // User API
 export const userApi = {
   getAll: (params?: {

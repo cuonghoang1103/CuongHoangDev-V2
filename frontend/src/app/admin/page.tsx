@@ -44,7 +44,7 @@ export default function AdminDashboard() {
     const fetchData = async () => {
       try {
         const [postsRes, chatRes] = await Promise.allSettled([
-          api.get('/api/v1/posts?page=0&size=5&sort=createdAt,desc'),
+          api.get('/api/v1/posts/admin/all?page=0&size=5'),
           api.get('/api/v1/ai/analytics/overview').catch(() => ({ data: { data: {} } })),
         ]);
 

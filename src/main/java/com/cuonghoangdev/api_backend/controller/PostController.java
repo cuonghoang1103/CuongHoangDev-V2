@@ -37,8 +37,22 @@ public class PostController {
             @RequestParam(defaultValue = "createdAt") String sort,
             @RequestParam(defaultValue = "desc") String sortDir) {
 
-        PageResponse<PostDto> result;
+        // Public endpoint - only return PUBLISHED posts
+        PageResponse<PostDto> result = postService.getPublishedPosts(page, size, null);
 
+        return ResponseEntity.ok(ApiResponse.ok(result));
+    }
+
+    // Admin: get all posts (all statuses)
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasRole('ADMIN') or hasRole('EDITOR')")
+    public ResponseEntity<ApiResponse<PageResponse<PostDto>>> getAllPostsAdmin(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String status) {
+
+        PageResponse<PostDto> result;
         if ((keyword != null && !keyword.isBlank()) || (status != null && !status.isBlank())) {
             result = postService.searchPostsAdmin(keyword, status, page, size);
         } else {

@@ -22,7 +22,7 @@ spring:
         paths-to-match: '/api/v1/system/**'
 
   datasource:
-    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:5432/cuonghoangdev_db}
+    url: jdbc:postgresql://localhost:5432/cuonghoangdev_db
     username: ${SPRING_DATASOURCE_USERNAME:postgres}
     password: ${SPRING_DATASOURCE_PASSWORD:123456}
     driver-class-name: org.postgresql.Driver
@@ -62,10 +62,7 @@ spring:
       timeout: 60000
 
   cache:
-    type: redis
-    redis:
-      time-to-live: 3600000
-      cache-null-values: false
+    type: simple
 
   ai:
     openai:

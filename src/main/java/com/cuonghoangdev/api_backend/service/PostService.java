@@ -61,7 +61,12 @@ public class PostService {
 
     public PageResponse<PostDto> getPublishedPosts(int page, int size, String categorySlug) {
         Pageable pageable = PageRequest.of(page, size, Sort.by("publishedAt").descending());
-        Page<Post> posts = postRepository.findByStatusAndCategorySlug("PUBLISHED", categorySlug, pageable);
+        Page<Post> posts;
+        if (categorySlug == null || categorySlug.isBlank()) {
+            posts = postRepository.findByStatus("PUBLISHED", pageable);
+        } else {
+            posts = postRepository.findByStatusAndCategorySlug("PUBLISHED", categorySlug, pageable);
+        }
         return toPageResponse(posts);
     }
 

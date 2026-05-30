@@ -220,7 +220,7 @@ export interface FileUploadResponse {
   storedName: string;
   contentType: string;
   fileSize: number;
-  url: string;
+  downloadUrl: string;
   uploadedAt: string;
 }
 

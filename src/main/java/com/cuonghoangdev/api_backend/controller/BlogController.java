@@ -28,43 +28,43 @@ public class BlogController {
     // ==================== PUBLIC ====================
 
     @GetMapping("/posts")
-    public ResponseEntity<PageResponse<PostDto>> getPublishedPosts(
+    public ResponseEntity<ApiResponse<PageResponse<PostDto>>> getPublishedPosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String category) {
-        return ResponseEntity.ok(postService.getPublishedPosts(page, size, category));
+        return ResponseEntity.ok(ApiResponse.ok(postService.getPublishedPosts(page, size, category)));
     }
 
     @GetMapping("/posts/featured")
-    public ResponseEntity<List<PostDto>> getFeaturedPosts() {
-        return ResponseEntity.ok(postService.getFeaturedPosts());
+    public ResponseEntity<ApiResponse<List<PostDto>>> getFeaturedPosts() {
+        return ResponseEntity.ok(ApiResponse.ok(postService.getFeaturedPosts()));
     }
 
     @GetMapping("/posts/popular")
-    public ResponseEntity<List<PostDto>> getPopularPosts(
+    public ResponseEntity<ApiResponse<List<PostDto>>> getPopularPosts(
             @RequestParam(defaultValue = "5") int limit) {
-        return ResponseEntity.ok(postService.getPopularPosts(limit));
+        return ResponseEntity.ok(ApiResponse.ok(postService.getPopularPosts(limit)));
     }
 
     @GetMapping("/posts/{slug}")
-    public ResponseEntity<PostDto> getPostBySlug(@PathVariable String slug) {
+    public ResponseEntity<ApiResponse<PostDto>> getPostBySlug(@PathVariable String slug) {
         PostDto post = postService.getPostBySlug(slug);
         postService.incrementViewCount(slug);
-        return ResponseEntity.ok(post);
+        return ResponseEntity.ok(ApiResponse.ok(post));
     }
 
     @GetMapping("/posts/search")
-    public ResponseEntity<PageResponse<PostDto>> searchPosts(
+    public ResponseEntity<ApiResponse<PageResponse<PostDto>>> searchPosts(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        return ResponseEntity.ok(postService.searchPosts(keyword, category, page, size));
+        return ResponseEntity.ok(ApiResponse.ok(postService.searchPosts(keyword, category, page, size)));
     }
 
     @GetMapping("/categories")
-    public ResponseEntity<List<CategoryDto>> getAllCategories() {
-        return ResponseEntity.ok(categoryService.getAllCategories());
+    public ResponseEntity<ApiResponse<List<CategoryDto>>> getAllCategories() {
+        return ResponseEntity.ok(ApiResponse.ok(categoryService.getAllCategories()));
     }
 
     @GetMapping("/categories/{id}")
@@ -92,6 +92,9 @@ public class BlogController {
     public ResponseEntity<ApiResponse<PostDto>> createPost(
             @Valid @RequestBody CreatePostRequest request,
             @AuthenticationPrincipal UserPrincipal userPrincipal) {
+        if (request.getSlug() == null || request.getSlug().isBlank()) {
+            request.setSlug(slugify(request.getTitle()));
+        }
         PostDto created = postService.createPost(request, userPrincipal.getId());
         return ResponseEntity.ok(ApiResponse.success(created, "Post created successfully"));
     }
@@ -140,5 +143,13 @@ public class BlogController {
     public ResponseEntity<ApiResponse<Void>> deleteCategory(@PathVariable Long id) {
         categoryService.deleteCategory(id);
         return ResponseEntity.ok(ApiResponse.success(null, "Category deleted successfully"));
+    }
+
+    private String slugify(String text) {
+        return text.toLowerCase()
+                .replaceAll("[^a-z0-9\\s-]", "")
+                .replaceAll("\\s+", "-")
+                .replaceAll("-+", "-")
+                .replaceAll("^-|-$", "");
     }
 }

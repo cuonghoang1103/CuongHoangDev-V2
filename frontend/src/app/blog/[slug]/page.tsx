@@ -4,6 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
+import rehypeRaw from 'rehype-raw';
 import {
   Clock, Eye, Calendar, ArrowLeft, Share2,
   Twitter, Facebook, Linkedin, Link2, Check
@@ -285,8 +288,14 @@ export default function BlogDetailPage() {
               prose-blockquote:border-neon-violet prose-blockquote:text-text-muted
               prose-img:rounded-2xl
               prose-li:text-text-secondary"
-            dangerouslySetInnerHTML={{ __html: post.content }}
-          />
+          >
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm]}
+              rehypePlugins={[rehypeRaw]}
+            >
+              {post.content}
+            </ReactMarkdown>
+          </div>
 
           {/* Tags */}
           {post.tagNames && post.tagNames.length > 0 && (

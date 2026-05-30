@@ -36,30 +36,68 @@ const adminNav = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const logout = useAuthStore((s) => s.logout);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [checked, setChecked] = useState(false);
+
+  // Zustand hydration is unreliable for SSR/hydration timing.
+  // Read auth state directly from cookies/localStorage to avoid redirect loops.
+  const [currentUser, setCurrentUser] = useState<{ username: string; email: string } | null>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated === false) {
+    const authToken = document.cookie.match(/__auth__=([^;]+)/)?.[1];
+    const authStorage = localStorage.getItem('auth-storage');
+
+    const hasCookie = authToken && authToken.length > 10;
+    const hasStorage = authStorage && authStorage.length > 10;
+
+    if (!hasCookie && !hasStorage) {
       router.push('/login?redirect=' + pathname);
-    } else if (isAuthenticated === true) {
-      const isAdmin = user?.roles?.some((r: string) => r.replace('ROLE_', '').toUpperCase() === 'ADMIN');
-      if (!isAdmin) {
-        router.push('/');
-      } else {
-        setChecked(true);
-      }
+      return;
     }
-  }, [isAuthenticated, user, pathname, router]);
+
+    let roles: string[] = [];
+    let username = '';
+    let email = '';
+
+    if (hasCookie) {
+      try {
+        const parsed = JSON.parse(decodeURIComponent(authToken));
+        roles = parsed.roles || [];
+        username = parsed.username || '';
+      } catch {}
+    }
+
+    if (hasStorage) {
+      try {
+        const parsed = JSON.parse(authStorage);
+        const state = parsed?.state;
+        if (state?.user?.roles) roles = state.user.roles;
+        if (state?.user?.username) username = state.user.username;
+        if (state?.user?.email) email = state.user.email;
+      } catch {}
+    }
+
+    const isAdmin = roles.some((r) =>
+      (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+    );
+
+    if (!isAdmin) {
+      router.push('/');
+      return;
+    }
+
+    setCurrentUser({ username, email });
+    setAuthChecked(true);
+  }, [pathname, router]);
 
   const handleLogout = () => {
     logout();
     router.push('/');
   };
 
-  if (!checked || !isAuthenticated) {
+  if (!authChecked) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-darkbg pt-16">
         <div className="flex flex-col items-center gap-4">
@@ -69,9 +107,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
     );
   }
-
-  const isAdmin = user?.roles?.some((r: string) => r.replace('ROLE_', '').toUpperCase() === 'ADMIN');
-  if (!isAdmin) return null;
 
   return (
     <div className="flex h-screen bg-darkbg pt-16">
@@ -86,7 +121,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {sidebarOpen && (
               <div className="min-w-0">
                 <h1 className="font-heading font-bold text-text-primary text-sm truncate">Admin Panel</h1>
-                <p className="text-xs text-text-muted truncate">{user?.email}</p>
+                <p className="text-xs text-text-muted truncate">{currentUser?.email}</p>
               </div>
             )}
           </div>
@@ -156,7 +191,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
                 <div>
                   <h1 className="font-heading font-bold text-text-primary text-sm">Admin Panel</h1>
-                  <p className="text-xs text-text-muted">{user?.username}</p>
+                  <p className="text-xs text-text-muted">{currentUser?.username}</p>
                 </div>
               </div>
               <button onClick={() => setMobileOpen(false)} className="p-1 hover:bg-white/5 rounded-lg">
@@ -213,7 +248,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div>
               <h1 className="font-heading font-bold text-text-primary text-sm">Admin Dashboard</h1>
               <p className="text-xs text-text-muted hidden sm:block">
-                Chào, {user?.username}!
+                Chào, {currentUser?.username}!
               </p>
             </div>
           </div>

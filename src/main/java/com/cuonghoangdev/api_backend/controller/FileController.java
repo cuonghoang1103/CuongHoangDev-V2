@@ -32,7 +32,8 @@ public class FileController {
             @RequestParam(value = "category", required = false, defaultValue = "misc") String category,
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
-        FileAttachment attachment = fileStorageService.store(file, currentUser.getId(), category);
+        Long userId = (currentUser != null) ? currentUser.getId() : null;
+        FileAttachment attachment = fileStorageService.store(file, userId, category);
 
         FileUploadResponse response = new FileUploadResponse(
                 attachment.getId(),
