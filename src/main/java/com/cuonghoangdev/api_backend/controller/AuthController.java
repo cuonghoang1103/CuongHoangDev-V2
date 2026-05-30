@@ -2,12 +2,14 @@ package com.cuonghoangdev.api_backend.controller;
 
 import com.cuonghoangdev.api_backend.dto.*;
 import com.cuonghoangdev.api_backend.entity.User;
+import com.cuonghoangdev.api_backend.exception.BadRequestException;
 import com.cuonghoangdev.api_backend.security.UserPrincipal;
 import com.cuonghoangdev.api_backend.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -30,8 +32,20 @@ public class AuthController {
     @PostMapping("/login")
     @Operation(summary = "Đăng nhập", description = "Đăng nhập bằng username và password, trả về JWT token")
     public ResponseEntity<ApiResponse<AuthResponse>> login(@Valid @RequestBody LoginRequest request) {
-        AuthResponse authResponse = authService.login(request);
-        return ResponseEntity.ok(ApiResponse.ok("Đăng nhập thành công", authResponse));
+        try {
+            AuthResponse authResponse = authService.login(request);
+            return ResponseEntity.ok(ApiResponse.ok("Đăng nhập thành công", authResponse));
+        } catch (BadRequestException ex) {
+            return new ResponseEntity<>(
+                    ApiResponse.error("Bad credentials"),
+                    HttpStatus.BAD_REQUEST
+            );
+        } catch (Exception ex) {
+            return new ResponseEntity<>(
+                    ApiResponse.error("Bad credentials"),
+                    HttpStatus.BAD_REQUEST
+            );
+        }
     }
 
     @PostMapping("/forgot-password")

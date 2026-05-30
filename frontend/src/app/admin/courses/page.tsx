@@ -4,16 +4,21 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Plus, Search, Pencil, Trash2, X, ChevronLeft, ChevronRight,
   CheckCircle, Clock, AlertCircle, Eye, EyeOff, Loader2,
-  ChevronDown, ChevronUp, BookOpen, Play, FileText, Link, Video
+  ChevronDown, ChevronUp, BookOpen, Play, FileText, Link, Video, Image
 } from 'lucide-react';
 import { adminCoursesApi, courseCategoryApi } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import type { Course, CourseCategory, CourseSection as CCSection, LessonDto } from '@/types';
+import ImageUpload from '@/components/admin/ImageUpload';
 
 const LEVELS = ['BEGINNER', 'INTERMEDIATE', 'ADVANCED'];
 const STATUSES = ['DRAFT', 'PUBLISHED'];
 const LESSON_TYPES = ['VIDEO', 'TEXT', 'QUIZ'];
 
+// Single source of truth for course status.
+// 'DRAFT' = not visible on Academy page
+// 'PUBLISHED' = visible on Academy page
+// isPublished is kept for backward compatibility but is now auto-synced with status.
 const emptyCourse = {
   title: '', shortDescription: '', description: '',
   thumbnailUrl: '', previewVideoUrl: '',
@@ -21,6 +26,7 @@ const emptyCourse = {
   language: 'Vietnamese', isFree: false, isFeatured: false,
   isPublished: false, requirements: '', whatYouLearn: '',
   status: 'DRAFT', tags: [] as string[],
+  categoryId: 0,
 };
 
 interface SectionForm {
@@ -72,6 +78,24 @@ export default function AdminCoursesPage() {
   const [sections, setSections] = useState<SectionForm[]>([]);
   const [saving, setSaving] = useState(false);
   const [loadingSections, setLoadingSections] = useState(false);
+
+  // ── Auto-sync status ↔ isPublished ──────────────────────────────────────
+  // Single source of truth: `status` drives visibility.
+  // isPublished is kept for backward compatibility but mirrors `status`.
+  useEffect(() => {
+    setCourseForm(prev => ({
+      ...prev,
+      isPublished: prev.status === 'PUBLISHED',
+    }));
+  }, [courseForm.status]);
+
+  // ── Auto-sync isPublished → status (handles checkbox click from old data) ─
+  useEffect(() => {
+    setCourseForm(prev => ({
+      ...prev,
+      status: prev.isPublished ? 'PUBLISHED' : 'DRAFT',
+    }));
+  }, [courseForm.isPublished]);
 
   // Section/lesson expanded state
   const [expandedSections, setExpandedSections] = useState<Set<number>>(new Set());
@@ -127,6 +151,7 @@ export default function AdminCoursesPage() {
       whatYouLearn: course.whatYouLearn || '',
       status: course.status || 'DRAFT',
       tags: course.tags || [],
+      categoryId: course.categoryId || 0,
     });
     setSections([]);
     setExpandedSections(new Set());
@@ -251,6 +276,7 @@ export default function AdminCoursesPage() {
         description: courseForm.description,
         thumbnailUrl: courseForm.thumbnailUrl,
         previewVideoUrl: courseForm.previewVideoUrl,
+        categoryId: courseForm.categoryId || undefined,
         price: courseForm.price,
         discountPrice: courseForm.discountPrice,
         level: courseForm.level,
@@ -499,6 +525,19 @@ export default function AdminCoursesPage() {
                 </div>
 
                 <div>
+                  <label className="block text-sm font-medium text-text-primary mb-1.5">Danh mục</label>
+                  <select value={courseForm.categoryId}
+                    onChange={e => setCourseForm(p => ({ ...p, categoryId: Number(e.target.value) }))}
+                    className="w-full px-4 py-2.5 bg-darkbg border border-darkborder rounded-xl text-sm text-text-primary focus:outline-none focus:border-neon-violet/50 cursor-pointer"
+                  >
+                    <option value={0}>-- Chọn danh mục --</option>
+                    {categories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
                   <label className="block text-sm font-medium text-text-primary mb-1.5">Mô tả ngắn</label>
                   <input value={courseForm.shortDescription}
                     onChange={e => setCourseForm(p => ({ ...p, shortDescription: e.target.value }))}
@@ -518,7 +557,12 @@ export default function AdminCoursesPage() {
                     </select>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-text-primary mb-1.5">Trạng thái</label>
+                    <label className="block text-sm font-medium text-text-primary mb-1.5">
+                      Trạng thái
+                      <span className="text-[11px] font-normal text-text-muted ml-1.5">
+                        (quyết định hiển thị trên Academy)
+                      </span>
+                    </label>
                     <select value={courseForm.status}
                       onChange={e => setCourseForm(p => ({ ...p, status: e.target.value }))}
                       className="w-full px-4 py-2.5 bg-darkbg border border-darkborder rounded-xl text-sm text-text-primary focus:outline-none focus:border-neon-violet/50 cursor-pointer"
@@ -526,6 +570,13 @@ export default function AdminCoursesPage() {
                       <option value="DRAFT">Bản nháp</option>
                       <option value="PUBLISHED">Đã đăng</option>
                     </select>
+                    <p className="text-[11px] mt-1">
+                      <span className="text-text-muted">
+                        {courseForm.status === 'DRAFT'
+                          ? 'Lưu nháp — chỉ admin thấy, không hiện trên Academy.'
+                          : 'Xuất bản — hiện trên trang Academy, học viên có thể đăng ký.'}
+                      </span>
+                    </p>
                   </div>
                 </div>
 
@@ -555,11 +606,12 @@ export default function AdminCoursesPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
-                    <label className="block text-sm font-medium text-text-primary mb-1.5">Thumbnail URL</label>
-                    <input value={courseForm.thumbnailUrl}
-                      onChange={e => setCourseForm(p => ({ ...p, thumbnailUrl: e.target.value }))}
-                      placeholder="https://..."
-                      className="w-full px-4 py-2.5 bg-darkbg border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50"
+                  <label className="block text-sm font-medium text-text-primary mb-1.5">Thumbnail</label>
+                    <ImageUpload
+                      value={courseForm.thumbnailUrl}
+                      onChange={(url) => setCourseForm(p => ({ ...p, thumbnailUrl: url }))}
+                      label=""
+                      folder="courses"
                     />
                   </div>
                   <div>
@@ -617,6 +669,7 @@ export default function AdminCoursesPage() {
                       className="w-4 h-4 rounded accent-neon-violet"
                     />
                     Đã xuất bản
+                    <span className="text-[10px] text-text-muted">(đồng bộ với Trạng thái)</span>
                   </label>
                 </div>
               </section>

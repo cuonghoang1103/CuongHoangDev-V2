@@ -1,56 +1,67 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { useSession } from 'next-auth/react';
+import { useAuthStore } from '@/store/authStore';
 import { motion } from 'framer-motion';
-import { BookOpen, PlayCircle, CheckCircle, Clock, TrendingUp, Award, Target } from 'lucide-react';
+import { BookOpen, Loader2, Search } from 'lucide-react';
 import { coursesApi } from '@/lib/api';
-import type { Enrollment } from '@/types';
 import MyCourseCard from '@/components/academy/MyCourseCard';
-
-type TabType = 'in_progress' | 'completed' | 'wishlist';
-
-const TABS: { id: TabType; label: string; icon: typeof PlayCircle }[] = [
-  { id: 'in_progress', label: 'In Progress', icon: PlayCircle },
-  { id: 'completed', label: 'Completed', icon: CheckCircle },
-  { id: 'wishlist', label: 'Wishlist', icon: BookOpen },
-];
+import type { Enrollment } from '@/types';
 
 export default function MyCoursesPage() {
-  const [activeTab, setActiveTab] = useState<TabType>('in_progress');
+  const { data: session, status } = useSession();
+  const { isAuthenticated: isBackendAuth, isLoading: isBackendLoading } = useAuthStore();
+  const router = useRouter();
   const [enrollments, setEnrollments] = useState<Enrollment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<'all' | 'in_progress' | 'completed'>('all');
+  const [search, setSearch] = useState('');
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const isLoading = isBackendLoading || status === 'loading';
+  // Authenticated if either backend auth OR social login session exists
+  const isAuthenticated = mounted && (isBackendAuth || status === 'authenticated');
 
   useEffect(() => {
-    const fetchMyCourses = async () => {
-      try {
-        setLoading(true);
-        const params = activeTab === 'completed'
-          ? { status: 'COMPLETED' }
-          : activeTab === 'in_progress'
-          ? { status: 'IN_PROGRESS' }
-          : {};
+    if (!mounted || isLoading) return;
+    if (!isAuthenticated) {
+      router.push('/login');
+    }
+  }, [mounted, isLoading, isAuthenticated, router]);
 
-        const res = await coursesApi.getMyCourses(params);
-        setEnrollments(res.data?.data?.content || []);
-      } catch (err) {
-        console.error('Failed to fetch my courses:', err);
-        setEnrollments([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchMyCourses();
-  }, [activeTab]);
+  useEffect(() => {
+    if (!mounted || isLoading || !isAuthenticated) return;
+    loadEnrollments();
+  }, [mounted, isLoading, isAuthenticated]);
 
-  const inProgress = enrollments.filter(e => e.status === 'IN_PROGRESS');
-  const completed = enrollments.filter(e => e.status === 'COMPLETED');
+  const loadEnrollments = async () => {
+    setLoading(true);
+    try {
+      const res = await coursesApi.getMyCourses();
+      setEnrollments(res.data.data?.content || []);
+    } catch {
+      setEnrollments([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Stats
+  const filtered = enrollments.filter(e => {
+    if (filter === 'in_progress') return e.progressPercent > 0 && e.progressPercent < 100;
+    if (filter === 'completed') return e.progressPercent === 100;
+    return true;
+  }).filter(e =>
+    !search || e.courseTitle.toLowerCase().includes(search.toLowerCase())
+  );
+
   const stats = {
-    total: inProgress.length + completed.length,
-    inProgress: inProgress.length,
-    completed: completed.length,
-    totalHours: Math.round((inProgress.length + completed.length) * 4.5), // estimate 4.5h per course
+    total: enrollments.length,
+    inProgress: enrollments.filter(e => e.progressPercent > 0 && e.progressPercent < 100).length,
+    completed: enrollments.filter(e => e.progressPercent === 100).length,
   };
 
   return (
@@ -58,128 +69,104 @@ export default function MyCoursesPage() {
       {/* Hero */}
       <section className="relative py-12 overflow-hidden">
         <div className="absolute inset-0">
-          <div className="absolute top-0 left-1/4 w-[400px] h-[400px] bg-neon-indigo/20 rounded-full blur-[150px]" />
-          <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-neon-violet/20 rounded-full blur-[150px]" />
+          <div className="absolute top-0 left-1/4 w-[400px] h-[400px] bg-neon-indigo/15 rounded-full blur-[150px]" />
+          <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-neon-violet/15 rounded-full blur-[150px]" />
         </div>
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
-            className="text-center"
           >
-            <h1 className="text-4xl md:text-5xl font-heading font-bold text-text-primary mb-4">
-              My Learning <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-indigo to-neon-violet">Journey</span>
+            <h1 className="text-3xl md:text-4xl font-heading font-bold text-text-primary mb-2">
+              My Learning
             </h1>
-            <p className="text-lg text-text-secondary">Track your progress and continue learning</p>
-          </motion.div>
-
-          {/* Stats */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-10"
-          >
-            {[
-              { label: 'Enrolled Courses', value: stats.total, icon: BookOpen, color: 'from-neon-indigo to-neon-violet' },
-              { label: 'In Progress', value: stats.inProgress, icon: PlayCircle, color: 'from-yellow-400 to-orange-500' },
-              { label: 'Completed', value: stats.completed, icon: CheckCircle, color: 'from-green-400 to-emerald-500' },
-              { label: 'Learning Hours', value: `${stats.totalHours}h`, icon: Clock, color: 'from-neon-cyan to-blue-500' },
-            ].map((stat, i) => (
-              <div key={i} className="bg-darkcard/50 border border-darkborder/50 rounded-2xl p-5 text-center backdrop-blur-sm">
-                <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${stat.color} flex items-center justify-center mx-auto mb-3`}>
-                  <stat.icon className="w-5 h-5 text-white" />
-                </div>
-                <p className="text-2xl font-bold text-text-primary">{stat.value}</p>
-                <p className="text-xs text-text-muted mt-1">{stat.label}</p>
-              </div>
-            ))}
+            <p className="text-text-secondary">Track your enrolled courses and continue learning</p>
           </motion.div>
         </div>
       </section>
 
-      {/* Tabs */}
-      <section className="sticky top-16 z-30 bg-darkbg/90 backdrop-blur-md border-b border-darkborder">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex gap-1 py-3 overflow-x-auto">
-            {TABS.map(tab => (
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-20">
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 mb-8">
+          {[
+            { label: 'Total Courses', value: stats.total, color: 'text-neon-violet' },
+            { label: 'In Progress', value: stats.inProgress, color: 'text-yellow-400' },
+            { label: 'Completed', value: stats.completed, color: 'text-green-400' },
+          ].map((stat) => (
+            <motion.div
+              key={stat.label}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3 }}
+              className="bg-darkcard border border-darkborder rounded-2xl p-4 text-center"
+            >
+              <p className={`text-2xl font-heading font-bold ${stat.color}`}>{stat.value}</p>
+              <p className="text-xs text-text-muted mt-1">{stat.label}</p>
+            </motion.div>
+          ))}
+        </div>
+
+        {/* Filters */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-8">
+          <div className="relative flex-1">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+            <input
+              type="text"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search my courses..."
+              className="w-full pl-10 pr-4 py-2.5 bg-darkcard border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50"
+            />
+          </div>
+          <div className="flex gap-2">
+            {(['all', 'in_progress', 'completed'] as const).map((f) => (
               <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium whitespace-nowrap transition-all ${
-                  activeTab === tab.id
-                    ? 'bg-gradient-to-r from-neon-indigo to-neon-violet text-white'
-                    : 'text-text-muted hover:text-text-primary hover:bg-white/5'
+                key={f}
+                onClick={() => setFilter(f)}
+                className={`px-4 py-2 rounded-xl text-sm font-medium border transition-all ${
+                  filter === f
+                    ? 'bg-neon-violet/20 border-neon-violet text-neon-violet'
+                    : 'bg-darkcard border-darkborder text-text-secondary hover:border-neon-violet/30'
                 }`}
               >
-                <tab.icon className="w-4 h-4" />
-                {tab.label}
-                <span className={`px-1.5 py-0.5 rounded text-xs ${
-                  activeTab === tab.id ? 'bg-white/20' : 'bg-darkcard'
-                }`}>
-                  {tab.id === 'in_progress' ? inProgress.length : tab.id === 'completed' ? completed.length : 0}
-                </span>
+                {f === 'all' ? 'All' : f === 'in_progress' ? 'In Progress' : 'Completed'}
               </button>
             ))}
           </div>
         </div>
-      </section>
 
-      {/* Content */}
-      <section className="py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="bg-darkcard rounded-2xl overflow-hidden border border-darkborder/50">
-                    <div className="aspect-video bg-darkbg" />
-                    <div className="p-4 space-y-3">
-                      <div className="h-4 bg-darkbg rounded w-3/4" />
-                      <div className="h-2 bg-darkbg rounded w-full" />
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : enrollments.length > 0 ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {enrollments.map((enrollment, i) => (
-                <MyCourseCard key={enrollment.id} enrollment={enrollment} index={i} />
-              ))}
-            </div>
-          ) : (
-            <div className="text-center py-20">
-              {activeTab === 'in_progress' ? (
-                <>
-                  <Target className="w-16 h-16 text-text-muted/30 mx-auto mb-4" />
-                  <h3 className="text-xl font-heading font-bold text-text-primary mb-2">No courses in progress</h3>
-                  <p className="text-text-muted mb-6">Start learning something new today</p>
-                  <a
-                    href="/academy"
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-medium rounded-xl hover:opacity-90 transition-opacity"
-                  >
-                    Browse Courses
-                  </a>
-                </>
-              ) : activeTab === 'completed' ? (
-                <>
-                  <Award className="w-16 h-16 text-text-muted/30 mx-auto mb-4" />
-                  <h3 className="text-xl font-heading font-bold text-text-primary mb-2">No completed courses yet</h3>
-                  <p className="text-text-muted mb-6">Keep going, you're doing great!</p>
-                </>
-              ) : (
-                <>
-                  <BookOpen className="w-16 h-16 text-text-muted/30 mx-auto mb-4" />
-                  <h3 className="text-xl font-heading font-bold text-text-primary mb-2">Wishlist is empty</h3>
-                  <p className="text-text-muted mb-6">Save courses you want to take later</p>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-      </section>
+        {/* Course grid */}
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-neon-violet" />
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-20">
+            <BookOpen className="w-16 h-16 text-text-muted/30 mx-auto mb-4" />
+            <h3 className="text-xl font-heading font-bold text-text-primary mb-2">No courses found</h3>
+            <p className="text-text-muted mb-6">{
+              filter !== 'all'
+                ? 'No courses match this filter'
+                : search
+                ? 'No courses match your search'
+                : 'You haven\'t enrolled in any courses yet'
+            }</p>
+            <Link
+              href="/academy"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-medium rounded-xl hover:opacity-90 transition-opacity"
+            >
+              Browse Courses
+            </Link>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {filtered.map((enrollment, i) => (
+              <MyCourseCard key={enrollment.id} enrollment={enrollment} index={i} />
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }

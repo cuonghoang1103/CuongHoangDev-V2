@@ -2,9 +2,10 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAuthStore } from '@/store/authStore';
+import { useSession } from 'next-auth/react';
 import { Send, Trash2, Plus, MessageSquare, Sparkles, BookOpen, Code2, User, Bot, Loader2, ChevronDown } from 'lucide-react';
 import { api } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
 
@@ -27,7 +28,12 @@ interface ChatSession {
 }
 
 export default function ChatPage() {
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated: isBackendAuth, token } = useAuthStore();
+  const { status } = useSession();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  const isAuthenticated = mounted && (isBackendAuth || status === 'authenticated');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -104,7 +110,7 @@ export default function ChatPage() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          ...(isAuthenticated ? { Authorization: `Bearer ${useAuthStore.getState().token}` } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify({
           message: text,

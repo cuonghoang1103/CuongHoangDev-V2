@@ -5,6 +5,8 @@ import com.cuonghoangdev.api_backend.dto.CourseCategoryDto;
 import com.cuonghoangdev.api_backend.service.CourseCategoryService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotBlank;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -35,26 +37,16 @@ public class CourseCategoryController {
 
     @PostMapping
     @Operation(summary = "[Admin] Tao danh muc")
-    public ResponseEntity<ApiResponse<CourseCategoryDto>> create(
-            @RequestParam String name,
-            @RequestParam(required = false) String description,
-            @RequestParam(required = false) String icon,
-            @RequestParam(required = false) Integer sortOrder) {
+    public ResponseEntity<ApiResponse<CourseCategoryDto>> create(@Valid @RequestBody CategoryRequest req) {
         return ResponseEntity.ok(ApiResponse.ok("Tao danh muc thanh cong!",
-            categoryService.create(name, description, icon, sortOrder)));
+            categoryService.create(req.getName(), req.getDescription(), req.getIcon(), req.getSortOrder())));
     }
 
     @PutMapping("/{id}")
     @Operation(summary = "[Admin] Cap nhat danh muc")
-    public ResponseEntity<ApiResponse<CourseCategoryDto>> update(
-            @PathVariable Long id,
-            @RequestParam(required = false) String name,
-            @RequestParam(required = false) String description,
-            @RequestParam(required = false) String icon,
-            @RequestParam(required = false) Integer sortOrder,
-            @RequestParam(required = false) Boolean isActive) {
+    public ResponseEntity<ApiResponse<CourseCategoryDto>> update(@PathVariable Long id, @RequestBody CategoryUpdateRequest req) {
         return ResponseEntity.ok(ApiResponse.ok("Cap nhat thanh cong!",
-            categoryService.update(id, name, description, icon, sortOrder, isActive)));
+            categoryService.update(id, req.getName(), req.getDescription(), req.getIcon(), req.getSortOrder(), req.getIsActive())));
     }
 
     @DeleteMapping("/{id}")
@@ -62,5 +54,31 @@ public class CourseCategoryController {
     public ResponseEntity<ApiResponse<Void>> delete(@PathVariable Long id) {
         categoryService.delete(id);
         return ResponseEntity.ok(ApiResponse.ok("Xoa thanh cong!", null));
+    }
+
+    public static class CategoryRequest {
+        @NotBlank private String name;
+        private String description;
+        private String icon;
+        private Integer sortOrder;
+
+        public String getName() { return name; }
+        public String getDescription() { return description; }
+        public String getIcon() { return icon; }
+        public Integer getSortOrder() { return sortOrder; }
+    }
+
+    public static class CategoryUpdateRequest {
+        private String name;
+        private String description;
+        private String icon;
+        private Integer sortOrder;
+        private Boolean isActive;
+
+        public String getName() { return name; }
+        public String getDescription() { return description; }
+        public String getIcon() { return icon; }
+        public Integer getSortOrder() { return sortOrder; }
+        public Boolean getIsActive() { return isActive; }
     }
 }

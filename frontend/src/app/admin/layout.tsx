@@ -20,11 +20,14 @@ import {
   MessageSquare,
   BarChart3,
   BookOpen,
+  ShoppingBag,
 } from 'lucide-react';
 
 const adminNav = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { label: 'Quản lý Khoá học', href: '/admin/courses', icon: BookOpen },
+  { label: 'Danh mục Khoá học', href: '/admin/course-categories', icon: Sparkles },
+  { label: 'Quản lý Shop', href: '/admin/shop', icon: ShoppingBag },
   { label: 'Quản lý Posts', href: '/admin/posts', icon: FileText },
   { label: 'Quản lý Users', href: '/admin/users', icon: Users },
   { label: 'Quản lý Skills', href: '/admin/skills', icon: Code2 },
@@ -46,13 +49,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
+    // Check backend auth cookie (__auth__)
     const authToken = document.cookie.match(/__auth__=([^;]+)/)?.[1];
     const authStorage = localStorage.getItem('auth-storage');
-
-    const hasCookie = authToken && authToken.length > 10;
+    const hasBackendCookie = authToken && authToken.length > 10;
     const hasStorage = authStorage && authStorage.length > 10;
 
-    if (!hasCookie && !hasStorage) {
+    // Check NextAuth session cookie (social login)
+    const nextAuthSession = document.cookie.match(/next-auth\.session-token=([^;]+)/)?.[1] ||
+                            document.cookie.match(/__Secure-next-auth\.session-token=([^;]+)/)?.[1];
+    const hasSocialSession = !!nextAuthSession;
+
+    // Admin requires backend auth (has roles) — social login users don't have admin roles
+    if (!hasBackendCookie && !hasStorage) {
+      // If user has social session but no backend auth, redirect to home (not admin)
+      if (hasSocialSession) {
+        router.push('/');
+        return;
+      }
       router.push('/login?redirect=' + pathname);
       return;
     }
@@ -61,7 +75,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     let username = '';
     let email = '';
 
-    if (hasCookie) {
+    if (hasBackendCookie) {
       try {
         const parsed = JSON.parse(decodeURIComponent(authToken));
         roles = parsed.roles || [];

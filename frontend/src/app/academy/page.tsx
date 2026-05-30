@@ -24,7 +24,8 @@ export default function AcademyPage() {
 
   // Filters
   const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('All');
+  const [categorySlug, setCategorySlug] = useState('');
+  const [categoryMap, setCategoryMap] = useState<Record<string, string>>({});
   const [level, setLevel] = useState('All');
   const [priceFilter, setPriceFilter] = useState('All');
   const [sortBy, setSortBy] = useState('newest');
@@ -32,19 +33,16 @@ export default function AcademyPage() {
   const [page, setPage] = useState(0);
   const [hasMore, setHasMore] = useState(true);
 
-  const fetchCourses = useCallback(async (reset = false) => {
+  const fetchCourses = useCallback(async (targetPage: number) => {
+    setLoading(true);
     try {
-      if (reset) {
-        setLoading(true);
-        setPage(0);
-      }
       const params: Record<string, string | number> = {
-        page: reset ? 0 : page,
+        page: targetPage,
         size: 12,
       };
       if (search) params.keyword = search;
-      if (category !== 'All') params.category = category;
-      if (level !== 'All') params.level = level;
+      if (categorySlug) params.category = categorySlug;
+      if (level !== 'All') params.level = level.toUpperCase();
       if (sortBy === 'popular') params.sortBy = 'popular';
       if (sortBy === 'newest') params.sortBy = 'newest';
 
@@ -52,59 +50,64 @@ export default function AcademyPage() {
       const data: PageResponse<Course> = res.data?.data;
       const newCourses = data?.content || [];
 
-      if (reset) {
+      if (targetPage === 0) {
         setCourses(newCourses);
       } else {
         setCourses(prev => [...prev, ...newCourses]);
       }
       setTotal(data?.totalElements || 0);
       setHasMore(!data?.last);
-    } catch (err) {
-      console.error('Failed to fetch courses:', err);
+    } catch {
+      if (targetPage === 0) setCourses([]);
     } finally {
       setLoading(false);
     }
-  }, [search, category, level, sortBy, page]);
+  }, [search, categorySlug, level, sortBy]);
 
+  // Fetch categories once
   useEffect(() => {
-    coursesApi.getAll({ size: 100 }).then(res => {
-      const cats: CourseCategory[] = res.data?.data?.content?.map((c: Course) => ({
-        id: c.categoryId || 0,
-        name: c.categoryName || 'Other',
-        slug: c.categorySlug || '',
-        sortOrder: 0,
-      })) || [];
-      const unique = Array.from(new Map(cats.map((c: CourseCategory) => [c.id, c])).values());
-      setCategories(unique);
+    courseCategoryApi.getAll().then(res => {
+      const cats: CourseCategory[] = res.data?.data || [];
+      const map: Record<string, string> = {};
+      cats.forEach((c: CourseCategory) => { map[c.slug] = c.name; });
+      setCategoryMap(map);
+      setCategories(cats);
     }).catch(() => {});
   }, []);
 
+  // Initial fetch on mount
   useEffect(() => {
-    const timer = setTimeout(() => {
-      fetchCourses(true);
-    }, 300);
+    fetchCourses(0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Filter/search changes → reset to page 0
+  useEffect(() => {
+    setPage(0);
+    const timer = setTimeout(() => fetchCourses(0), 50);
     return () => clearTimeout(timer);
-  }, [search, category, level, sortBy, priceFilter]);
+  }, [search, categorySlug, level, sortBy, priceFilter]);
+
+  // Pagination: load more
+  useEffect(() => {
+    if (page === 0) return;
+    const timer = setTimeout(() => fetchCourses(page), 50);
+    return () => clearTimeout(timer);
+  }, [page, fetchCourses]);
 
   const loadMore = () => {
-    if (!loading && hasMore) {
-      setPage(p => p + 1);
-    }
+    if (!loading && hasMore) setPage(p => p + 1);
   };
-
-  useEffect(() => {
-    if (page > 0) fetchCourses(false);
-  }, [page]);
 
   const clearFilters = () => {
     setSearch('');
-    setCategory('All');
+    setCategorySlug('');
     setLevel('All');
     setPriceFilter('All');
     setSortBy('newest');
   };
 
-  const hasActiveFilters = search || category !== 'All' || level !== 'All' || priceFilter !== 'All';
+  const hasActiveFilters = search || !!categorySlug || level !== 'All' || priceFilter !== 'All';
 
   return (
     <div className="min-h-screen bg-darkbg pt-20">
@@ -202,9 +205,9 @@ export default function AcademyPage() {
                   <label className="block text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Category</label>
                   <div className="flex flex-wrap gap-2">
                     <button
-                      onClick={() => setCategory('All')}
+                      onClick={() => { setCategorySlug(''); setPage(0); }}
                       className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                        category === 'All' ? 'bg-neon-violet text-white' : 'bg-darkbg text-text-secondary hover:text-text-primary'
+                        !categorySlug ? 'bg-neon-violet text-white' : 'bg-darkbg text-text-secondary hover:text-text-primary'
                       }`}
                     >
                       All
@@ -212,9 +215,9 @@ export default function AcademyPage() {
                     {categories.map(cat => (
                       <button
                         key={cat.id}
-                        onClick={() => setCategory(cat.name)}
+                        onClick={() => { setCategorySlug(cat.slug); setPage(0); }}
                         className={`px-3 py-1.5 rounded-lg text-sm transition-colors ${
-                          category === cat.name ? 'bg-neon-violet text-white' : 'bg-darkbg text-text-secondary hover:text-text-primary'
+                          categorySlug === cat.slug ? 'bg-neon-violet text-white' : 'bg-darkbg text-text-secondary hover:text-text-primary'
                         }`}
                       >
                         {cat.name}

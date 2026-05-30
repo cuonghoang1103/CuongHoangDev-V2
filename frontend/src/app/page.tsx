@@ -27,7 +27,7 @@ export default function HomePage() {
         ]);
         setFeaturedPosts(postsRes.data.data?.content || []);
         setCategories(categoriesRes.data.data || []);
-        setFeaturedProjects(projectsRes.data.data?.slice(0, 4) || []);
+        setFeaturedProjects(projectsRes.data.data?.content?.slice(0, 4) || []);
       } catch (err) {
         console.error('Failed to fetch data:', err);
       } finally {
@@ -101,8 +101,8 @@ export default function HomePage() {
 
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row items-start gap-4">
-                <a
-                  href="#projects"
+                <Link
+                  href="/projects"
                   className="group px-8 py-4 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-semibold rounded-2xl hover:shadow-lg hover:shadow-neon-violet/30 transition-all duration-300"
                 >
                   <span className="flex items-center gap-2">
@@ -111,7 +111,7 @@ export default function HomePage() {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                     </svg>
                   </span>
-                </a>
+                </Link>
                 <a
                   href="/courses"
                   className="group px-8 py-4 bg-darkcard border border-darkborder text-text-primary font-semibold rounded-2xl hover:border-neon-violet hover:text-neon-violet transition-all duration-300"

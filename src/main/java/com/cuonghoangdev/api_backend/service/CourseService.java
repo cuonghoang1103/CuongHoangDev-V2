@@ -124,10 +124,16 @@ public class CourseService {
         if (req.getIsFeatured() != null) course.setIsFeatured(req.getIsFeatured());
         course.setRequirements(req.getRequirements());
         course.setWhatYouLearn(req.getWhatYouLearn());
-        if (req.getStatus() != null) course.setStatus(req.getStatus());
-        if (Boolean.TRUE.equals(req.getStatus())) {
-            course.setIsPublished(true);
-            course.setPublishedAt(LocalDateTime.now());
+        // Status + auto-sync with isPublished for backward compatibility
+        if (req.getStatus() != null) {
+            course.setStatus(req.getStatus());
+            // Auto-set publishedAt when creating with status = PUBLISHED (for the first time)
+            if ("PUBLISHED".equals(req.getStatus())) {
+                course.setIsPublished(true);
+                course.setPublishedAt(LocalDateTime.now());
+            }
+        } else {
+            course.setStatus("DRAFT");
         }
         if (req.getCategoryId() != null) {
             categoryRepository.findById(req.getCategoryId())
@@ -168,7 +174,27 @@ public class CourseService {
         }
         if (req.getRequirements() != null) course.setRequirements(req.getRequirements());
         if (req.getWhatYouLearn() != null) course.setWhatYouLearn(req.getWhatYouLearn());
-        if (req.getStatus() != null) course.setStatus(req.getStatus());
+        // Status + auto-sync with isPublished for backward compatibility
+        if (req.getStatus() != null) {
+            course.setStatus(req.getStatus());
+            // Auto-set publishedAt when transitioning to PUBLISHED (for the first time)
+            if ("PUBLISHED".equals(req.getStatus())) {
+                course.setIsPublished(true);
+                if (course.getPublishedAt() == null) {
+                    course.setPublishedAt(LocalDateTime.now());
+                }
+            } else {
+                // Unpublishing: set isPublished = false
+                course.setIsPublished(false);
+            }
+        }
+        // isPublished checkbox still respected for backward compat
+        if (req.getIsPublished() != null) {
+            course.setIsPublished(req.getIsPublished());
+            if (req.getIsPublished() && course.getPublishedAt() == null) {
+                course.setPublishedAt(LocalDateTime.now());
+            }
+        }
         if (req.getCategoryId() != null) {
             categoryRepository.findById(req.getCategoryId())
                 .ifPresent(course::setCategory);

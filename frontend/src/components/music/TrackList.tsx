@@ -2,22 +2,40 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, Trash2, X, AlertTriangle } from 'lucide-react';
+import { Play, Pause, Trash2, AlertTriangle, X } from 'lucide-react';
 import { useMusicStore } from '@/store/musicStore';
 import { useAuthStore } from '@/store/authStore';
 import type { Track } from '@/types';
 
 interface TrackListProps {
-  tracks: Track[];
   onUploadClick?: () => void;
 }
 
-function TrackItem({ track, index, onDelete }: { track: Track; index: number; onDelete: (id: string) => void }) {
+// ============================================================
+// Broken track handling:
+// Tracks with id starting with "local-" that couldn't restore their
+// blob URL after reload will have audioUrl = "".
+// We show a warning badge and offer to re-upload or delete.
+// ============================================================
+
+function TrackItem({
+  track,
+  index,
+  onDelete,
+}: {
+  track: Track;
+  index: number;
+  onDelete: (id: string) => void;
+}) {
   const { currentTrack, isPlaying, playTrack } = useMusicStore();
-  const isAdmin = useAuthStore((s) => s.user?.roles?.some((r: string) => r.replace('ROLE_', '').toUpperCase() === 'ADMIN'));
+  const isAdmin = useAuthStore(
+    (s) => s.user?.roles?.some((r: string) => r.replace('ROLE_', '').toUpperCase() === 'ADMIN')
+  );
   const isActive = currentTrack?.id === track.id;
+  const isBroken = !track.audioUrl;
 
   const handlePlay = () => {
+    if (isBroken) return;
     if (isActive) {
       useMusicStore.getState().togglePlay();
     } else {
@@ -38,15 +56,17 @@ function TrackItem({ track, index, onDelete }: { track: Track; index: number; on
         className={`
           w-full flex items-center gap-3 px-3 py-2.5 rounded-xl
           transition-all duration-200
-          ${isActive
+          ${isBroken
+            ? 'opacity-50 bg-red-500/5 border border-red-500/10'
+            : isActive
             ? 'bg-neon-violet/15 border border-neon-violet/20'
             : 'hover:bg-darkcard/60 border border-transparent'
           }
         `}
       >
-        {/* Index / Play */}
+        {/* Index / Play indicator */}
         <div className="w-7 flex items-center justify-center shrink-0">
-          {isActive && isPlaying ? (
+          {isActive && isPlaying && !isBroken ? (
             <div className="flex items-end gap-0.5 h-4">
               <motion.div
                 animate={{ height: [4, 16, 4] }}
@@ -74,7 +94,9 @@ function TrackItem({ track, index, onDelete }: { track: Track; index: number; on
         {/* Cover */}
         <button
           onClick={handlePlay}
-          className="relative w-10 h-10 rounded-lg overflow-hidden shrink-0 group/play"
+          className={`relative w-10 h-10 rounded-lg overflow-hidden shrink-0 group/play ${
+            isBroken ? 'cursor-not-allowed' : 'cursor-pointer'
+          }`}
         >
           {track.coverImage ? (
             <img src={track.coverImage} alt={track.title} className="w-full h-full object-cover" />
@@ -83,25 +105,45 @@ function TrackItem({ track, index, onDelete }: { track: Track; index: number; on
               <span className="text-white/50 text-sm font-bold">{track.title.charAt(0)}</span>
             </div>
           )}
-          <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/play:opacity-100 transition-opacity">
-            {isActive && isPlaying ? (
-              <Pause className="w-4 h-4 text-white" />
-            ) : (
-              <Play className="w-4 h-4 text-white ml-0.5" />
-            )}
-          </div>
-          {isActive && (
+          {!isBroken && (
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover/play:opacity-100 transition-opacity">
+              {isActive && isPlaying ? (
+                <Pause className="w-4 h-4 text-white" />
+              ) : (
+                <Play className="w-4 h-4 text-white ml-0.5" />
+              )}
+            </div>
+          )}
+          {isActive && !isBroken && (
             <div className="absolute inset-0 ring-2 ring-neon-violet/60 rounded-lg" />
           )}
         </button>
 
         {/* Info */}
-        <button onClick={handlePlay} className="flex-1 min-w-0 text-left">
-          <p className={`text-sm font-medium truncate ${isActive ? 'text-neon-violet' : 'text-text-primary'}`}>
-            {track.title}
-          </p>
+        <button
+          onClick={handlePlay}
+          className={`flex-1 min-w-0 text-left ${isBroken ? 'cursor-not-allowed' : ''}`}
+          title={isBroken ? 'Track unavailable — file not found after reload. Please re-upload.' : track.title}
+        >
+          <div className="flex items-center gap-1.5">
+            <p className={`text-sm font-medium truncate ${isActive ? 'text-neon-violet' : isBroken ? 'text-red-400' : 'text-text-primary'}`}>
+              {track.title}
+            </p>
+            {isBroken && (
+              <span className="shrink-0">
+                <AlertTriangle className="w-3 h-3 text-red-400" />
+              </span>
+            )}
+          </div>
           <p className="text-xs text-text-muted truncate">{track.artist}</p>
         </button>
+
+        {/* Broken track re-upload hint */}
+        {isBroken && isAdmin && (
+          <span className="text-[10px] text-red-400 shrink-0 hidden sm:block">
+            Re-upload to fix
+          </span>
+        )}
 
         {/* Delete (admin only) */}
         {isAdmin && (
@@ -126,7 +168,15 @@ function TrackItem({ track, index, onDelete }: { track: Track; index: number; on
   );
 }
 
-function DeleteConfirmDialog({ track, onConfirm, onCancel }: { track: Track; onConfirm: () => void; onCancel: () => void }) {
+function DeleteConfirmDialog({
+  track,
+  onConfirm,
+  onCancel,
+}: {
+  track: Track;
+  onConfirm: () => void;
+  onCancel: () => void;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0 }}
@@ -144,7 +194,7 @@ function DeleteConfirmDialog({ track, onConfirm, onCancel }: { track: Track; onC
       >
         <div className="flex items-start gap-4">
           <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center shrink-0">
-            <AlertTriangle className="w-5 h-5 text-red-400" />
+            <Trash2 className="w-5 h-5 text-red-400" />
           </div>
           <div className="flex-1">
             <h3 className="font-heading font-bold text-text-primary">Delete Track?</h3>
@@ -175,14 +225,19 @@ function DeleteConfirmDialog({ track, onConfirm, onCancel }: { track: Track; onC
   );
 }
 
-export default function TrackList({ tracks, onUploadClick }: TrackListProps) {
-  const { playTrackAtIndex } = useMusicStore();
-  const isAdmin = useAuthStore((s) => s.user?.roles?.some((r: string) => r.replace('ROLE_', '').toUpperCase() === 'ADMIN'));
+export default function TrackList({ onUploadClick }: TrackListProps) {
+  const { playTrackAtIndex, deleteTrack, currentTrack } = useMusicStore();
+  const isAdmin = useAuthStore(
+    (s) => s.user?.roles?.some((r: string) => r.replace('ROLE_', '').toUpperCase() === 'ADMIN')
+  );
   const [deleteTarget, setDeleteTarget] = useState<Track | null>(null);
-  const { deleteTrack, currentTrack, isPlaying } = useMusicStore();
+
+  // Get tracks directly from the global store
+  const tracks = useMusicStore((s) => s.tracks);
 
   const handlePlayAll = () => {
-    if (tracks.length > 0) playTrackAtIndex(0);
+    const firstPlayable = tracks.find((t) => t.audioUrl);
+    if (firstPlayable) playTrackAtIndex(tracks.indexOf(firstPlayable));
   };
 
   const handleConfirmDelete = () => {
@@ -207,6 +262,8 @@ export default function TrackList({ tracks, onUploadClick }: TrackListProps) {
     return `${m}m`;
   };
 
+  const brokenCount = tracks.filter((t) => !t.audioUrl).length;
+
   return (
     <>
       <AnimatePresence>
@@ -226,6 +283,11 @@ export default function TrackList({ tracks, onUploadClick }: TrackListProps) {
             <span className="text-sm text-text-muted">
               {tracks.length} tracks &bull; {formatTotal(totalSeconds)}
             </span>
+            {brokenCount > 0 && (
+              <span className="ml-2 text-xs text-red-400">
+                ({brokenCount} unavailable — re-upload to fix)
+              </span>
+            )}
           </div>
           <div className="flex items-center gap-2">
             {isAdmin && (

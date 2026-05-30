@@ -25,7 +25,12 @@ function formatDuration(seconds: number) {
 export default function CourseCard({ course, index = 0 }: CourseCardProps) {
   const priceInfo = formatPrice(course.price, course.isFree);
   const duration = formatDuration(course.totalDurationSeconds || 0);
-  const levelColor = course.level === 'Beginner' ? 'text-green-400' : course.level === 'Intermediate' ? 'text-yellow-400' : 'text-red-400';
+  const levelColor = course.level === 'BEGINNER' ? 'text-green-400' :
+    course.level === 'INTERMEDIATE' ? 'text-yellow-400' : 'text-red-400';
+
+  const levelLabel = course.level === 'BEGINNER' ? 'Beginner' :
+    course.level === 'INTERMEDIATE' ? 'Intermediate' :
+    course.level === 'ADVANCED' ? 'Advanced' : course.level;
 
   return (
     <motion.div
@@ -69,7 +74,7 @@ export default function CourseCard({ course, index = 0 }: CourseCardProps) {
           {/* Level badge */}
           <div className="absolute top-3 right-3">
             <span className={`px-2.5 py-1 rounded-lg text-xs font-medium bg-black/50 backdrop-blur-sm ${levelColor}`}>
-              {course.level}
+              {levelLabel}
             </span>
           </div>
         </Link>

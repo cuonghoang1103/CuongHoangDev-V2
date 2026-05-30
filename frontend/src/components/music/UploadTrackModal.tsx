@@ -1,14 +1,53 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Upload, ImageIcon, Music, Loader2 } from 'lucide-react';
+import { X, Upload, ImageIcon, Music, Loader2, CheckCircle2 } from 'lucide-react';
 import { useMusicStore } from '@/store/musicStore';
 import type { Track } from '@/types';
 
 interface UploadTrackModalProps {
   isOpen: boolean;
   onClose: () => void;
+}
+
+// ============================================================
+// Blob persistence strategy:
+// 1. When user picks an MP3 file, we immediately read it as base64
+//    and save to localStorage under key "music-audio-blobs".
+// 2. We also create a temporary blob: URL for preview playback.
+// 3. On form submit, we pass the File object to the store's addTrack.
+// 4. On page reload, the store hydrates from localStorage, then
+//    restoreBlobs() re-creates blob: URLs from the stored base64 data.
+// 5. Tracks that can't be restored are marked broken.
+// ============================================================
+
+const BLOB_STORAGE_KEY = 'music-audio-blobs-v2';
+const MAX_BLOB_SIZE_MB = 8;
+
+function saveBlobToStorage(trackId: string, file: File): Promise<void> {
+  return new Promise((resolve) => {
+    if (file.size > MAX_BLOB_SIZE_MB * 1024 * 1024) {
+      resolve(); // Skip large files silently
+      return;
+    }
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      try {
+        const stored = JSON.parse(localStorage.getItem(BLOB_STORAGE_KEY) || '{}');
+        stored[trackId] = {
+          data: reader.result,
+          type: file.type,
+          name: file.name,
+        };
+        localStorage.setItem(BLOB_STORAGE_KEY, JSON.stringify(stored));
+      } catch {
+        // localStorage quota exceeded — ignore
+      }
+      resolve();
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 export default function UploadTrackModal({ isOpen, onClose }: UploadTrackModalProps) {
@@ -18,10 +57,13 @@ export default function UploadTrackModal({ isOpen, onClose }: UploadTrackModalPr
   const [coverUrl, setCoverUrl] = useState('');
   const [audioFile, setAudioFile] = useState<File | null>(null);
   const [coverFile, setCoverFile] = useState<File | null>(null);
+  const [audioPreviewUrl, setAudioPreviewUrl] = useState('');
   const [isUploading, setIsUploading] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState('');
+  const [uploadSuccess, setUploadSuccess] = useState(false);
+  const [duration, setDuration] = useState('');
   const audioRef = useRef<HTMLAudioElement>(null);
 
+  // Reset form whenever modal opens/closes
   useEffect(() => {
     if (!isOpen) {
       setTitle('');
@@ -29,17 +71,36 @@ export default function UploadTrackModal({ isOpen, onClose }: UploadTrackModalPr
       setCoverUrl('');
       setAudioFile(null);
       setCoverFile(null);
-      setPreviewUrl('');
+      setAudioPreviewUrl('');
       setIsUploading(false);
+      setUploadSuccess(false);
+      setDuration('');
     }
   }, [isOpen]);
+
+  // Read audio duration from the blob URL
+  const getAudioDuration = useCallback((url: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const audio = new Audio(url);
+      audio.addEventListener('loadedmetadata', () => {
+        const m = Math.floor(audio.duration / 60);
+        const s = Math.floor(audio.duration % 60);
+        resolve(`${m}:${s.toString().padStart(2, '0')}`);
+      });
+      audio.addEventListener('error', () => resolve('0:00'));
+      setTimeout(() => resolve('0:00'), 5000);
+    });
+  }, []);
 
   const handleAudioChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
     setAudioFile(file);
-    const url = URL.createObjectURL(file);
-    setPreviewUrl(url);
+    // Revoke previous blob URL if any
+    if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
+    const blobUrl = URL.createObjectURL(file);
+    setAudioPreviewUrl(blobUrl);
   };
 
   const handleCoverChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -56,42 +117,39 @@ export default function UploadTrackModal({ isOpen, onClose }: UploadTrackModalPr
 
     setIsUploading(true);
 
-    // Simulate upload delay
-    await new Promise((r) => setTimeout(r, 800));
-
-    let duration = '3:45';
-    if (audioRef.current) {
-      audioRef.current.src = previewUrl;
+    // Determine duration
+    let dur = duration;
+    if (!dur && audioPreviewUrl) {
+      dur = await getAudioDuration(audioPreviewUrl);
+      setDuration(dur);
     }
+    if (!dur) dur = '0:00';
 
-    // Get duration after audio loads
-    const getDuration = (): Promise<string> => {
-      return new Promise((resolve) => {
-        const audio = new Audio(previewUrl);
-        audio.addEventListener('loadedmetadata', () => {
-          const m = Math.floor(audio.duration / 60);
-          const s = Math.floor(audio.duration % 60);
-          resolve(`${m}:${s.toString().padStart(2, '0')}`);
-        });
-        audio.addEventListener('error', () => resolve('3:45'));
-        setTimeout(() => resolve('3:45'), 3000);
-      });
-    }
+    const trackId = `local-${Date.now()}`;
 
-    duration = await getDuration();
+    // Save blob to localStorage BEFORE adding to store.
+    // If we close before this completes, the track would be added but
+    // the blob wouldn't be in storage — leading to a broken track on reload.
+    await saveBlobToStorage(trackId, audioFile);
 
     const newTrack: Track = {
-      id: `local-${Date.now()}`,
+      id: trackId,
       title: title.trim(),
       artist: artist.trim(),
-      duration,
-      audioUrl: previewUrl,
+      duration: dur,
+      audioUrl: audioPreviewUrl,
       coverImage: coverUrl || '',
     };
 
     addTrack(newTrack);
-    setIsUploading(false);
-    onClose();
+    setUploadSuccess(true);
+
+    // Auto-close after brief success feedback
+    setTimeout(() => {
+      setIsUploading(false);
+      setUploadSuccess(false);
+      onClose();
+    }, 800);
   };
 
   const isValid = title.trim() && artist.trim() && audioFile;
@@ -156,7 +214,7 @@ export default function UploadTrackModal({ isOpen, onClose }: UploadTrackModalPr
                       <div className="flex flex-col items-center justify-center pt-3 pb-3">
                         {audioFile ? (
                           <>
-                            <Music className="w-6 h-6 text-neon-violet mb-1" />
+                            <CheckCircle2 className="w-6 h-6 text-neon-violet mb-1" />
                             <span className="text-sm text-neon-violet font-medium">{audioFile.name}</span>
                             <span className="text-xs text-text-muted mt-0.5">
                               {(audioFile.size / 1024 / 1024).toFixed(1)} MB
@@ -267,7 +325,7 @@ export default function UploadTrackModal({ isOpen, onClose }: UploadTrackModalPr
                       {isUploading ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin" />
-                          Uploading...
+                          Saving...
                         </>
                       ) : (
                         <>

@@ -2,9 +2,11 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuthStore } from '@/store/authStore';
+import { useSession } from 'next-auth/react';
 import { api, coursesApi } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import {
   User,
   Mail,
@@ -42,7 +44,17 @@ interface ProfileData {
 }
 
 export default function ProfilePage() {
-  const { user, isAuthenticated, updateProfile } = useAuthStore();
+  const router = useRouter();
+  const { user, isAuthenticated: isBackendAuth, updateProfile } = useAuthStore();
+  const { data: session, status } = useSession();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  // Social login users can view profile but can't edit
+  const hasBackendAuth = mounted && isBackendAuth;
+  const hasSocialAuth = mounted && status === 'authenticated';
+  const isAuthenticated = hasBackendAuth || hasSocialAuth;
+  const canEdit = hasBackendAuth; // Only backend auth users can edit
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -109,7 +121,7 @@ export default function ProfilePage() {
       }
     };
     fetchProfile();
-  }, [user]);
+  }, [user, hasSocialAuth]);
 
   useEffect(() => {
     if (profile?.createdAt) {
@@ -121,7 +133,7 @@ export default function ProfilePage() {
   }, [profile?.createdAt]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!hasBackendAuth) return;
     const fetchCourseStats = async () => {
       try {
         setCourseLoading(true);
@@ -308,13 +320,13 @@ export default function ProfilePage() {
                   </button>
                 </div>
               ) : (
-                <button
-                  onClick={() => setEditing(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 bg-darkcard border border-darkborder rounded-xl text-sm text-text-secondary hover:text-text-primary hover:border-neon-violet/50 transition-colors"
-                >
-                  <Edit3 className="w-4 h-4" />
-                  Edit
-                </button>
+                  <button
+                    onClick={() => setEditing(true)}
+                    className="flex items-center gap-2 px-4 py-2.5 bg-darkcard border border-darkborder rounded-xl text-sm text-text-secondary hover:text-text-primary hover:border-neon-violet/50 transition-colors"
+                  >
+                    <Edit3 className="w-4 h-4" />
+                    {canEdit ? 'Edit' : 'View Profile'}
+                  </button>
               )}
             </div>
           </div>
@@ -433,7 +445,7 @@ export default function ProfilePage() {
               {[
                 { id: 'profile', label: 'Profile', icon: User },
                 { id: 'courses', label: 'My Courses', icon: BookOpen },
-                { id: 'password', label: 'Password', icon: KeyRound },
+                ...(canEdit ? [{ id: 'password', label: 'Password', icon: KeyRound }] : []),
                 { id: 'activity', label: 'Activity', icon: Shield },
               ].map((tab) => (
                 <button

@@ -10,6 +10,7 @@ public class CourseCategoryDto {
     private String icon;
     private Integer sortOrder;
     private Integer courseCount;
+    private Boolean isActive;
 
     public Long getId() {
         return id;
@@ -67,6 +68,14 @@ public class CourseCategoryDto {
         this.courseCount = courseCount;
     }
 
+    public Boolean getIsActive() {
+        return isActive;
+    }
+
+    public void setIsActive(Boolean isActive) {
+        this.isActive = isActive;
+    }
+
     public static CourseCategoryDto fromEntity(CourseCategory entity) {
         CourseCategoryDto dto = new CourseCategoryDto();
         dto.setId(entity.getId());
@@ -75,6 +84,7 @@ public class CourseCategoryDto {
         dto.setDescription(entity.getDescription());
         dto.setIcon(entity.getIcon());
         dto.setSortOrder(entity.getSortOrder());
+        dto.setIsActive(entity.getIsActive());
         return dto;
     }
 

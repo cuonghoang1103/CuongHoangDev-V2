@@ -9,7 +9,8 @@ import {
 } from 'lucide-react';
 import { coursesApi } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
-import toast from 'react-hot-toast';
+import { useSession } from 'next-auth/react';
+import { toast } from 'sonner';
 import type { Course, LessonDto, LessonProgress } from '@/types';
 
 function formatDuration(seconds: number): string {
@@ -30,7 +31,12 @@ export default function LearnPage({ params }: { params: Promise<{ slug: string }
   const resolvedParams = use(params);
   const router = useRouter();
   const slug = resolvedParams.slug;
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated: isBackendAuth, isLoading: isBackendLoading } = useAuthStore();
+  const { status } = useSession();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isLoading = isBackendLoading || status === 'loading';
+  const isAuthenticated = mounted && (isBackendAuth || status === 'authenticated');
 
   const [course, setCourse] = useState<Course | null>(null);
   const [currentLesson, setCurrentLesson] = useState<LessonDto | null>(null);

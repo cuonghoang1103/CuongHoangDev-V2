@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { api, blogApi, fileApi } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import {
   Plus,
   Search,

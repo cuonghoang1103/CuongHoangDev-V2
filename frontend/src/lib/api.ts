@@ -1,6 +1,63 @@
 import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
 import type { ApiResponse, AuthResponse } from '@/types';
 
+export type ApiError = AxiosError<ApiResponse<unknown>> & {
+  userFriendlyMessage?: string;
+};
+
+export function getFriendlyErrorMessage(error: ApiError): string {
+  if (error.response) {
+    const status = error.response.status;
+    const rawMsg = error.response.data?.message?.toLowerCase() ?? '';
+
+    // 401 Unauthorized — bad credentials
+    if (status === 401) {
+      if (rawMsg.includes('bad') || rawMsg.includes('invalid') || rawMsg.includes('credentials')) {
+        return 'Incorrect username or password. Please try again.';
+      }
+      if (rawMsg.includes('not found') || rawMsg.includes('user not found')) {
+        return 'Account not found. Please check your username.';
+      }
+      if (rawMsg.includes('locked') || rawMsg.includes('disabled') || rawMsg.includes('banned')) {
+        return 'Your account has been locked. Please contact support.';
+      }
+      return 'Authentication failed. Please log in again.';
+    }
+
+    // 400 Bad Request — bad credentials (direct password check, no AuthManager)
+    if (status === 400) {
+      if (rawMsg.includes('bad') || rawMsg.includes('invalid') || rawMsg.includes('credentials')) {
+        return 'Incorrect username or password. Please try again.';
+      }
+      if (rawMsg.includes('not found') || rawMsg.includes('user not found')) {
+        return 'Account not found. Please check your username.';
+      }
+      if (rawMsg.includes('locked') || rawMsg.includes('disabled')) {
+        return 'Your account has been locked. Please contact support.';
+      }
+      if (rawMsg.includes('exists') || rawMsg.includes('already')) {
+        return 'This record already exists. Please use a different value.';
+      }
+      // Generic 400 — show the actual message from backend
+      const msg = error.response.data?.message;
+      if (msg) return msg;
+    }
+
+    if (status === 403) return 'Access denied. You do not have permission.';
+    if (status === 404) return 'Resource not found.';
+    if (status === 409 || rawMsg.includes('already') || rawMsg.includes('exists')) {
+      return 'This record already exists. Please use a different value.';
+    }
+    if (status === 422) return 'Invalid data. Please check your input.';
+    if (status === 429) return 'Too many requests. Please wait a moment.';
+    if (status >= 500) return 'Server error. Please try again later.';
+  }
+  if (error.code === 'ECONNABORTED') {
+    return 'Request timed out. Please check your connection.';
+  }
+  return 'Something went wrong. Please try again.';
+}
+
 // Tạo axios instance
 const api: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082',
@@ -27,15 +84,17 @@ api.interceptors.request.use(
 // Response interceptor - xử lý lỗi
 api.interceptors.response.use(
   (response) => response,
-  (error: AxiosError<ApiResponse<unknown>>) => {
-    if (error.response) {
-      // Server trả về lỗi
-      const message = error.response.data?.message || 'Đã xảy ra lỗi';
-      console.error('API Error:', message);
+  (error: ApiError) => {
+    const friendlyMsg = getFriendlyErrorMessage(error);
+    error.userFriendlyMessage = friendlyMsg;
 
-      // Xử lý lỗi 401 - Unauthorized
+    if (error.response) {
+      // Xử lý lỗi 401 - Unauthorized (chỉ redirect khi KHÔNG phải login request)
       if (error.response.status === 401) {
-        if (typeof window !== 'undefined') {
+        const isLoginRequest =
+          error.config?.url?.includes('/auth/login') ||
+          error.config?.url?.includes('/api/auth/signin');
+        if (!isLoginRequest && typeof window !== 'undefined') {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
           window.location.href = '/login';
@@ -283,6 +342,22 @@ export const contactApi = {
 // Course Categories API
 export const courseCategoryApi = {
   getAll: () => api.get('/api/v1/course-categories'),
+  getAdminAll: () => api.get('/api/v1/course-categories/admin/all'),
+  create: (data: {
+    name: string;
+    slug?: string;
+    description?: string;
+    icon?: string;
+    sortOrder?: number;
+  }) => api.post('/api/v1/course-categories', data),
+  update: (id: number, data: {
+    name?: string;
+    description?: string;
+    icon?: string;
+    sortOrder?: number;
+    isActive?: boolean;
+  }) => api.put(`/api/v1/course-categories/${id}`, data),
+  delete: (id: number) => api.delete(`/api/v1/course-categories/${id}`),
 };
 
 // Courses API

@@ -8,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Lock, Eye, EyeOff, ArrowLeft, Loader2, CheckCircle, XCircle } from 'lucide-react';
 import { authApi } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 const schema = z.object({
   password: z.string()

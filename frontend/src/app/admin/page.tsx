@@ -15,7 +15,7 @@ import {
   ArrowDownRight,
   Activity,
 } from 'lucide-react';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 interface StatCard {
   label: string;

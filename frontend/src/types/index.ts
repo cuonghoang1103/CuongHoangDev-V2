@@ -234,6 +234,7 @@ export interface CourseCategory {
   icon?: string;
   sortOrder: number;
   courseCount?: number;
+  isActive?: boolean;
 }
 
 export interface LessonDto {
@@ -289,7 +290,7 @@ export interface Course {
   language: string;
   isFree: boolean;
   isFeatured: boolean;
-  isPublished: boolean;
+  isPublished: boolean; // Deprecated — use status === 'PUBLISHED' for visibility instead
   publishedAt?: string;
   totalDurationSeconds: number;
   totalLessons: number;
@@ -298,7 +299,14 @@ export interface Course {
   avgRating: number;
   requirements?: string;
   whatYouLearn?: string;
-  status: string;
+  /**
+   * Single source of truth for public visibility:
+   *   'DRAFT'     → not shown on Academy page
+   *   'PUBLISHED' → shown on Academy page
+   * This field drives academy visibility. isPublished is kept for backward compat
+   * but is auto-synced with this field on the admin form.
+   */
+  status: 'DRAFT' | 'PUBLISHED' | string;
   createdAt: string;
   categoryId?: number;
   categoryName?: string;
@@ -345,6 +353,51 @@ export interface LessonProgress {
   isCompleted: boolean;
   watchTimeSeconds: number;
   lastPositionSeconds: number;
+}
+
+// === SHOP TYPES ===
+
+export type ProductCategory = 'Web Template' | 'Tools' | 'Software' | 'Accounts' | 'Ebook';
+
+export type PriceRange = 'all' | 'under200' | '200to500' | 'above500';
+
+export type SortOption = 'newest' | 'price_asc' | 'price_desc' | 'popular';
+
+export interface Product {
+  id: string;
+  name: string;
+  slug: string;
+  price: number;
+  originalPrice?: number;
+  thumbnail: string;
+  category: ProductCategory;
+  rating: number;
+  reviewCount: number;
+  description: string;
+  features: string[];
+  isHot?: boolean;
+  isNew?: boolean;
+  stock: number;
+  isFeatured?: boolean;
+  soldCount?: number;
+  createdAt?: string;
+  tags?: string[];
+}
+
+export interface ProductReview {
+  id: string;
+  productId: string;
+  userName: string;
+  userAvatar?: string;
+  rating: number;
+  title?: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface CartItem {
+  product: Product;
+  quantity: number;
 }
 
 // === MUSIC TYPES ===

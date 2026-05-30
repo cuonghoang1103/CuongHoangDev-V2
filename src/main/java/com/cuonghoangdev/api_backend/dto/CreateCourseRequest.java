@@ -26,6 +26,7 @@ public class CreateCourseRequest {
     private String language = "Vietnamese";
     private Boolean isFree = false;
     private Boolean isFeatured = false;
+    private Boolean isPublished = false;
     private String requirements;
     private String whatYouLearn;
     private String status = "DRAFT";
@@ -142,6 +143,14 @@ public class CreateCourseRequest {
 
     public void setIsFeatured(Boolean isFeatured) {
         this.isFeatured = isFeatured;
+    }
+
+    public Boolean getIsPublished() {
+        return isPublished;
+    }
+
+    public void setIsPublished(Boolean isPublished) {
+        this.isPublished = isPublished;
     }
 
     public String getRequirements() {

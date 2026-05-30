@@ -9,8 +9,9 @@ import {
 } from 'lucide-react';
 import { coursesApi } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
+import { useSession } from 'next-auth/react';
 import type { Course, CourseReview, CourseSection, LessonDto } from '@/types';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 import Link from 'next/link';
 import Curriculum from '@/components/academy/Curriculum';
 import Reviews from '@/components/academy/Reviews';
@@ -26,7 +27,12 @@ function formatDuration(seconds: number) {
 export default function CourseDetailPage() {
   const params = useParams();
   const slug = params.slug as string;
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated: isBackendAuth, isLoading: isBackendLoading } = useAuthStore();
+  const { status } = useSession();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  const isLoading = isBackendLoading || status === 'loading';
+  const isAuthenticated = mounted && (isBackendAuth || status === 'authenticated');
 
   const [course, setCourse] = useState<Course | null>(null);
   const [reviews, setReviews] = useState<CourseReview[]>([]);
@@ -103,7 +109,14 @@ export default function CourseDetailPage() {
     ? { label: `${course.discountPrice.toLocaleString('vi-VN')} VND`, display: `${course.discountPrice.toLocaleString('vi-VN')} VND`, original: `${course.price.toLocaleString('vi-VN')} VND` }
     : { label: `${course.price.toLocaleString('vi-VN')} VND`, display: `${course.price.toLocaleString('vi-VN')} VND`, original: null };
 
-  const levelColor = course.level === 'Beginner' ? 'text-green-400 bg-green-500/20' : course.level === 'Intermediate' ? 'text-yellow-400 bg-yellow-500/20' : 'text-red-400 bg-red-500/20';
+  const levelColor = course.level === 'BEGINNER' ? 'text-green-400 bg-green-500/20' :
+    course.level === 'INTERMEDIATE' ? 'text-yellow-400 bg-yellow-500/20' :
+    course.level === 'BEGINNER' ? 'text-green-400 bg-green-500/20' :
+    'text-red-400 bg-red-500/20';
+
+  const levelLabel = course.level === 'BEGINNER' ? 'Beginner' :
+    course.level === 'INTERMEDIATE' ? 'Intermediate' :
+    course.level === 'ADVANCED' ? 'Advanced' : course.level;
 
   return (
     <div className="min-h-screen bg-darkbg pt-20">
@@ -130,7 +143,7 @@ export default function CourseDetailPage() {
             {/* Title */}
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
               <div className="flex flex-wrap gap-2 mb-3">
-                <span className={`px-3 py-1 rounded-lg text-xs font-medium ${levelColor}`}>{course.level}</span>
+                <span className={`px-3 py-1 rounded-lg text-xs font-medium ${levelColor}`}>{levelLabel}</span>
                 {course.isFree && <span className="px-3 py-1 rounded-lg text-xs font-medium bg-green-500/20 text-green-400">Free</span>}
                 {course.categoryName && <span className="px-3 py-1 rounded-lg text-xs font-medium bg-neon-indigo/20 text-neon-indigo">{course.categoryName}</span>}
               </div>
@@ -288,6 +301,8 @@ export default function CourseDetailPage() {
                   reviews={reviews}
                   avgRating={course.avgRating || 0}
                   totalReviews={course.totalReviews || 0}
+                  courseId={course.id}
+                  onReviewAdded={(review) => setReviews(prev => [review, ...prev])}
                 />
               </motion.div>
             )}

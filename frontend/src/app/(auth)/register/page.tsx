@@ -7,8 +7,11 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff, Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { toast } from 'sonner';
+
 import { authApi } from '@/lib/api';
-import toast from 'react-hot-toast';
+import type { ApiError } from '@/lib/api';
 
 const registerSchema = z
   .object({
@@ -37,6 +40,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [backendError, setBackendError] = useState('');
 
   const {
     register,
@@ -45,12 +49,20 @@ export default function RegisterPage() {
     formState: { errors },
   } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
+    mode: 'onBlur',
   });
 
   const password = watch('password');
 
+  const passwordChecks = [
+    { label: 'At least 6 characters', ok: !!(password && password.length >= 6) },
+    { label: 'Contains uppercase letter', ok: !!(password && /[A-Z]/.test(password)) },
+    { label: 'Contains a number', ok: !!(password && /[0-9]/.test(password)) },
+  ];
+
   const onSubmit = async (data: RegisterForm) => {
     setIsLoading(true);
+    setBackendError('');
     try {
       await authApi.register({
         username: data.username,
@@ -58,22 +70,17 @@ export default function RegisterPage() {
         password: data.password,
         fullName: data.fullName || undefined,
       });
-      toast.success('Registration successful! Please sign in.');
+      toast.success('Account created! Please sign in.');
       router.push('/login');
     } catch (err: unknown) {
-      const error = err as { response?: { data?: { message?: string } } };
-      const msg = error?.response?.data?.message || 'Registration failed';
+      const error = err as ApiError;
+      const msg = error.userFriendlyMessage || 'Something went wrong. Please try again.';
+      setBackendError(msg);
       toast.error(msg);
     } finally {
       setIsLoading(false);
     }
   };
-
-  const passwordChecks = [
-    { label: 'At least 6 characters', ok: password && password.length >= 6 },
-    { label: 'Contains uppercase letter', ok: password && /[A-Z]/.test(password) },
-    { label: 'Contains a number', ok: password && /[0-9]/.test(password) },
-  ];
 
   return (
     <div className="min-h-screen bg-darkbg flex items-center justify-center px-4 py-12">
@@ -83,23 +90,53 @@ export default function RegisterPage() {
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-neon-fuchsia/10 rounded-full blur-[150px]" />
       </div>
 
-      <div className="relative w-full max-w-lg">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4 }}
+        className="relative w-full max-w-lg"
+      >
         {/* Logo */}
         <div className="text-center mb-8">
           <Link href="/" className="inline-block">
-            <img src="/images/avatar.png" alt="CuongHoang" className="w-16 h-16 mx-auto rounded-2xl object-cover mb-4" />
+            <img
+              src="/images/avatar.png"
+              alt="CuongHoang"
+              className="w-16 h-16 mx-auto rounded-2xl object-cover mb-4"
+            />
           </Link>
-          <h1 className="text-3xl font-heading font-bold text-text-primary">
+          <motion.h1
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="text-3xl font-heading font-bold text-text-primary"
+          >
             Create Account
-          </h1>
+          </motion.h1>
           <p className="text-text-secondary mt-2">
             Join the CuongHoang community today
           </p>
         </div>
 
-        {/* Form */}
-        <div className="bg-darkcard border border-darkborder rounded-2xl p-8">
+        {/* Form Card */}
+        <motion.div
+          initial={{ opacity: 0, scale: 0.98 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ delay: 0.15 }}
+          className="bg-darkcard border border-darkborder rounded-2xl p-8"
+        >
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+            {/* Backend error banner */}
+            {backendError && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                className="px-4 py-3 bg-red-500/10 border border-red-500/30 rounded-xl text-sm text-red-400"
+              >
+                {backendError}
+              </motion.div>
+            )}
+
             {/* Username */}
             <div>
               <label className="block text-sm font-medium text-text-primary mb-2">
@@ -109,10 +146,13 @@ export default function RegisterPage() {
                 {...register('username')}
                 type="text"
                 placeholder="cuonghoang"
-                className="w-full px-4 py-3 rounded-xl bg-darkbg border border-darkborder text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
+                autoComplete="username"
+                className={`w-full px-4 py-3 rounded-xl bg-darkbg border text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors ${
+                  errors.username ? 'border-red-500/60' : 'border-darkborder'
+                }`}
               />
               {errors.username && (
-                <p className="text-red-500 text-sm mt-1">{errors.username.message}</p>
+                <p className="text-red-500 text-sm mt-1.5">{errors.username.message}</p>
               )}
             </div>
 
@@ -125,10 +165,13 @@ export default function RegisterPage() {
                 {...register('email')}
                 type="email"
                 placeholder="you@example.com"
-                className="w-full px-4 py-3 rounded-xl bg-darkbg border border-darkborder text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
+                autoComplete="email"
+                className={`w-full px-4 py-3 rounded-xl bg-darkbg border text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors ${
+                  errors.email ? 'border-red-500/60' : 'border-darkborder'
+                }`}
               />
               {errors.email && (
-                <p className="text-red-500 text-sm mt-1">{errors.email.message}</p>
+                <p className="text-red-500 text-sm mt-1.5">{errors.email.message}</p>
               )}
             </div>
 
@@ -141,6 +184,7 @@ export default function RegisterPage() {
                 {...register('fullName')}
                 type="text"
                 placeholder="John Doe"
+                autoComplete="name"
                 className="w-full px-4 py-3 rounded-xl bg-darkbg border border-darkborder text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
               />
             </div>
@@ -155,18 +199,22 @@ export default function RegisterPage() {
                   {...register('password')}
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Create a strong password"
-                  className="w-full px-4 py-3 pr-12 rounded-xl bg-darkbg border border-darkborder text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
+                  autoComplete="new-password"
+                  className={`w-full px-4 py-3 pr-12 rounded-xl bg-darkbg border text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors ${
+                    errors.password ? 'border-red-500/60' : 'border-darkborder'
+                  }`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
+                  tabIndex={-1}
                 >
                   {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
               {errors.password && (
-                <p className="text-red-500 text-sm mt-1">{errors.password.message}</p>
+                <p className="text-red-500 text-sm mt-1.5">{errors.password.message}</p>
               )}
               {/* Password strength hints */}
               {password && (
@@ -197,47 +245,61 @@ export default function RegisterPage() {
                   {...register('confirmPassword')}
                   type={showConfirm ? 'text' : 'password'}
                   placeholder="Re-enter your password"
-                  className="w-full px-4 py-3 pr-12 rounded-xl bg-darkbg border border-darkborder text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
+                  autoComplete="new-password"
+                  className={`w-full px-4 py-3 pr-12 rounded-xl bg-darkbg border text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors ${
+                    errors.confirmPassword ? 'border-red-500/60' : 'border-darkborder'
+                  }`}
                 />
                 <button
                   type="button"
                   onClick={() => setShowConfirm(!showConfirm)}
                   className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-primary transition-colors"
+                  tabIndex={-1}
                 >
                   {showConfirm ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                 </button>
               </div>
               {errors.confirmPassword && (
-                <p className="text-red-500 text-sm mt-1">{errors.confirmPassword.message}</p>
+                <p className="text-red-500 text-sm mt-1.5">{errors.confirmPassword.message}</p>
               )}
             </div>
 
             {/* Submit */}
-            <button
+            <motion.button
               type="submit"
               disabled={isLoading}
+              whileTap={{ scale: isLoading ? 1 : 0.98 }}
               className="w-full py-3.5 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-semibold rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50 flex items-center justify-center gap-2"
             >
-              {isLoading && <Loader2 className="w-5 h-5 animate-spin" />}
-              {isLoading ? 'Creating account...' : 'Create Account'}
-            </button>
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  Creating account...
+                </>
+              ) : (
+                'Create Account'
+              )}
+            </motion.button>
           </form>
 
           {/* Footer */}
           <p className="text-center text-text-muted text-sm mt-6">
             Already have an account?{' '}
-            <Link href="/login" className="text-neon-violet hover:text-neon-indigo transition-colors font-medium">
+            <Link
+              href="/login"
+              className="text-neon-violet hover:text-neon-indigo transition-colors font-medium"
+            >
               Sign In
             </Link>
           </p>
-        </div>
+        </motion.div>
 
         <p className="text-center text-text-muted text-sm mt-6">
           <Link href="/" className="hover:text-text-primary transition-colors">
             ← Back to Home
           </Link>
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }

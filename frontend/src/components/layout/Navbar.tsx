@@ -1,18 +1,23 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useSession, signOut } from 'next-auth/react';
 import { useAuthStore } from '@/store/authStore';
+import { useCartStore } from '@/store/cartStore';
 import {
   Menu, X, User, LogOut, Settings, ChevronDown,
-  BookOpen, Music, Globe, Phone, Mail, Facebook,
+  BookOpen, Music, Globe, Phone, Mail, Facebook, ShoppingBag, Gamepad2,
+  Home, GraduationCap, ShoppingCart, FileText, FolderOpen, MessageCircle,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 const CONTACT_LINKS = {
   phone: 'tel:+84399360938',
   zalo: 'https://zalo.me/0399360938',
   email: 'mailto:cuongthaihnhe176322@gmail.com',
-  facebook: 'https://www.facebook.com/CuongThaiswit/',
+  facebook: 'https://www.facebook.com/CuongHoangswit/',
 };
 
 const ZaloIcon = () => (
@@ -26,8 +31,10 @@ const LABELS = {
   academy: { vi: 'Học viện', en: 'Academy' },
   blog: { vi: 'Blog', en: 'Blog' },
   projects: { vi: 'Dự án', en: 'Projects' },
+  games: { vi: 'Trò chơi', en: 'Games' },
   music: { vi: 'Nhạc', en: 'Music' },
   aiChat: { vi: 'AI Chat', en: 'AI Chat' },
+  shop: { vi: 'Shop', en: 'Shop' },
   login: { vi: 'Đăng nhập', en: 'Login' },
   signUp: { vi: 'Đăng ký', en: 'Sign Up' },
   admin: { vi: 'Quản trị', en: 'Admin' },
@@ -38,12 +45,26 @@ const LABELS = {
 export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { data: session } = useSession();
+  const { user: backendUser, isAuthenticated: isBackendAuth, logout: backendLogout } = useAuthStore();
+  const { getTotalItems, openDrawer } = useCartStore();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [langMenuOpen, setLangMenuOpen] = useState(false);
   const [locale, setLocale] = useState('vi');
+
+  // Avoid hydration mismatch — don't check session on server
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+
+  // Merge NextAuth session with backend auth
+  const isAuthenticated = mounted && (isBackendAuth || !!session);
+  // Backend user has roles; social login users (session.user) don't
+  const displayUser = mounted ? ((session?.user || backendUser) as any) : backendUser;
+  const isAdmin = mounted && !!backendUser?.roles?.some(
+    (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+  );
 
   useEffect(() => {
     const match = document.cookie.match(/NEXT_LOCALE=(\w+)/);
@@ -56,20 +77,25 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  useEffect(() => {
+    setMobileOpen(false);
+    setUserMenuOpen(false);
+  }, [pathname]);
+
   const isAuthPage = pathname === '/login' || pathname === '/register';
   if (isAuthPage) return null;
-
-  const isAdmin = user?.roles?.some((r: string) => r.replace('ROLE_', '').toUpperCase() === 'ADMIN');
 
   const t = (key: string) => LABELS[key as keyof typeof LABELS]?.[locale as 'vi' | 'en'] ?? key;
 
   const navLinks = [
-    { href: '/', label: t('home') },
-    { href: '/academy', label: t('academy') },
-    { href: '/blog', label: t('blog') },
-    { href: '/projects', label: t('projects') },
-    { href: '/music', label: t('music') },
-    { href: '/chat', label: t('aiChat') },
+    { href: '/', label: t('home'), icon: Home },
+    { href: '/academy', label: t('academy'), icon: GraduationCap },
+    { href: '/shop', label: t('shop'), icon: ShoppingCart },
+    { href: '/blog', label: t('blog'), icon: FileText },
+    { href: '/projects', label: t('projects'), icon: FolderOpen },
+    { href: '/games', label: t('games'), icon: Gamepad2 },
+    { href: '/music', label: t('music'), icon: Music },
+    { href: '/chat', label: t('aiChat'), icon: MessageCircle },
   ];
 
   const switchLocale = (newLocale: string) => {
@@ -79,8 +105,14 @@ export default function Navbar() {
     setLangMenuOpen(false);
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    try {
+      if (session) await signOut({ redirect: false });
+    } catch {}
+    try {
+      backendLogout();
+    } catch {}
+    toast.success('Logged out successfully');
     router.push('/');
   };
 
@@ -92,7 +124,7 @@ export default function Navbar() {
   ];
 
   return (
-    <>
+    <div suppressHydrationWarning>
       <nav
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled
@@ -100,40 +132,59 @@ export default function Navbar() {
             : 'bg-transparent'
         }`}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-6 lg:px-10">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <a href="/" className="flex items-center gap-3 group">
+            <Link href="/" className="flex items-center gap-3 group shrink-0">
               <img
                 src="/images/avatar.png"
                 alt="CuongHoang"
-                className="w-9 h-9 rounded-xl object-cover"
+                className="w-9 h-9 rounded-xl object-cover ring-2 ring-neon-violet/30 group-hover:ring-neon-violet/60 transition-all"
               />
-              <span className="font-heading font-bold text-lg text-text-primary hidden sm:block group-hover:text-neon-violet transition-colors">
+              <span className="font-heading font-bold text-lg text-text-primary hidden lg:block group-hover:text-neon-violet transition-colors">
                 CuongHoang
               </span>
-            </a>
+            </Link>
 
             {/* Desktop Nav */}
-            <div className="hidden md:flex items-center gap-1">
+            <div className="hidden xl:flex items-center gap-1">
               {navLinks.map((link) => (
-                <a
+                <Link
                   key={link.href}
                   href={link.href}
-                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-medium transition-all ${
+                    pathname === link.href
+                      ? 'text-neon-violet bg-neon-violet/10 shadow-[0_0_15px_rgba(139,92,246,0.1)]'
+                      : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
+                  }`}
+                >
+                  <link.icon className="w-4 h-4 shrink-0" />
+                  {link.label}
+                </Link>
+              ))}
+            </div>
+
+            {/* Tablet nav — icon-only, hidden at xl */}
+            <div className="hidden md:flex xl:hidden items-center gap-0.5">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  title={link.label}
+                  className={`p-2.5 rounded-xl transition-all ${
                     pathname === link.href
                       ? 'text-neon-violet bg-neon-violet/10'
                       : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
                   }`}
                 >
-                  {link.label}
-                </a>
+                  <link.icon className="w-5 h-5" />
+                </Link>
               ))}
             </div>
 
             {/* Right side */}
             <div className="flex items-center gap-2">
-              {/* Contact Icons */}
+              {/* Contact Icons — external links only */}
               <div className="hidden lg:flex items-center gap-1 mr-2">
                 {contactItems.map(({ href, icon: Icon, label }) => (
                   <a
@@ -148,6 +199,20 @@ export default function Navbar() {
                   </a>
                 ))}
               </div>
+
+              {/* Cart */}
+              <button
+                onClick={openDrawer}
+                className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-darkcard border border-darkborder hover:border-neon-violet/30 transition-colors"
+                title="Shopping Cart"
+              >
+                <ShoppingBag className="w-4 h-4 text-text-secondary" />
+                {getTotalItems() > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-neon-violet text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
+                    {getTotalItems()}
+                  </span>
+                )}
+              </button>
 
               {/* Lang Switcher */}
               <div className="relative">
@@ -189,11 +254,19 @@ export default function Navbar() {
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-darkcard border border-darkborder hover:border-neon-violet/30 transition-colors"
                   >
-                    <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-neon-indigo to-neon-violet flex items-center justify-center">
-                      <User className="w-4 h-4 text-white" />
-                    </div>
+                    {displayUser?.image ? (
+                      <img
+                        src={displayUser.image}
+                        alt={displayUser.name || 'User'}
+                        className="w-7 h-7 rounded-lg object-cover"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-neon-indigo to-neon-violet flex items-center justify-center">
+                        <User className="w-4 h-4 text-white" />
+                      </div>
+                    )}
                     <span className="hidden sm:block text-sm text-text-primary font-medium">
-                      {user?.username}
+                      {displayUser?.name || displayUser?.username || 'User'}
                     </span>
                     <ChevronDown className="w-4 h-4 text-text-muted" />
                   </button>
@@ -203,23 +276,23 @@ export default function Navbar() {
                       <div className="fixed inset-0 z-40" onClick={() => setUserMenuOpen(false)} />
                       <div className="absolute right-0 top-full mt-2 w-52 bg-darkcard border border-darkborder rounded-xl shadow-xl z-50 overflow-hidden">
                         <div className="px-4 py-3 border-b border-darkborder">
-                          <p className="text-sm font-medium text-text-primary">{user?.username}</p>
-                          <p className="text-xs text-text-muted truncate">{user?.email}</p>
+                          <p className="text-sm font-medium text-text-primary">{displayUser?.name || displayUser?.username}</p>
+                          <p className="text-xs text-text-muted truncate">{displayUser?.email}</p>
                         </div>
                         {isAdmin && (
-                          <a href="/admin" onClick={() => setUserMenuOpen(false)}
+                          <Link href="/admin" onClick={() => setUserMenuOpen(false)}
                             className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
                             <Settings className="w-4 h-4" />{t('admin')}
-                          </a>
+                          </Link>
                         )}
-                        <a href="/my-courses" onClick={() => setUserMenuOpen(false)}
+                        <Link href="/my-courses" onClick={() => setUserMenuOpen(false)}
                           className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
                           <BookOpen className="w-4 h-4" />{t('myCourses')}
-                        </a>
-                        <a href="/music" onClick={() => setUserMenuOpen(false)}
+                        </Link>
+                        <Link href="/music" onClick={() => setUserMenuOpen(false)}
                           className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
                           <Music className="w-4 h-4" />{t('music')}
-                        </a>
+                        </Link>
                         <button onClick={handleLogout}
                           className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 transition-colors">
                           <LogOut className="w-4 h-4" />{t('logout')}
@@ -230,12 +303,12 @@ export default function Navbar() {
                 </div>
               ) : (
                 <div className="hidden md:flex items-center gap-2">
-                  <a href="/login" className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors">
+                  <Link href="/login" className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors">
                     {t('login')}
-                  </a>
-                  <a href="/register" className="px-4 py-2 text-sm bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-medium rounded-lg hover:opacity-90 transition-opacity">
+                  </Link>
+                  <Link href="/register" className="px-4 py-2 text-sm bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-medium rounded-lg hover:opacity-90 transition-opacity">
                     {t('signUp')}
-                  </a>
+                  </Link>
                 </div>
               )}
 
@@ -254,14 +327,15 @@ export default function Navbar() {
           <div className="md:hidden bg-darkcard border-t border-darkborder">
             <div className="px-4 py-3 space-y-1">
               {navLinks.map((link) => (
-                <a key={link.href} href={link.href} onClick={() => setMobileOpen(false)}
-                  className={`block px-4 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                <Link key={link.href} href={link.href}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                     pathname === link.href
                       ? 'text-neon-violet bg-neon-violet/10'
                       : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
                   }`}>
+                  <link.icon className="w-5 h-5 shrink-0" />
                   {link.label}
-                </a>
+                </Link>
               ))}
 
               {/* Mobile contact */}
@@ -301,20 +375,20 @@ export default function Navbar() {
 
               {!isAuthenticated && (
                 <div className="pt-3 border-t border-darkborder space-y-2">
-                  <a href="/login" onClick={() => setMobileOpen(false)}
+                  <Link href="/login" onClick={() => setMobileOpen(false)}
                     className="block px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary transition-colors">
                     {t('login')}
-                  </a>
-                  <a href="/register" onClick={() => setMobileOpen(false)}
+                  </Link>
+                  <Link href="/register" onClick={() => setMobileOpen(false)}
                     className="block px-4 py-2.5 text-sm bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-medium rounded-lg text-center">
                     {t('signUp')}
-                  </a>
+                  </Link>
                 </div>
               )}
             </div>
           </div>
         )}
       </nav>
-    </>
+    </div>
   );
 }

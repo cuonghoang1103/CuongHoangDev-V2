@@ -29,12 +29,20 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
     List<Course> findByIsFeaturedTrueAndIsPublishedTrue(Pageable pageable);
 
-    @Query(value = "SELECT c FROM Course c WHERE c.isPublished = true " +
+    /**
+     * Visibility gate: a course is publicly visible when:
+     *   - isPublished = true  OR  status = 'PUBLISHED'
+     * This OR condition ensures backward compatibility while migrating to the
+     * single-source-of-truth `status` field.
+     */
+    @Query(value = "SELECT c FROM Course c WHERE " +
+           "(c.isPublished = true OR c.status = 'PUBLISHED') " +
            "AND (cast(:keyword as text) IS NULL OR cast(c.title as text) ILIKE cast(concat('%', cast(:keyword as text), '%') as text)) " +
            "AND (cast(:categorySlug as text) IS NULL OR c.category.slug = cast(:categorySlug as text)) " +
            "AND (cast(:level as text) IS NULL OR c.level = cast(:level as text)) " +
            "ORDER BY c.publishedAt DESC",
-           countQuery = "SELECT COUNT(c) FROM Course c WHERE c.isPublished = true " +
+           countQuery = "SELECT COUNT(c) FROM Course c WHERE " +
+           "(c.isPublished = true OR c.status = 'PUBLISHED') " +
            "AND (cast(:keyword as text) IS NULL OR cast(c.title as text) ILIKE cast(concat('%', cast(:keyword as text), '%') as text)) " +
            "AND (cast(:categorySlug as text) IS NULL OR c.category.slug = cast(:categorySlug as text)) " +
            "AND (cast(:level as text) IS NULL OR c.level = cast(:level as text))")
@@ -45,7 +53,10 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
             Pageable pageable
     );
 
-    @Query("SELECT c FROM Course c WHERE c.isPublished = true AND c.isFeatured = true ORDER BY c.publishedAt DESC")
+    /**
+     * Featured courses: isFeatured = true AND publicly visible.
+     */
+    @Query("SELECT c FROM Course c WHERE c.isFeatured = true AND (c.isPublished = true OR c.status = 'PUBLISHED') ORDER BY c.publishedAt DESC")
     List<Course> findFeaturedPublished(Pageable pageable);
 
     @Query(value = "SELECT c FROM Course c WHERE " +

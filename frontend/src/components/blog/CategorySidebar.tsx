@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Mail, Send, TrendingUp, Tag, BookOpen } from 'lucide-react';
 import type { Category } from '@/types';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 interface CategorySidebarProps {
   categories: Category[];

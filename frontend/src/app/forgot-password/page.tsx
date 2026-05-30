@@ -7,7 +7,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Mail, ArrowLeft, Loader2 } from 'lucide-react';
 import { authApi } from '@/lib/api';
-import toast from 'react-hot-toast';
+import { toast } from 'sonner';
 
 const schema = z.object({
   email: z.string().min(1, 'Email is required').email('Invalid email address'),

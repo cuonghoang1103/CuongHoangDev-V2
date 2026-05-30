@@ -14,9 +14,7 @@ import com.cuonghoangdev.api_backend.repository.UserRepository;
 import com.cuonghoangdev.api_backend.security.JwtTokenProvider;
 import com.cuonghoangdev.api_backend.security.UserPrincipal;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.security.authentication.AuthenticationManager;
-import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
-import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -29,9 +27,6 @@ import java.util.UUID;
 
 @Service
 public class AuthService {
-
-    @Autowired
-    private AuthenticationManager authenticationManager;
 
     @Autowired
     private UserRepository userRepository;
@@ -52,27 +47,40 @@ public class AuthService {
     private EmailService emailService;
 
     public AuthResponse login(LoginRequest request) {
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(
-                        request.getUsername(),
-                        request.getPassword()
-                )
-        );
+        User user = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new BadRequestException("User not found"));
 
-        SecurityContextHolder.getContext().setAuthentication(authentication);
-        String token = tokenProvider.generateToken(authentication);
+        if (!Boolean.TRUE.equals(user.getEnabled())) {
+            throw new BadRequestException("Account is disabled");
+        }
+        if (!Boolean.TRUE.equals(user.getAccountNonLocked())) {
+            throw new BadRequestException("Account is locked");
+        }
+        if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
+            throw new BadRequestException("Bad credentials");
+        }
 
-        UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
-        String role = userPrincipal.getAuthorities().stream()
+        UserPrincipal userPrincipal = new UserPrincipal(user);
+        String role = user.getRoles().stream()
                 .findFirst()
-                .map(a -> a.getAuthority())
+                .map(Role::getName)
                 .orElse("ROLE_USER");
+
+        var authorities = user.getRoles().stream()
+                .map(r -> new SimpleGrantedAuthority(r.getName()))
+                .toList();
+
+        var authentication = new org.springframework.security.authentication.UsernamePasswordAuthenticationToken(
+                userPrincipal, null, authorities);
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+
+        String token = tokenProvider.generateToken(authentication);
 
         return new AuthResponse(
                 token,
-                userPrincipal.getId(),
-                userPrincipal.getUsername(),
-                userPrincipal.getEmail(),
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
                 role
         );
     }
