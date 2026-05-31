@@ -127,3 +127,8 @@ app:
       distance-type: COSINE_DISTANCE
     auto-index-on-startup: ${AI_AUTO_INDEX:false}
     seed-default-config: true
+
+cloudinary:
+  cloud-name: ${CLOUDINARY_CLOUD_NAME:}
+  api-key: ${CLOUDINARY_API_KEY:}
+  api-secret: ${CLOUDINARY_API_SECRET:}

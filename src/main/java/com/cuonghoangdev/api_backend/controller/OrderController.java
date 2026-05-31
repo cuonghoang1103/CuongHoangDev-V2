@@ -86,21 +86,6 @@ public class OrderController {
         }
     }
 
-    @GetMapping("/code/{code}")
-    public ResponseEntity<?> getOrderByCode(@PathVariable String code) {
-        try {
-            return ResponseEntity.ok(Map.of(
-                "success", true,
-                "data", orderService.getOrderByCode(code)
-            ));
-        } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                "success", false,
-                "message", e.getMessage()
-            ));
-        }
-    }
-
     @GetMapping("/validate-coupon")
     public ResponseEntity<?> validateCoupon(
             @RequestParam String code,
