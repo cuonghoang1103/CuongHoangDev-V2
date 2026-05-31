@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { api } from '@/lib/api';
 import { useParams, useRouter } from 'next/navigation';
-import { toast } from 'sonner';
 import {
   ArrowLeft,
   ExternalLink,
@@ -14,35 +12,20 @@ import {
   ChevronRight,
   Clock,
 } from 'lucide-react';
-
-interface Project {
-  id: number;
-  title: string;
-  slug: string;
-  description: string;
-  technologies: string[];
-  status: string;
-  projectUrl?: string;
-  githubUrl?: string;
-  thumbnailUrl?: string;
-  content?: string;
-  startDate?: string;
-  endDate?: string;
-  featured: boolean;
-  role?: string;
-  duration?: string;
-}
+import { useProjectStore } from '@/store/projectStore';
+import type { Project } from '@/types';
 
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
-  PLANNING: { label: 'Planning', color: 'text-blue-400', bg: 'bg-blue-500/15' },
-  IN_PROGRESS: { label: 'In Progress', color: 'text-yellow-400', bg: 'bg-yellow-500/15' },
-  COMPLETED: { label: 'Completed', color: 'text-emerald-400', bg: 'bg-emerald-500/15' },
-  MAINTENANCE: { label: 'Maintenance', color: 'text-purple-400', bg: 'bg-purple-500/15' },
+  PLANNING: { label: 'Lên kế hoạch', color: 'text-blue-400', bg: 'bg-blue-500/15' },
+  IN_PROGRESS: { label: 'Đang phát triển', color: 'text-yellow-400', bg: 'bg-yellow-500/15' },
+  COMPLETED: { label: 'Hoàn thành', color: 'text-emerald-400', bg: 'bg-emerald-500/15' },
+  MAINTENANCE: { label: 'Bảo trì', color: 'text-purple-400', bg: 'bg-purple-500/15' },
 };
 
 export default function ProjectDetailPage() {
   const params = useParams();
   const router = useRouter();
+  const { getProjectBySlug, getProjectsByStatus } = useProjectStore();
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [relatedProjects, setRelatedProjects] = useState<Project[]>([]);
@@ -51,35 +34,29 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     if (!slug) return;
-    const fetch = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get(`/api/v1/projects/${slug}`);
-        setProject(res.data?.data?.data || res.data?.data);
-        if (res.data?.data?.technologies?.length > 0) {
-          const tech = res.data?.data?.technologies?.[0] || '';
-          if (tech) {
-            const relatedRes = await api.get(`/api/v1/projects?keyword=${encodeURIComponent(tech)}&size=3`);
-            const content = relatedRes.data?.data?.content || relatedRes.data?.data || [];
-            setRelatedProjects(content.filter((p: Project) => p.slug !== slug));
-          }
-        }
-      } catch {
-        toast.error('Project not found');
-        router.push('/projects');
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetch();
-  }, [slug, router]);
+
+    const found = getProjectBySlug(slug);
+    if (!found) {
+      router.push('/projects');
+      return;
+    }
+
+    setProject(found);
+
+    // Related: same status, different slug
+    const related = getProjectsByStatus(found.status)
+      .filter((p) => p.slug !== slug)
+      .slice(0, 3);
+    setRelatedProjects(related);
+    setLoading(false);
+  }, [slug, getProjectBySlug, getProjectsByStatus, router]);
 
   if (loading) {
     return (
       <div className="min-h-screen bg-darkbg pt-24 pb-16 px-4 sm:px-6 flex items-center justify-center">
         <div className="text-center">
           <div className="w-12 h-12 border-2 border-neon-violet border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-text-muted">Loading project...</p>
+          <p className="text-text-muted">Đang tải...</p>
         </div>
       </div>
     );
@@ -93,14 +70,16 @@ export default function ProjectDetailPage() {
   return (
     <div className="min-h-screen bg-darkbg pt-24 pb-16 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto">
+        {/* Back */}
         <button
           onClick={() => router.push('/projects')}
           className="flex items-center gap-2 text-text-muted hover:text-text-primary transition-colors mb-8"
         >
           <ArrowLeft className="w-4 h-4" />
-          <span className="text-sm">Back to Projects</span>
+          <span className="text-sm">Quay lại dự án</span>
         </button>
 
+        {/* Header */}
         <div className="mb-8">
           <div className="flex items-start justify-between gap-4 mb-4">
             <h1 className="text-3xl sm:text-4xl font-heading font-bold text-text-primary">
@@ -112,7 +91,7 @@ export default function ProjectDetailPage() {
           </div>
 
           {project.role && (
-            <p className="text-sm text-neon-violet font-medium mb-2">Role: {project.role}</p>
+            <p className="text-sm text-neon-violet font-medium mb-2">Vai trò: {project.role}</p>
           )}
 
           <p className="text-lg text-text-secondary leading-relaxed mb-6">
@@ -128,7 +107,7 @@ export default function ProjectDetailPage() {
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-neon-indigo to-neon-violet text-white text-sm font-medium rounded-xl hover:opacity-90 transition-opacity"
               >
                 <ExternalLink className="w-4 h-4" />
-                View Live
+                Xem trực tuyến
               </a>
             )}
             {project.githubUrl && (
@@ -139,12 +118,13 @@ export default function ProjectDetailPage() {
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-darkcard border border-darkborder text-text-primary text-sm font-medium rounded-xl hover:border-neon-indigo/30 transition-colors"
               >
                 <Github className="w-4 h-4" />
-                Source code
+                Mã nguồn
               </a>
             )}
           </div>
         </div>
 
+        {/* Thumbnail */}
         {project.thumbnailUrl && (
           <div className="rounded-2xl overflow-hidden mb-8 border border-darkborder">
             <img
@@ -155,11 +135,12 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
+        {/* Technologies */}
         {techs.length > 0 && (
           <div className="mb-8">
             <h2 className="text-lg font-heading font-bold text-text-primary mb-4 flex items-center gap-2">
               <Code2 className="w-5 h-5 text-neon-violet" />
-              Technologies Used
+              Công nghệ sử dụng
             </h2>
             <div className="flex flex-wrap gap-2">
               {techs.map((tech, i) => (
@@ -174,11 +155,12 @@ export default function ProjectDetailPage() {
           </div>
         )}
 
+        {/* Timeline */}
         {(project.startDate || project.endDate) && (
           <div className="mb-8 bg-darkcard border border-darkborder rounded-2xl p-5">
             <h2 className="text-lg font-heading font-bold text-text-primary mb-4 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-neon-violet" />
-              Project Timeline
+              Thời gian dự án
             </h2>
             <div className="flex items-center gap-4">
               {project.startDate && (
@@ -200,23 +182,25 @@ export default function ProjectDetailPage() {
                   </span>
                 </div>
               ) : project.startDate ? (
-                <span className="text-sm text-neon-violet font-medium">Present</span>
+                <span className="text-sm text-neon-violet font-medium">Hiện tại</span>
               ) : null}
             </div>
           </div>
         )}
 
+        {/* Content */}
         {project.content && (
           <div className="prose prose-invert max-w-none">
             <div dangerouslySetInnerHTML={{ __html: project.content }} />
           </div>
         )}
 
+        {/* Related Projects */}
         {relatedProjects.length > 0 && (
           <div className="mt-12 pt-8 border-t border-darkborder">
             <h2 className="text-xl font-heading font-bold text-text-primary mb-6 flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-neon-violet" />
-              Related Projects
+              Dự án liên quan
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {relatedProjects.map((rp) => (

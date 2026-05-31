@@ -1,35 +1,38 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Zap, Shield, Clock, Star, ShoppingBag } from 'lucide-react';
+import { Zap, Shield, Clock, Star, ShoppingBag, Loader2 } from 'lucide-react';
 import ProductCard from '@/components/shop/ProductCard';
 import ProductFilter from '@/components/shop/ProductFilter';
 import CartDrawer from '@/components/shop/CartDrawer';
-import { MOCK_PRODUCTS } from '@/data/products';
+import { useProductStore } from '@/store/productStore';
+import { PRICE_RANGES, SORT_OPTIONS } from '@/data/products';
 import type { ProductCategory, PriceRange, SortOption } from '@/types';
-
-function formatPrice(price: number): string {
-  return new Intl.NumberFormat('vi-VN', {
-    style: 'currency',
-    currency: 'VND',
-    maximumFractionDigits: 0,
-  }).format(price);
-}
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function ShopPage() {
+  const { t } = useTranslation();
+  const { products, fetchProducts, isLoaded } = useProductStore();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState<ProductCategory | 'all'>('all');
   const [priceRange, setPriceRange] = useState<PriceRange>('all');
   const [sort, setSort] = useState<SortOption>('newest');
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    if (!isLoaded) {
+      fetchProducts();
+    }
+  }, []);
 
   const filtered = useMemo(() => {
-    let products = [...MOCK_PRODUCTS];
+    let result = [...products];
 
-    // Search
     if (search) {
       const q = search.toLowerCase();
-      products = products.filter(
+      result = result.filter(
         (p) =>
           p.name.toLowerCase().includes(q) ||
           p.description.toLowerCase().includes(q) ||
@@ -37,34 +40,31 @@ export default function ShopPage() {
       );
     }
 
-    // Category
     if (category !== 'all') {
-      products = products.filter((p) => p.category === category);
+      result = result.filter((p) => p.category === category);
     }
 
-    // Price range
     if (priceRange === 'under200') {
-      products = products.filter((p) => p.price < 200000);
+      result = result.filter((p) => p.price < 200000);
     } else if (priceRange === '200to500') {
-      products = products.filter((p) => p.price >= 200000 && p.price <= 500000);
+      result = result.filter((p) => p.price >= 200000 && p.price <= 500000);
     } else if (priceRange === 'above500') {
-      products = products.filter((p) => p.price > 500000);
+      result = result.filter((p) => p.price > 500000);
     }
 
-    // Sort
     switch (sort) {
       case 'price_asc':
-        products.sort((a, b) => a.price - b.price);
+        result.sort((a, b) => a.price - b.price);
         break;
       case 'price_desc':
-        products.sort((a, b) => b.price - a.price);
+        result.sort((a, b) => b.price - a.price);
         break;
       case 'popular':
-        products.sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0));
+        result.sort((a, b) => (b.soldCount || 0) - (a.soldCount || 0));
         break;
       case 'newest':
       default:
-        products.sort(
+        result.sort(
           (a, b) =>
             new Date(b.createdAt || 0).getTime() -
             new Date(a.createdAt || 0).getTime()
@@ -72,8 +72,16 @@ export default function ShopPage() {
         break;
     }
 
-    return products;
-  }, [search, category, priceRange, sort]);
+    return result;
+  }, [products, search, category, priceRange, sort]);
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-darkbg pt-20 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-neon-violet" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-darkbg pt-20">
@@ -91,28 +99,27 @@ export default function ShopPage() {
             className="text-center max-w-2xl mx-auto"
           >
             <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-neon-violet/10 border border-neon-violet/20 rounded-full text-sm text-neon-violet mb-6">
-              <ShoppingBag className="w-4 h-4" />
-              Digital Marketplace
+              <img src="/shop-icon.png" alt="Shop" className="w-5 h-5 object-contain" />
+              {t('shop.page.digitalMarketplace')}
             </div>
             <h1 className="text-3xl md:text-5xl font-heading font-bold text-text-primary mb-4">
-              Digital Products & Tools by{' '}
-              <span className="gradient-text">CuongHoang</span>
+              {t('shop.page.title')}
             </h1>
             <p className="text-text-secondary text-base md:text-lg">
-              Premium web templates, developer tools, software, and digital resources — crafted with care and ready to ship.
+              {t('shop.page.subtitle')}
             </p>
 
             {/* Trust badges */}
             <div className="flex flex-wrap items-center justify-center gap-6 mt-8">
               {[
-                { icon: Shield, text: 'Secure Payment' },
-                { icon: Clock, text: 'Instant Delivery' },
-                { icon: Star, text: 'Quality Guaranteed' },
-                { icon: Zap, text: 'Lifetime Updates' },
-              ].map(({ icon: Icon, text }) => (
-                <div key={text} className="flex items-center gap-2 text-text-muted text-sm">
+                { icon: Shield, textKey: 'shop.page.securePayment' },
+                { icon: Clock, textKey: 'shop.page.instantDelivery' },
+                { icon: Star, textKey: 'shop.page.qualityGuaranteed' },
+                { icon: Zap, textKey: 'shop.page.lifetimeUpdates' },
+              ].map(({ icon: Icon, textKey }) => (
+                <div key={textKey} className="flex items-center gap-2 text-text-muted text-sm">
                   <Icon className="w-4 h-4 text-neon-violet" />
-                  {text}
+                  {t(textKey)}
                 </div>
               ))}
             </div>
@@ -144,9 +151,9 @@ export default function ShopPage() {
               <ShoppingBag className="w-10 h-10 text-text-muted/30" />
             </div>
             <h3 className="text-xl font-heading font-bold text-text-primary mb-2">
-              No products found
+              {t('shop.page.noProducts')}
             </h3>
-            <p className="text-text-muted">Try adjusting your filters or search term</p>
+            <p className="text-text-muted">{t('shop.page.adjustFilters')}</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">

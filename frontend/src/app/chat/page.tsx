@@ -1,123 +1,277 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import Lottie from 'lottie-react';
+import { Sparkles, ChevronLeft, ChevronRight, Wifi, WifiOff, AlertCircle, RefreshCw } from 'lucide-react';
 import { useAuthStore } from '@/store/authStore';
 import { useSession } from 'next-auth/react';
-import { Send, Trash2, Plus, MessageSquare, Sparkles, BookOpen, Code2, User, Bot, Loader2, ChevronDown } from 'lucide-react';
+import { useChatStore, getContextualPrompts } from '@/store/chatStore';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
-import { vi } from 'date-fns/locale';
+import ChatSidebar from '@/components/chat/ChatSidebar';
+import ChatMessages from '@/components/chat/ChatMessages';
+import ChatInput from '@/components/chat/ChatInput';
+import SuggestedPrompts from '@/components/chat/SuggestedPrompts';
+import type { ChatMessage, ChatSession } from '@/types';
+import { findStaticResponse, getDefaultGreeting, getFallbackResponse } from '@/lib/ai-static-responses';
 
-interface ChatMessage {
-  id: number;
-  sessionId: string;
-  role: 'user' | 'assistant';
-  content: string;
-  tokenCount?: number;
-  createdAt: string;
+// Load Lottie robot data on client side
+function useRobotData() {
+  const [data, setData] = useState<object | null>(null);
+  useEffect(() => {
+    fetch('/animations/robot.json')
+      .then((r) => r.json())
+      .then(setData)
+      .catch(console.error);
+  }, []);
+  return data;
 }
 
-interface ChatSession {
-  id: number;
-  sessionId: string;
-  userId?: number;
-  title?: string;
-  createdAt: string;
-  updatedAt?: string;
+function ChatWelcome({ prompts, onSelect, isLoading }: {
+  prompts: { id: string; label: string; icon: string; prompt: string }[];
+  onSelect: (p: string) => void;
+  isLoading: boolean;
+}) {
+  const robotData = useRobotData();
+
+  return (
+    <motion.div
+      key="welcome"
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -10 }}
+      transition={{ duration: 0.4 }}
+      className="flex flex-col items-center justify-center h-full text-center px-4"
+    >
+      {/* Lottie Robot */}
+      <motion.div
+        animate={{ y: [0, -8, 0] }}
+        transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        className="w-24 h-24 rounded-3xl overflow-hidden flex items-center justify-center mb-6 shadow-2xl shadow-neon-violet/20"
+      >
+        {robotData ? (
+          <Lottie animationData={robotData} loop autoplay style={{ width: '100%', height: '100%' }} />
+        ) : (
+          <div className="w-full h-full bg-neon-violet/10 rounded-3xl" />
+        )}
+      </motion.div>
+
+      <h2 className="text-2xl sm:text-3xl font-heading font-bold text-text-primary mb-3">
+        Hello! I'm Ai CuongMini
+      </h2>
+      <p className="text-text-secondary mb-8 max-w-lg">
+        I can answer questions about CuongHoang's portfolio, skills, projects, blog posts, and more. Powered by RAG — try asking me anything!
+      </p>
+
+      <SuggestedPrompts prompts={prompts} onSelect={onSelect} isLoading={isLoading} />
+    </motion.div>
+  );
 }
 
 export default function ChatPage() {
   const { isAuthenticated: isBackendAuth, token } = useAuthStore();
   const { status } = useSession();
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => { setMounted(true); }, []);
 
   const isAuthenticated = mounted && (isBackendAuth || status === 'authenticated');
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
-  const [input, setInput] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [sessions, setSessions] = useState<ChatSession[]>([]);
-  const [showSidebar, setShowSidebar] = useState(false);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [apiError, setApiError] = useState<string | null>(null);
-  const [newMessage, setNewMessage] = useState('');
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const {
+    sessions,
+    currentSessionId,
+    messages,
+    isStreaming,
+    suggestedPrompts,
+    isSidebarOpen,
+    limitedMode,
+    limitedModeReason,
+    setSessions,
+    addSession,
+    removeSession,
+    setCurrentSessionId,
+    addMessage,
+    updateLastAssistantMessage,
+    removePendingMessage,
+    setMessages,
+    setStreaming,
+    setRobotEmotion,
+    setSuggestedPrompts,
+    setSidebarOpen,
+    setLimitedMode,
+  } = useChatStore();
+
+  const [backendConnected, setBackendConnected] = useState<boolean | null>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  const currentMessages = currentSessionId ? (messages[currentSessionId] || []) : [];
+  // Always show messages: if no currentSessionId yet, derive from store directly to avoid stale closure
+  const sessionMessages = currentMessages;
 
-  useEffect(() => { scrollToBottom(); }, [messages]);
-
-  const fetchSessions = useCallback(async () => {
-    try {
-      const res = await api.get('/api/v1/ai/chat/sessions');
-      setSessions(res.data?.data || []);
-    } catch (err) {
-      console.warn('Chat sessions fetch failed:', err);
-      setApiError('Unable to connect to AI. Check if backend is running on port 8082.');
-    }
+  // Check backend connectivity
+  useEffect(() => {
+    const checkBackend = async () => {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082'}/api/v1/system/health`, {
+          signal: AbortSignal.timeout(3000),
+        });
+        setBackendConnected(true);
+      } catch {
+        setBackendConnected(false);
+      }
+    };
+    checkBackend();
   }, []);
+
+  // Fetch sessions from backend on mount
+  useEffect(() => {
+    if (!mounted) return;
+    const fetchSessions = async () => {
+      try {
+        const res = await api.get('/api/v1/ai/chat/sessions');
+        setSessions(res.data?.data || []);
+      } catch {
+        // silently ignore — use persisted local state
+      }
+    };
+    fetchSessions();
+  }, [mounted, setSessions]);
+
+  // Update contextual prompts based on last message
+  useEffect(() => {
+    if (currentMessages.length > 0) {
+      const last = currentMessages[currentMessages.length - 1];
+      if (last.role === 'assistant' && last.content.length > 50) {
+        const ctx = getContextualPrompts(last.content);
+        if (ctx.length > 0) setSuggestedPrompts(ctx);
+      }
+    }
+  }, [currentMessages.length, currentMessages, setSuggestedPrompts]);
 
   const fetchHistory = useCallback(async (sessionId: string) => {
     try {
       const res = await api.get(`/api/v1/ai/chat/history/${sessionId}`);
-      setMessages(res.data.data || []);
+      setMessages(sessionId, res.data.data || []);
     } catch { /* ignore */ }
-  }, []);
+  }, [setMessages]);
 
-  useEffect(() => { fetchSessions(); }, [fetchSessions]);
-
-  const startNewSession = () => {
-    setMessages([]);
-    setCurrentSessionId(null);
-    setNewMessage('');
-    fetchSessions();
-  };
-
-  const selectSession = async (sessionId: string) => {
+  const handleSelectSession = useCallback(async (sessionId: string) => {
     setCurrentSessionId(sessionId);
     await fetchHistory(sessionId);
-    setShowSidebar(false);
-  };
+  }, [setCurrentSessionId, fetchHistory]);
 
-  const sendMessage = async (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if ((!input.trim() && !newMessage.trim()) || isLoading || isStreaming) return;
+  const handleDeleteSession = useCallback(async (sessionId: string) => {
+    try {
+      await api.delete(`/api/v1/ai/chat/sessions/${sessionId}`);
+      removeSession(sessionId);
+      toast.success('Conversation deleted');
+    } catch {
+      toast.error('Delete failed');
+    }
+  }, [removeSession]);
 
-    const text = (input || newMessage).trim();
-    if (!text) return;
+  const sendMessage = useCallback(async (text: string, forceStatic: boolean = false) => {
+    if (!text.trim() || isStreaming) return;
 
+    const sessionId = currentSessionId || '__new__';
+    const tempId = Date.now();
+
+    // Set sessionId early so UI shows messages immediately
+    if (!currentSessionId) {
+      setCurrentSessionId('__new__');
+    }
+
+    // Create user message
     const userMsg: ChatMessage = {
-      id: Date.now(),
-      sessionId: currentSessionId || '',
+      id: tempId,
+      sessionId,
       role: 'user',
-      content: text,
+      content: text.trim(),
       createdAt: new Date().toISOString(),
     };
 
-    setMessages((prev) => [...prev, userMsg]);
-    setInput('');
-    setNewMessage('');
-    setIsStreaming(true);
+    // Add user message to store
+    addMessage(sessionId, userMsg);
+    setRobotEmotion('typing');
+    setStreaming(true);
+
+    // Clear prompts once chatting
+    if (currentMessages.length === 0) {
+      setSuggestedPrompts([]);
+    }
 
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/ai/chat/stream`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify({
-          message: text,
-          sessionId: currentSessionId,
-          topK: 5,
-        }),
-      });
+      // ========== LIMITED MODE LOGIC ==========
+      // If forceStatic is true or we're in limited mode, use static response
+      const shouldUseStatic = forceStatic || limitedMode;
+
+      if (shouldUseStatic) {
+        // Use static response
+        const staticResp = findStaticResponse(text);
+        const responseContent = staticResp?.response || getFallbackResponse(text);
+
+        // Simulate streaming effect for better UX
+        const words = responseContent.split(/(\s+)/);
+        let streamedContent = '';
+        
+        // Add pending assistant message
+        const assistantMsg: ChatMessage = {
+          id: tempId + 1,
+          sessionId,
+          role: 'assistant',
+          content: '',
+          createdAt: new Date().toISOString(),
+        };
+        addMessage(sessionId, assistantMsg);
+
+        // Stream word by word with small delay
+        for (const word of words) {
+          await new Promise(resolve => setTimeout(resolve, 5));
+          streamedContent += word;
+          updateLastAssistantMessage(sessionId, streamedContent);
+        }
+
+        // Set limited mode if this was a 429 error
+        if (forceStatic) {
+          setLimitedMode(true, 'AI quota exceeded - Using cached answers');
+          toast.info('Limited Mode: AI quota exceeded, using cached answers');
+        }
+
+        // Create session
+        if (!currentSessionId || currentSessionId === '__new__') {
+          const newSession: ChatSession = {
+            id: Date.now(),
+            sessionId: sessionId,
+            title: text.trim().slice(0, 50),
+            createdAt: new Date().toISOString(),
+          };
+          addSession(newSession);
+          if (sessionId === '__new__') {
+            setCurrentSessionId('__new__');
+          }
+        }
+
+        setRobotEmotion('idle');
+        setStreaming(false);
+        return;
+      }
+
+      // ========== NORMAL AI MODE ==========
+      const res = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082'}/api/v1/ai/chat/stream`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({
+            message: text.trim(),
+            sessionId: currentSessionId || undefined,
+            topK: 5,
+          }),
+        }
+      );
 
       if (!res.ok) throw new Error('Stream failed');
 
@@ -125,18 +279,23 @@ export default function ChatPage() {
       if (!reader) throw new Error('No reader');
 
       let assistantContent = '';
-      let sessionId = currentSessionId || '';
+      let resolvedSessionId = currentSessionId || '';
+      const assistantTempId = tempId + 1;
+
+      // Add pending assistant message
       const assistantMsg: ChatMessage = {
-        id: Date.now() + 1,
+        id: assistantTempId,
         sessionId,
         role: 'assistant',
         content: '',
         createdAt: new Date().toISOString(),
       };
-      setMessages((prev) => [...prev, assistantMsg]);
+      addMessage(sessionId, assistantMsg);
 
       const decoder = new TextDecoder();
       let buffer = '';
+      let hasError = false;
+      let errorMsg = '';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -154,288 +313,280 @@ export default function ChatPage() {
           try {
             const data = JSON.parse(raw);
 
-            // Session ID event
-            if (data.sessionId && !sessionId) {
-              sessionId = data.sessionId;
-              if (currentSessionId !== sessionId) setCurrentSessionId(sessionId);
+            if (data.sessionId && !resolvedSessionId) {
+              resolvedSessionId = data.sessionId;
               continue;
             }
 
-            // Done event
             if (data.done) {
-              if (currentSessionId !== sessionId) {
-                setCurrentSessionId(sessionId);
-                fetchSessions();
-              }
               continue;
             }
 
-            // Error event
             if (data.error) {
-              toast.error('Server error: ' + data.error);
+              errorMsg = data.error;
               continue;
             }
 
-            // Content chunk
             if (data.content) {
-              assistantContent += data.content;
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantMsg.id ? { ...m, content: assistantContent, sessionId } : m
-                )
-              );
+              // Check if content is an error
+              const lowerContent = data.content.toLowerCase();
+              if (
+                lowerContent.includes('429') ||
+                lowerContent.includes('quota') ||
+                lowerContent.includes('exceeded') ||
+                lowerContent.includes('too many requests') ||
+                lowerContent.includes('resource_exhausted') ||
+                lowerContent.includes('da xay ra loi') ||
+                lowerContent.includes('error')
+              ) {
+                hasError = true;
+                errorMsg += data.content;
+              } else {
+                assistantContent += data.content;
+                updateLastAssistantMessage(sessionId, assistantContent);
+              }
             }
           } catch {
-            // Plain text chunk (fallback)
-            if (raw) {
+            // Raw content might not be JSON, check for error
+            const lowerRaw = raw.toLowerCase();
+            if (
+              lowerRaw.includes('429') ||
+              lowerRaw.includes('quota') ||
+              lowerRaw.includes('error') ||
+              lowerRaw.includes('da xay ra loi')
+            ) {
+              hasError = true;
+              errorMsg += raw;
+            } else if (raw) {
               assistantContent += raw;
-              setMessages((prev) =>
-                prev.map((m) =>
-                  m.id === assistantMsg.id ? { ...m, content: assistantContent, sessionId } : m
-                )
-              );
+              updateLastAssistantMessage(sessionId, assistantContent);
             }
           }
         }
       }
 
-      if (currentSessionId !== sessionId) {
-        setCurrentSessionId(sessionId);
-        fetchSessions();
+      // If error detected, use static response
+      if (hasError || errorMsg) {
+        const staticResp = findStaticResponse(text);
+        const responseContent = staticResp?.response || getDefaultGreeting();
+        
+        // Replace error content with static response
+        updateLastAssistantMessage(sessionId, responseContent);
+        assistantContent = responseContent;
+        
+        // Enable Limited Mode
+        setLimitedMode(true, 'AI quota exceeded');
+        toast.info('AI quota exceeded. Using cached answers.');
+      }
+
+      // Finalize: create real session from backend if new
+      if (!currentSessionId || currentSessionId === '__new__') {
+        if (resolvedSessionId) {
+          // Migrate messages from __new__ to real session
+          const msgs = useChatStore.getState().messages['__new__'] || [];
+          const migrated = msgs.map((m) => ({ ...m, sessionId: resolvedSessionId }));
+          setMessages(resolvedSessionId, migrated);
+          setCurrentSessionId(resolvedSessionId);
+          
+          const newSession: ChatSession = {
+            id: Date.now(),
+            sessionId: resolvedSessionId,
+            title: text.trim().slice(0, 50),
+            createdAt: new Date().toISOString(),
+          };
+          addSession(newSession);
+        } else {
+          // No backend session — use __new__ as sessionId
+          const newSession: ChatSession = {
+            id: Date.now(),
+            sessionId: '__new__',
+            title: text.trim().slice(0, 50),
+            createdAt: new Date().toISOString(),
+          };
+          addSession(newSession);
+        }
+      }
+
+      // Update contextual prompts
+      const ctx = getContextualPrompts(assistantContent);
+      if (ctx.length > 0) setSuggestedPrompts(ctx);
+
+      // Emotion based on response
+      const lower = assistantContent.toLowerCase();
+      if (lower.includes('!') || lower.includes('great') || lower.includes('awesome')) {
+        setRobotEmotion('excited');
+      } else if (lower.includes('sorry') || lower.includes('not sure')) {
+        setRobotEmotion('sad');
+      } else if (lower.includes('thanks') || lower.includes('helpful')) {
+        setRobotEmotion('happy');
+      } else {
+        setRobotEmotion('idle');
       }
     } catch (err) {
-      toast.error('AI connection error. Please try again.');
-      setMessages((prev) => prev.filter((m) => m.id !== userMsg.id && m.id !== (Date.now() + 1)));
-    } finally {
-      setIsStreaming(false);
-    }
-  };
-
-  const deleteSession = async (sessionId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    try {
-      await api.delete(`/api/v1/ai/chat/sessions/${sessionId}`);
-      setSessions((prev) => prev.filter((s) => s.sessionId !== sessionId));
-      if (currentSessionId === sessionId) {
-        setMessages([]);
-        setCurrentSessionId(null);
+      console.error('Chat error:', err);
+      toast.error('AI connection error. Please check if backend is running.');
+      removePendingMessage(sessionId, tempId);
+      setRobotEmotion('sad');
+      
+      // Try static response as fallback
+      const staticResp = findStaticResponse(text);
+      if (staticResp) {
+        const assistantMsg: ChatMessage = {
+          id: tempId + 1,
+          sessionId,
+          role: 'assistant',
+          content: staticResp.response,
+          createdAt: new Date().toISOString(),
+        };
+        addMessage(sessionId, assistantMsg);
+        setLimitedMode(true, 'AI unavailable - Using cached answers');
+        toast.info('Using cached answers due to connection error.');
       }
-      toast.success('Conversation deleted');
-    } catch {
-      toast.error('Delete failed');
+    } finally {
+      setStreaming(false);
     }
-  };
+  }, [
+    isStreaming, currentSessionId, token, addMessage, setStreaming, setRobotEmotion,
+    currentMessages, setSuggestedPrompts, setMessages, setCurrentSessionId, addSession,
+    updateLastAssistantMessage, removePendingMessage, limitedMode, setLimitedMode,
+  ]);
 
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      sendMessage();
-    }
-  };
+  const handlePromptSelect = useCallback((prompt: string, forceStatic?: boolean) => {
+    inputRef.current?.focus();
+    sendMessage(prompt, forceStatic);
+  }, [sendMessage]);
 
-  const quickPrompts = [
-    { label: 'About CuongHoang', icon: <User className="w-4 h-4" />, prompt: 'Tell me about CuongHoang - a full-stack developer' },
-    { label: 'Skills & Tech', icon: <Code2 className="w-4 h-4" />, prompt: 'What skills and technologies does CuongHoang have?' },
-    { label: 'Projects Done', icon: <Sparkles className="w-4 h-4" />, prompt: 'What projects has CuongHoang worked on?' },
-    { label: 'Recent Blogs', icon: <BookOpen className="w-4 h-4" />, prompt: 'What are the recent blog posts by CuongHoang about?' },
-  ];
+  const handleNewSession = useCallback(() => {
+    setCurrentSessionId(null);
+    setSuggestedPrompts(getContextualPrompts(''));
+  }, [setCurrentSessionId, setSuggestedPrompts]);
 
   return (
-    <div className="flex h-screen bg-darkbg pt-16">
+    <div className="flex h-screen bg-darkbg pt-16 overflow-hidden">
       {/* Sidebar */}
-      <aside className={`${isSidebarOpen ? 'w-72' : 'w-0'} flex-shrink-0 border-r border-darkborder bg-darkcard transition-all duration-300 overflow-hidden flex flex-col`}>
-        <div className="p-4 border-b border-darkborder flex items-center justify-between">
-          <h2 className={`font-heading font-bold text-text-primary transition-opacity ${isSidebarOpen ? 'opacity-100' : 'opacity-0'}`}>
-            Conversations
-          </h2>
-          <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-            className="p-1.5 rounded-lg hover:bg-white/5 text-text-muted hover:text-text-primary transition-colors"
-          >
-            <ChevronDown className={`w-4 h-4 transition-transform ${isSidebarOpen ? 'rotate-90' : ''}`} />
-          </button>
-        </div>
-
-        <button
-          onClick={startNewSession}
-          className="mx-4 mt-4 flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-neon-indigo to-neon-violet text-white text-sm font-medium rounded-xl hover:opacity-90 transition-opacity"
-        >
-          <Plus className="w-4 h-4" />
-          New conversation
-        </button>
-
-        <div className="flex-1 overflow-y-auto mt-2 px-2">
-          {sessions.length === 0 && (
-            <p className="text-text-muted text-sm text-center py-8 px-2">
-              No conversations yet
-            </p>
-          )}
-          {sessions.map((session) => (
-            <button
-              key={session.id}
-              onClick={() => selectSession(session.sessionId)}
-              className={`w-full text-left px-3 py-3 rounded-xl mb-1 group transition-colors relative ${
-                currentSessionId === session.sessionId
-                  ? 'bg-neon-violet/15 text-text-primary'
-                  : 'hover:bg-white/5 text-text-secondary hover:text-text-primary'
-              }`}
-            >
-              <div className="flex items-start gap-2">
-                <MessageSquare className="w-4 h-4 mt-0.5 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">
-                    {session.title || 'New conversation'}
-                  </p>
-                  <p className="text-xs text-text-muted mt-0.5">
-                    {format(new Date(session.createdAt), 'dd/MM/yyyy, HH:mm', { locale: vi })}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={(e) => deleteSession(session.sessionId, e)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 rounded-md text-text-muted hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-all"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </button>
-          ))}
-        </div>
-      </aside>
+      <div className="relative">
+        <ChatSidebar
+          onDeleteSession={handleDeleteSession}
+          onSelectSession={handleSelectSession}
+        />
+      </div>
 
       {/* Main chat area */}
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className="flex-1 flex flex-col min-w-0 relative">
         {/* Header */}
-        <header className="px-6 py-4 border-b border-darkborder flex items-center gap-4">
+        <motion.header
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="px-6 py-4 border-b border-darkborder flex items-center gap-4 flex-shrink-0"
+        >
           <button
-            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            onClick={() => setSidebarOpen(!isSidebarOpen)}
             className="p-2 rounded-lg hover:bg-white/5 text-text-muted hover:text-text-primary transition-colors md:hidden"
           >
-            <ChevronDown className={`w-5 h-5 transition-transform ${isSidebarOpen ? 'rotate-90' : ''}`} />
+            <ChevronRight className={`w-5 h-5 transition-transform ${isSidebarOpen ? 'rotate-180' : ''}`} />
           </button>
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-neon-indigo via-neon-violet to-neon-fuchsia flex items-center justify-center">
+            <motion.div
+              animate={{ rotate: isStreaming ? 360 : 0 }}
+              transition={{ duration: isStreaming ? 2 : 0, repeat: isStreaming ? Infinity : 0, ease: 'linear' }}
+              className="w-10 h-10 rounded-2xl bg-gradient-to-br from-neon-indigo via-neon-violet to-neon-fuchsia flex items-center justify-center shadow-lg shadow-neon-violet/20"
+            >
               <Sparkles className="w-5 h-5 text-white" />
-            </div>
+            </motion.div>
             <div>
-              <h1 className="font-heading font-bold text-text-primary">AI Assistant</h1>
-              <p className="text-xs text-text-muted">Powered by RAG • {isAuthenticated ? 'Logged in' : 'Guest mode'}</p>
-            </div>
-          </div>
-        </header>
-
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-6 space-y-4">
-          {messages.length === 0 && (
-            <div className="flex flex-col items-center justify-center h-full text-center">
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-neon-indigo/20 via-neon-violet/20 to-neon-fuchsia/20 flex items-center justify-center mb-6">
-                <Sparkles className="w-10 h-10 text-neon-violet" />
-              </div>
-              <h2 className="text-2xl font-heading font-bold text-text-primary mb-2">
-                Hello! I am AI Assistant
-              </h2>
-              <p className="text-text-secondary mb-8 max-w-md">
-                I can answer questions about CuongHoang's portfolio, skills, projects and blog. Feel free to ask anything!
-              </p>
-
-              {/* Quick prompts */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 w-full max-w-2xl">
-                {quickPrompts.map((q) => (
-                  <button
-                    key={q.label}
-                    onClick={() => {
-                      setInput(q.prompt);
-                      setTimeout(() => {
-                        const fakeEvent = { preventDefault: () => {} } as React.FormEvent;
-                        sendMessage(fakeEvent);
-                      }, 100);
-                    }}
-                    className="flex items-center gap-3 px-4 py-3 bg-darkcard border border-darkborder rounded-xl hover:border-neon-violet/30 hover:bg-darkcard/80 transition-all text-left group"
+              <h1 className="font-heading font-bold text-text-primary flex items-center gap-2">
+                Ai CuongMini
+                {/* Limited Mode Badge */}
+                <AnimatePresence>
+                  {limitedMode && (
+                    <motion.span
+                      initial={{ scale: 0, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0, opacity: 0 }}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 text-[10px] font-medium bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-full"
+                    >
+                      <AlertCircle className="w-3 h-3" />
+                      Limited Mode
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </h1>
+              <div className="flex items-center gap-2">
+                <p className="text-xs text-text-muted">
+                  {limitedMode ? (
+                    <span className="text-amber-400/80">📦 Cached answers • {isAuthenticated ? 'Logged in' : 'Guest'}</span>
+                  ) : (
+                    <>Powered by RAG • {isAuthenticated ? 'Logged in' : 'Guest mode'}</>
+                  )}
+                </p>
+                {backendConnected !== null && !limitedMode && (
+                  <motion.div
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    title={backendConnected ? 'Backend connected' : 'Backend offline'}
+                    className={`flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full ${
+                      backendConnected
+                        ? 'bg-green-500/10 text-green-400'
+                        : 'bg-red-500/10 text-red-400'
+                    }`}
                   >
-                    <div className="w-8 h-8 rounded-lg bg-neon-violet/10 flex items-center justify-center text-neon-violet group-hover:bg-neon-violet/20 transition-colors">
-                      {q.icon}
-                    </div>
-                    <span className="text-sm text-text-secondary group-hover:text-text-primary transition-colors">
-                      {q.label}
-                    </span>
+                    {backendConnected ? (
+                      <Wifi className="w-3 h-3" />
+                    ) : (
+                      <WifiOff className="w-3 h-3" />
+                    )}
+                    <span className="hidden sm:inline">{backendConnected ? 'Online' : 'Offline'}</span>
+                  </motion.div>
+                )}
+                {/* Try Again Button in Limited Mode */}
+                {limitedMode && (
+                  <button
+                    onClick={() => setLimitedMode(false, '')}
+                    className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-colors"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    <span>Try AI</span>
                   </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {messages.map((msg) => (
-            <div key={msg.id} className={`flex gap-3 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-              <div className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center ${
-                msg.role === 'user'
-                  ? 'bg-gradient-to-br from-neon-indigo to-neon-violet'
-                  : 'bg-darkcard border border-darkborder'
-              }`}>
-                {msg.role === 'user' ? (
-                  <User className="w-4 h-4 text-white" />
-                ) : (
-                  <Bot className="w-4 h-4 text-neon-violet" />
                 )}
               </div>
-              <div className={`flex-1 max-w-3xl ${msg.role === 'user' ? 'text-right' : ''}`}>
-                <div className={`inline-block px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap ${
-                  msg.role === 'user'
-                    ? 'bg-gradient-to-r from-neon-indigo to-neon-violet text-white rounded-tr-md'
-                    : 'bg-darkcard border border-darkborder text-text-primary rounded-tl-md'
-                }`}>
-                  {msg.content}
-                  {isStreaming && msg.id === messages[messages.length - 1]?.id && msg.role === 'assistant' && (
-                    <span className="inline-block w-2 h-4 ml-1 bg-neon-violet animate-pulse rounded" />
-                  )}
-                </div>
-                <p className="text-xs text-text-muted mt-1 px-1">
-                  {format(new Date(msg.createdAt), 'HH:mm')}
-                </p>
-              </div>
             </div>
-          ))}
+          </div>
+        </motion.header>
 
-          {isStreaming && messages[messages.length - 1]?.role !== 'assistant' && (
-            <div className="flex gap-3">
-              <div className="flex-shrink-0 w-8 h-8 rounded-xl bg-darkcard border border-darkborder flex items-center justify-center">
-                <Bot className="w-4 h-4 text-neon-violet" />
-              </div>
-              <div className="inline-flex items-center gap-2 px-4 py-3 bg-darkcard border border-darkborder rounded-2xl rounded-tl-md">
-                <Loader2 className="w-4 h-4 text-neon-violet animate-spin" />
-                <span className="text-sm text-text-muted">Thinking...</span>
-              </div>
+        {/* Messages or Welcome */}
+        <div className="flex-1 overflow-hidden relative">
+          {!mounted ? (
+            <div className="flex items-center justify-center h-full">
+              <div className="animate-pulse text-text-muted">Loading...</div>
             </div>
+          ) : (
+            <AnimatePresence mode="wait">
+              {currentMessages.length === 0 ? (
+                <ChatWelcome
+                  key="welcome"
+                  prompts={suggestedPrompts}
+                  onSelect={handlePromptSelect}
+                  isLoading={isStreaming}
+                />
+              ) : (
+                <ChatMessages
+                  key="messages"
+                  messages={currentMessages}
+                  isStreaming={isStreaming}
+                />
+              )}
+            </AnimatePresence>
           )}
-
-          <div ref={messagesEndRef} />
         </div>
 
         {/* Input */}
-        <div className="p-4 border-t border-darkborder">
-          <form onSubmit={sendMessage} className="flex gap-3 max-w-4xl mx-auto">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              onKeyDown={handleKeyDown}
-              placeholder="Ask me about portfolio, skills, projects..."
-              rows={1}
-              className="flex-1 px-4 py-3 bg-darkcard border border-darkborder rounded-2xl text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 resize-none transition-colors"
-              style={{ minHeight: '48px', maxHeight: '160px' }}
-            />
-            <button
-              type="submit"
-              disabled={!input.trim() || isLoading || isStreaming}
-              className="px-5 py-3 bg-gradient-to-r from-neon-indigo to-neon-violet text-white rounded-2xl hover:opacity-90 transition-opacity disabled:opacity-40 flex items-center gap-2 font-medium"
-            >
-              {isStreaming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-              <span className="hidden sm:inline">Send</span>
-            </button>
-          </form>
-          <p className="text-xs text-text-muted text-center mt-2">
-            AI may be incorrect. Verify important information.
-          </p>
-        </div>
+        <ChatInput
+          onSend={sendMessage}
+          isStreaming={isStreaming}
+        />
       </main>
+
+      {/* Floating Ai CuongMini */}
     </div>
   );
 }

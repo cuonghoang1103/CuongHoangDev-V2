@@ -82,37 +82,6 @@ public class DataSeedingService {
     }
 
     /**
-     * Index dữ liệu vào vector database khi khởi động
-     */
-    @Bean
-    @Order(2)
-    public CommandLineRunner indexKnowledgeOnStartup(KnowledgeIngestionService knowledgeIngestionService,
-                                                     AIConfigRepository aiConfigRepository) {
-        return args -> {
-            if (!autoIndexOnStartup) {
-                log.info("Bo qua index tri thuc khi khoi dong (disabled)");
-                return;
-            }
-
-            // Kiểm tra xem đã có API key chưa
-            String apiKey = System.getenv("OPENAI_API_KEY");
-            if (apiKey == null || apiKey.isEmpty() || apiKey.equals("your-api-key-here")) {
-                log.warn("OPENAI_API_KEY chua duoc cau hinh. Bo qua auto-index.");
-                return;
-            }
-
-            log.info("Bat dau index tri thuc khi khoi dong...");
-
-            try {
-                var result = knowledgeIngestionService.indexAllKnowledge();
-                log.info("Hoan tat index tri thuc: {}", result);
-            } catch (Exception e) {
-                log.error("Loi khi index tri thuc: {}", e.getMessage());
-            }
-        };
-    }
-
-    /**
      * Seed default users (admin & testuser) on startup
      */
     @Bean

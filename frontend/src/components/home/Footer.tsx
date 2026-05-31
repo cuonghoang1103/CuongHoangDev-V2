@@ -1,30 +1,24 @@
+'use client';
+
 import Link from 'next/link';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function Footer() {
+  const { t } = useTranslation();
   const currentYear = new Date().getFullYear();
 
-  const footerLinks = {
-    navigation: [
-      { label: 'Home', href: '/' },
-      { label: 'Blog', href: '/blog' },
-      { label: 'Projects', href: '/projects' },
-      { label: 'Contact', href: '/#contact' },
-    ],
-    services: [
-      { label: 'Web Development', href: '/#services' },
-      { label: 'AI Integration', href: '/#services' },
-      { label: 'E-Commerce', href: '/#services' },
-      { label: 'DevOps', href: '/#services' },
-    ],
-    resources: [
-      { label: 'GitHub', href: '#' },
-      { label: 'LinkedIn', href: '#' },
-      { label: 'Twitter', href: '#' },
-      { label: 'Email', href: 'mailto:cuonghoang1103@gmail.com' },
-    ],
+  const navLabels = [t('common.home'), t('common.blog'), t('common.projects'), t('contact.title')];
+  const serviceLabels = [t('footer.webDev'), t('footer.aiIntegration'), t('footer.ecommerce'), t('footer.devops')];
+  const resourceLabels = [t('footer.github'), t('footer.linkedin'), t('footer.twitter'), t('footer.email')];
+
+  type FooterLink = { label: string; href: string };
+  const footerLinks: Record<string, FooterLink[]> = {
+    navigation: navLabels.map((label, i) => ({ label: String(label), href: ['/', '/blog', '/projects', '/#contact'][i] })),
+    services: serviceLabels.map((label) => ({ label: String(label), href: '/#services' })),
+    resources: resourceLabels.map((label, i) => ({ label: String(label), href: ['https://github.com/cuonghoang1103', '#', '#', 'mailto:cuonghoang1103@gmail.com'][i] })),
     legal: [
-      { label: 'Privacy Policy', href: '#' },
-      { label: 'Terms of Service', href: '#' },
+      { label: String(t('footer.privacy')), href: '#' },
+      { label: String(t('footer.terms')), href: '#' },
     ],
   };
 
@@ -44,10 +38,8 @@ export default function Footer() {
                 CuongHoang
               </span>
             </Link>
-            <p className="text-text-muted text-sm leading-relaxed mb-6">
-              Full Stack Developer | AI Builder
-              <br />
-              Building modern web applications with passion
+            <p className="text-text-muted text-sm leading-relaxed mb-6 whitespace-pre-line">
+              {t('footer.footerDesc')}
             </p>
             <div className="flex gap-3">
               {[
@@ -92,7 +84,7 @@ export default function Footer() {
 
           {/* Navigation Column */}
           <div>
-            <h4 className="font-heading font-semibold text-text-primary mb-4">Navigation</h4>
+            <h4 className="font-heading font-semibold text-text-primary mb-4">{t('footer.navigation')}</h4>
             <ul className="space-y-2.5">
               {footerLinks.navigation.map((link) => (
                 <li key={link.label}>
@@ -109,7 +101,7 @@ export default function Footer() {
 
           {/* Services Column */}
           <div>
-            <h4 className="font-heading font-semibold text-text-primary mb-4">Services</h4>
+            <h4 className="font-heading font-semibold text-text-primary mb-4">{t('footer.services')}</h4>
             <ul className="space-y-2.5">
               {footerLinks.services.map((link) => (
                 <li key={link.label}>
@@ -126,7 +118,7 @@ export default function Footer() {
 
           {/* Contact Column */}
           <div>
-            <h4 className="font-heading font-semibold text-text-primary mb-4">Contact</h4>
+            <h4 className="font-heading font-semibold text-text-primary mb-4">{t('contact.title')}</h4>
             <ul className="space-y-2.5">
               <li className="text-text-muted text-sm">
                 cuonghoang1103@gmail.com
@@ -141,7 +133,7 @@ export default function Footer() {
         {/* Divider */}
         <div className="mt-12 pt-8 border-t border-darkborder/50 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p className="text-text-muted text-sm">
-            © {currentYear} CuongHoang. All rights reserved.
+            © {currentYear} CuongHoang. {t('footer.rights')}
           </p>
           <div className="flex items-center gap-6">
             {footerLinks.legal.map((link) => (

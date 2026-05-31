@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import { useCallback } from 'react';
+import { signOut } from 'next-auth/react';
 import { useAuthStore } from '@/store/authStore';
 import { authApi } from '@/lib/api';
 import type { AuthResponse } from '@/types';
@@ -9,8 +10,17 @@ import { toast } from 'sonner';
 
 export function useAuth() {
   const router = useRouter();
-  const { user, token, isAuthenticated, isLoading, setAuth, updateUser, updateProfile, logout, setLoading } =
-    useAuthStore();
+  const {
+    user,
+    token,
+    isAuthenticated: isBackendAuthenticated,
+    isLoading,
+    setAuth,
+    updateUser,
+    updateProfile,
+    logout,
+    setLoading,
+  } = useAuthStore();
 
   const login = useCallback(
     async (username: string, password: string): Promise<boolean> => {
@@ -68,8 +78,15 @@ export function useAuth() {
 
   const logoutAndRedirect = useCallback(() => {
     logout();
-    router.push('/login');
+    signOut({ redirect: false }).then(() => {
+      router.push('/login');
+    });
   }, [logout, router]);
+
+  const logoutSilently = useCallback(() => {
+    logout();
+    signOut({ redirect: false }).catch(() => {});
+  }, [logout]);
 
   const refreshProfile = useCallback(async () => {
     if (!token) return;
@@ -86,12 +103,12 @@ export function useAuth() {
   return {
     user,
     token,
-    isAuthenticated,
+    isAuthenticated: isBackendAuthenticated,
     isLoading,
     login,
     register,
     logout: logoutAndRedirect,
-    logoutSilently: logout,
+    logoutSilently,
     refreshProfile,
   };
 }

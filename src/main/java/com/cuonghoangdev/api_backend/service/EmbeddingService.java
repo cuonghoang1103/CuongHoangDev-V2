@@ -11,9 +11,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.*;
 
 /**
- * Service tao embedding vector bang OpenAI.
- * 
- * Chu y: 
+ * Service tao embedding vector bang Gemini.
+ *
+ * Chu y:
+ * - Su dung Gemini text-embedding-004 (768 chieu)
  * - Neu co pgvector, vector se duoc luu vao cot `embedding` (type: vector)
  * - Neu khong co pgvector, van tao vector binh thuong nhung DB chi luu text
  *   (RAG van hoat dong tot vi RAGSearchService su dung text-based search)
@@ -24,32 +25,32 @@ public class EmbeddingService {
     private static final Logger log = LoggerFactory.getLogger(EmbeddingService.class);
 
     private final DocumentChunkRepository chunkRepository;
-    private final OpenAIService openAIService;
+    private final AIService aiService;
 
-    @Value("${app.ai.embedding.dimensions:1536}")
+    @Value("${app.ai.embedding.dimensions:768}")
     private int embeddingDimensions;
 
-    public EmbeddingService(DocumentChunkRepository chunkRepository, OpenAIService openAIService) {
+    public EmbeddingService(DocumentChunkRepository chunkRepository, AIService aiService) {
         this.chunkRepository = chunkRepository;
-        this.openAIService = openAIService;
+        this.aiService = aiService;
     }
 
     /**
      * Tao embedding vector cho mot doan text.
-     * 
+     *
      * @param text Doan text can embedding
-     * @return Mang float[] chieu 1536 (text-embedding-3-small)
+     * @return Mang float[] chieu 768 (text-embedding-004)
      */
     public float[] createEmbedding(String text) {
-        if (!openAIService.isConfigured()) {
-            log.warn("OpenAI API chua cau hinh - tra ve vector rong");
+        if (!aiService.isConfigured()) {
+            log.warn("Gemini API chua cau hinh - tra ve vector rong");
             return new float[embeddingDimensions];
         }
 
         try {
-            OpenAIService.EmbeddingResult result = openAIService.createEmbedding(text);
+            AIService.EmbeddingResult result = aiService.createEmbedding(text);
             if (result.success && result.embedding != null) {
-                log.debug("Da tao embedding cho '{}...' ({} chieu)", 
+                log.debug("Da tao embedding cho '{}...' ({} chieu)",
                         text.substring(0, Math.min(30, text.length())), result.embedding.length);
                 return result.embedding;
             } else {
@@ -67,15 +68,15 @@ public class EmbeddingService {
      * Nhanh hon goi lan luot nhieu lan.
      */
     public List<float[]> createEmbeddings(List<String> texts) {
-        if (!openAIService.isConfigured()) {
-            log.warn("OpenAI API chua cau hinh - tra ve vector rong");
+        if (!aiService.isConfigured()) {
+            log.warn("Gemini API chua cau hinh - tra ve vector rong");
             return texts.stream().map(t -> new float[embeddingDimensions]).toList();
         }
 
         try {
-            List<OpenAIService.EmbeddingResult> results = openAIService.createEmbeddings(texts);
+            List<AIService.EmbeddingResult> results = aiService.createEmbeddings(texts);
             List<float[]> embeddings = new ArrayList<>();
-            for (OpenAIService.EmbeddingResult result : results) {
+            for (AIService.EmbeddingResult result : results) {
                 if (result.success && result.embedding != null) {
                     embeddings.add(result.embedding);
                 } else {
@@ -96,7 +97,7 @@ public class EmbeddingService {
     @Transactional
     public DocumentChunk createAndSaveEmbedding(String content, Map<String, Object> metadata,
                                                 String documentId, String documentType, int chunkIndex) {
-        float[] embedding = createEmbedding(content);
+            float[] embedding = createEmbedding(content);
 
         DocumentChunk chunk = new DocumentChunk();
         chunk.setContent(content);

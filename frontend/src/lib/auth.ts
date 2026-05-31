@@ -1,46 +1,62 @@
-import NextAuth, { type NextAuthOptions } from 'next-auth';
-import GoogleProvider from 'next-auth/providers/google';
-import GitHubProvider from 'next-auth/providers/github';
-import FacebookProvider from 'next-auth/providers/facebook';
-import CredentialsProvider from 'next-auth/providers/credentials';
-import { authApi } from '@/lib/api';
+import NextAuth from "next-auth";
+import GoogleProvider from "next-auth/providers/google";
+import GitHubProvider from "next-auth/providers/github";
+import FacebookProvider from "next-auth/providers/facebook";
+import CredentialsProvider from "next-auth/providers/credentials";
+import { authApi } from "@/lib/api";
+// Types are extended in src/types/next-auth.d.ts
 
-export const authOptions: NextAuthOptions = {
+export const { handlers, auth, signIn, signOut } = NextAuth({
+  // No adapter — credentials users are managed by Spring Boot backend.
+  // Social login users are stored in JWT only (no DB dependency).
+  // Session persists in browser cookie via JWT strategy.
+
   providers: [
     GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID ?? '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+      clientId: process.env.GOOGLE_CLIENT_ID!,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
     }),
     GitHubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID ?? '',
-      clientSecret: process.env.GITHUB_CLIENT_SECRET ?? '',
+      clientId: process.env.GITHUB_CLIENT_ID!,
+      clientSecret: process.env.GITHUB_CLIENT_SECRET!,
     }),
     FacebookProvider({
-      clientId: process.env.FACEBOOK_CLIENT_ID ?? '',
-      clientSecret: process.env.FACEBOOK_CLIENT_SECRET ?? '',
+      clientId: process.env.FACEBOOK_CLIENT_ID!,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
     }),
-    // Keep credentials provider so existing users can still login via username/password
+    // Credentials provider — delegates to Spring Boot backend
     CredentialsProvider({
-      name: 'credentials',
+      name: "credentials",
       credentials: {
-        username: { label: 'Username', type: 'text' },
-        password: { label: 'Password', type: 'password' },
+        username: { label: "Username", type: "text" },
+        password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
         if (!credentials?.username || !credentials?.password) return null;
+
         try {
           const res = await authApi.login({
-            username: credentials.username,
-            password: credentials.password,
+            username: credentials.username as string,
+            password: credentials.password as string,
           });
           const user = res.data.data;
+
           if (user?.token) {
+            const roles: string[] = user.roles || (user.role ? [user.role] : []);
+            const backendRole = roles.some(
+              (r: string) =>
+                (r || "").replace("ROLE_", "").toUpperCase() === "ADMIN"
+            )
+              ? "ADMIN"
+              : "USER";
+
             return {
               id: String(user.userId),
               name: user.username,
               email: user.email,
-              token: user.token,
-              roles: user.roles,
+              username: user.username,
+              role: backendRole,
+              isSocialUser: false,
             };
           }
         } catch {
@@ -51,44 +67,37 @@ export const authOptions: NextAuthOptions = {
     }),
   ],
 
+  session: {
+    strategy: "jwt",
+  },
+
+  pages: {
+    signIn: "/login",
+    error: "/login",
+  },
+
   callbacks: {
     async jwt({ token, user, account }) {
-      if (account) {
-        token.accessToken = account.access_token;
-        token.provider = account.provider;
-      }
       if (user) {
-        token.id = user.id;
-        token.token = (user as any).token;
+        token.id = user.id ?? "";
+        token.role = (user as any).role || "USER";
+        token.username = (user as any).username;
+        // Social users (non-credentials) are identified by their OAuth provider
+        token.isSocialUser = account?.provider !== "credentials";
+        token.provider = account?.provider;
       }
       return token;
     },
 
     async session({ session, token }) {
       if (session.user) {
-        (session.user as any).id = token.id;
-        (session.user as any).token = token.token;
-        (session.user as any).provider = token.provider;
+        session.user.id = (token.id as string) || "";
+        session.user.role = token.role as "ADMIN" | "ADMIN" | "MODERATOR" | "EDITOR" | "USER";
+        session.user.username = token.username as string | null;
+        session.user.isSocialUser = token.isSocialUser as boolean;
+        session.user.provider = token.provider as string | null;
       }
       return session;
     },
-
-    async redirect({ url, baseUrl }) {
-      // Redirect to the page user was trying to access, or home
-      if (url.startsWith(baseUrl)) return url;
-      return baseUrl;
-    },
   },
-
-  pages: {
-    signIn: '/login',
-    error: '/login',
-  },
-
-  session: {
-    strategy: 'jwt',
-    maxAge: 30 * 24 * 60 * 60, // 30 days
-  },
-
-  secret: process.env.NEXTAUTH_SECRET,
-};
+});

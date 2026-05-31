@@ -4,8 +4,10 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { contactApi } from '@/lib/api';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function ContactSection() {
+  const { t } = useTranslation();
   const [form, setForm] = useState({
     name: '',
     email: '',
@@ -25,7 +27,7 @@ export default function ContactSection() {
         subject: form.subject || undefined,
         message: form.message,
       });
-      toast.success('Message sent successfully! I will get back to you soon.');
+      toast.success(t('contact.success'));
       setForm({ name: '', email: '', subject: '', message: '' });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'An error occurred. Please try again.';
@@ -42,7 +44,7 @@ export default function ContactSection() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
         </svg>
       ),
-      label: 'Email',
+      label: t('contact.email'),
       value: 'cuonghoang1103@gmail.com',
       href: 'mailto:cuonghoang1103@gmail.com',
     },
@@ -53,8 +55,8 @@ export default function ContactSection() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
         </svg>
       ),
-      label: 'Location',
-      value: 'Ho Chi Minh City, Vietnam',
+      label: t('contact.location'),
+      value: t('contact.locationValue'),
       href: null,
     },
     {
@@ -63,8 +65,8 @@ export default function ContactSection() {
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
         </svg>
       ),
-      label: 'Response Time',
-      value: 'Within 24 hours',
+      label: t('contact.responseTime'),
+      value: t('contact.responseTime'),
       href: null,
     },
   ];
@@ -81,13 +83,13 @@ export default function ContactSection() {
             transition={{ duration: 0.5 }}
           >
             <span className="inline-block px-4 py-1.5 bg-neon-fuchsia/10 border border-neon-fuchsia/20 rounded-full text-sm text-neon-fuchsia font-medium mb-4">
-              Contact
+              {t('contact.title')}
             </span>
             <h2 className="text-4xl md:text-5xl font-heading font-bold text-text-primary mb-4">
-              Let&apos;s <span className="text-neon-fuchsia">Work Together</span>
+              {t('letsWorkTogether')}&nbsp;<span className="text-neon-fuchsia">{t('workTogether')}</span>
             </h2>
             <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-              Have a project that needs help? Or just want to chat? Don&apos;t hesitate to reach out!
+              {t('workTogetherSubtitle')}
             </p>
           </motion.div>
         </div>
@@ -104,7 +106,7 @@ export default function ContactSection() {
             {/* Info Cards */}
             {contactInfo.map((info, index) => (
               <div
-                key={info.label}
+                key={index}
                 className="flex items-start gap-4 p-5 bg-darkbg rounded-xl border border-darkborder/50 hover:border-neon-violet/30 transition-all"
               >
                 <div className="w-10 h-10 rounded-lg bg-neon-violet/10 flex items-center justify-center text-neon-violet shrink-0">
@@ -128,7 +130,7 @@ export default function ContactSection() {
 
             {/* Social Links */}
             <div className="p-5 bg-darkbg rounded-xl border border-darkborder/50">
-              <p className="text-text-muted text-sm mb-4">Connect with me</p>
+              <p className="text-text-muted text-sm mb-4">{t('contact.connectWithMe')}</p>
               <div className="flex gap-3">
                 {[
                   {
@@ -185,49 +187,49 @@ export default function ContactSection() {
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="grid sm:grid-cols-2 gap-5">
                 <div>
-                  <label className="block text-sm text-text-secondary mb-2">Full Name</label>
+                  <label className="block text-sm text-text-secondary mb-2">{t('contact.fullName')}</label>
                   <input
                     type="text"
                     required
                     value={form.name}
                     onChange={(e) => setForm({ ...form, name: e.target.value })}
-                    placeholder="John Doe"
+                    placeholder={t('contact.fullNamePlaceholder') as string}
                     className="w-full px-4 py-3 bg-darkbg border border-darkborder/50 rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 focus:ring-1 focus:ring-neon-violet/20 transition-all"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm text-text-secondary mb-2">Email</label>
+                  <label className="block text-sm text-text-secondary mb-2">{t('contact.email')}</label>
                   <input
                     type="email"
                     required
                     value={form.email}
                     onChange={(e) => setForm({ ...form, email: e.target.value })}
-                    placeholder="email@example.com"
+                    placeholder={t('contact.emailPlaceholder') as string}
                     className="w-full px-4 py-3 bg-darkbg border border-darkborder/50 rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 focus:ring-1 focus:ring-neon-violet/20 transition-all"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-sm text-text-secondary mb-2">Subject</label>
+                <label className="block text-sm text-text-secondary mb-2">{t('contact.subject')}</label>
                 <input
                   type="text"
                   required
                   value={form.subject}
                   onChange={(e) => setForm({ ...form, subject: e.target.value })}
-                  placeholder="New Website Project..."
+                  placeholder={t('contact.subjectPlaceholder') as string}
                   className="w-full px-4 py-3 bg-darkbg border border-darkborder/50 rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 focus:ring-1 focus:ring-neon-violet/20 transition-all"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-text-secondary mb-2">Message</label>
+                <label className="block text-sm text-text-secondary mb-2">{t('contact.message')}</label>
                 <textarea
                   required
                   rows={5}
                   value={form.message}
                   onChange={(e) => setForm({ ...form, message: e.target.value })}
-                  placeholder="Describe your project or question in detail..."
+                  placeholder={t('contact.messagePlaceholder') as string}
                   className="w-full px-4 py-3 bg-darkbg border border-darkborder/50 rounded-xl text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 focus:ring-1 focus:ring-neon-violet/20 transition-all resize-none"
                 />
               </div>
@@ -243,11 +245,11 @@ export default function ContactSection() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
                     </svg>
-                    Sending...
+                    {t('contact.sending')}
                   </>
                 ) : (
                   <>
-                    Send Message
+                    {t('contact.send')}
                     <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
                     </svg>

@@ -1,4 +1,5 @@
-// API Response types
+// ─── App types ────────────────────────────────────────────────────────────────
+
 export interface ApiResponse<T> {
   success: boolean;
   message: string;
@@ -6,7 +7,6 @@ export interface ApiResponse<T> {
   timestamp: string;
 }
 
-// Page Response
 export interface PageResponse<T> {
   content: T[];
   pageNumber: number;
@@ -17,7 +17,6 @@ export interface PageResponse<T> {
   last: boolean;
 }
 
-// User types
 export interface User {
   id: number;
   username: string;
@@ -32,7 +31,15 @@ export interface User {
   updatedAt?: string;
 }
 
-// Auth types
+export interface AuthResponse {
+  token: string;
+  userId: number;
+  username: string;
+  email: string;
+  role: string;
+  roles: string[];
+}
+
 export interface LoginRequest {
   username: string;
   password: string;
@@ -45,13 +52,17 @@ export interface RegisterRequest {
   fullName?: string;
 }
 
-export interface AuthResponse {
-  token: string;
-  userId: number;
-  username: string;
-  email: string;
+export interface NextAuthUser {
+  id: string;
+  name: string | null;
+  email: string | null;
+  username: string | null;
+  image: string | null;
   role: string;
-  roles: string[];
+  createdAt: string;
+  provider: string;
+  isSocialUser: boolean;
+  accounts: Array<{ provider: string }>;
 }
 
 // Skill & Project types
@@ -290,7 +301,7 @@ export interface Course {
   language: string;
   isFree: boolean;
   isFeatured: boolean;
-  isPublished: boolean; // Deprecated — use status === 'PUBLISHED' for visibility instead
+  isPublished: boolean;
   publishedAt?: string;
   totalDurationSeconds: number;
   totalLessons: number;
@@ -299,13 +310,6 @@ export interface Course {
   avgRating: number;
   requirements?: string;
   whatYouLearn?: string;
-  /**
-   * Single source of truth for public visibility:
-   *   'DRAFT'     → not shown on Academy page
-   *   'PUBLISHED' → shown on Academy page
-   * This field drives academy visibility. isPublished is kept for backward compat
-   * but is auto-synced with this field on the admin form.
-   */
   status: 'DRAFT' | 'PUBLISHED' | string;
   createdAt: string;
   categoryId?: number;
@@ -355,13 +359,15 @@ export interface LessonProgress {
   lastPositionSeconds: number;
 }
 
-// === SHOP TYPES ===
+// === SHOP + E-COMMERCE TYPES ===
 
 export type ProductCategory = 'Web Template' | 'Tools' | 'Software' | 'Accounts' | 'Ebook';
 
 export type PriceRange = 'all' | 'under200' | '200to500' | 'above500';
 
 export type SortOption = 'newest' | 'price_asc' | 'price_desc' | 'popular';
+
+export type ItemType = 'shop' | 'academy';
 
 export interface Product {
   id: string;
@@ -384,20 +390,75 @@ export interface Product {
   tags?: string[];
 }
 
-export interface ProductReview {
+// Unified cart item — works for both Shop products and Academy courses
+export interface CartItem {
+  id: string;           // unique cart item id (uuid)
+  itemType: ItemType;   // 'shop' | 'academy'
+  product: Product;     // used for shop items
+  course?: Course;      // used for academy items
+  quantity: number;
+}
+
+// Discount / Coupon code
+export type DiscountType = 'PERCENTAGE' | 'FIXED_AMOUNT';
+export type DiscountStatus = 'ACTIVE' | 'EXPIRED' | 'DEPLETED' | 'INACTIVE';
+
+export interface DiscountCode {
   id: string;
-  productId: string;
-  userName: string;
-  userAvatar?: string;
-  rating: number;
-  title?: string;
-  content: string;
+  code: string;                  // e.g. "SUMMER20"
+  description?: string;
+  discountType: DiscountType;   // 'PERCENTAGE' | 'FIXED_AMOUNT'
+  discountValue: number;         // e.g. 20 (=20%) or 50000 (=50,000 VND)
+  maxUses: number;               // total uses allowed (e.g. 1 = one-time use)
+  currentUses: number;           // how many times used so far
+  minOrderValue?: number;        // minimum cart value to apply code
+  maxDiscountAmount?: number;    // cap for percentage discounts (e.g. 100000 VND max)
+  expiresAt?: string;            // ISO date string
+  isActive: boolean;
   createdAt: string;
 }
 
-export interface CartItem {
-  product: Product;
-  quantity: number;
+// User's record of having used a discount code
+export interface DiscountUsage {
+  discountCodeId: string;
+  usedAt: string;
+  orderId?: string;
+}
+
+// Order status
+export type OrderStatus = 'Pending' | 'Completed' | 'Failed' | 'PENDING' | 'COMPLETED' | 'CANCELLED' | 'PENDING';
+
+export interface OrderItem {
+  id: string;             // unique order item id
+  itemType: ItemType;     // 'shop' | 'academy'
+  productId?: string;     // for shop items
+  courseId?: number;      // for academy items
+  name: string;
+  thumbnail: string;
+  price: number;          // price at time of purchase (after any product discount)
+  quantity: number;       // always 1 for academy items
+  category: string;       // category name or course category
+}
+
+export interface Order {
+  id: string;                   // backend numeric ID for status updates
+  orderCode?: string;           // display code (ORD-xxxxxx)
+  items: OrderItem[];
+  subtotal: number;              // before discount
+  discountAmount: number;       // amount deducted by discount code
+  discountCode?: string;        // code used
+  total: number;                // final amount paid
+  status: OrderStatus;
+  buyerInfo: BuyerInfo;
+  createdAt: string;            // ISO date
+  completedAt?: string;         // ISO date when payment completed
+}
+
+export interface BuyerInfo {
+  fullName: string;
+  email: string;
+  phone?: string;
+  address?: string;
 }
 
 // === MUSIC TYPES ===

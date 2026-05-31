@@ -17,14 +17,16 @@ import org.springframework.security.config.annotation.web.configurers.AbstractHt
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.oauth2.client.registration.ClientRegistration;
+import org.springframework.security.oauth2.client.registration.ClientRegistrationRepository;
+import org.springframework.security.oauth2.client.registration.InMemoryClientRegistrationRepository;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 @Configuration
 @EnableWebSecurity
@@ -58,6 +60,61 @@ public class SecurityConfig {
     }
 
     @Bean
+    public ClientRegistrationRepository clientRegistrationRepository() {
+        String googleClientId = System.getenv("GOOGLE_CLIENT_ID");
+        String googleClientSecret = System.getenv("GOOGLE_CLIENT_SECRET");
+        String githubClientId = System.getenv("GITHUB_CLIENT_ID");
+        String githubClientSecret = System.getenv("GITHUB_CLIENT_SECRET");
+
+        List<ClientRegistration> registrations = new ArrayList<>();
+
+        if (googleClientId != null && !googleClientId.isEmpty()
+                && googleClientSecret != null && !googleClientSecret.isEmpty()) {
+            registrations.add(googleClientRegistration(googleClientId, googleClientSecret));
+        }
+        if (githubClientId != null && !githubClientId.isEmpty()
+                && githubClientSecret != null && !githubClientSecret.isEmpty()) {
+            registrations.add(githubClientRegistration(githubClientId, githubClientSecret));
+        }
+
+        if (registrations.isEmpty()) {
+            return new InMemoryClientRegistrationRepository(
+                    googleClientRegistration("placeholder", "placeholder"));
+        }
+        return new InMemoryClientRegistrationRepository(registrations);
+    }
+
+    private ClientRegistration googleClientRegistration(String clientId, String clientSecret) {
+        return ClientRegistration.withRegistrationId("google")
+                .clientId(clientId)
+                .clientSecret(clientSecret)
+                .clientAuthenticationMethod(org.springframework.security.oauth2.core.ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                .authorizationGrantType(org.springframework.security.oauth2.core.AuthorizationGrantType.AUTHORIZATION_CODE)
+                .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+                .scope("email", "profile")
+                .authorizationUri("https://accounts.google.com/o/oauth2/v2/auth")
+                .tokenUri("https://oauth2.googleapis.com/token")
+                .userInfoUri("https://www.googleapis.com/oauth2/v3/userinfo")
+                .userNameAttributeName("email")
+                .build();
+    }
+
+    private ClientRegistration githubClientRegistration(String clientId, String clientSecret) {
+        return ClientRegistration.withRegistrationId("github")
+                .clientId(clientId)
+                .clientSecret(clientSecret)
+                .clientAuthenticationMethod(org.springframework.security.oauth2.core.ClientAuthenticationMethod.CLIENT_SECRET_BASIC)
+                .authorizationGrantType(org.springframework.security.oauth2.core.AuthorizationGrantType.AUTHORIZATION_CODE)
+                .redirectUri("{baseUrl}/login/oauth2/code/{registrationId}")
+                .scope("read:user", "user:email")
+                .authorizationUri("https://github.com/login/oauth/authorize")
+                .tokenUri("https://github.com/login/oauth/access_token")
+                .userInfoUri("https://api.github.com/user")
+                .userNameAttributeName("login")
+                .build();
+    }
+
+    @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         http
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
@@ -83,6 +140,13 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/course-categories/**").permitAll()
                     .requestMatchers("/api/v1/ai/chat").permitAll()
                     .requestMatchers("/api/v1/ai/chat/stream").permitAll()
+                    .requestMatchers("/api/v1/shop/admin/**").authenticated()
+                    .requestMatchers("/api/v1/shop/**").permitAll()
+                    .requestMatchers("/api/v1/discounts/**").permitAll()
+                    .requestMatchers("/api/v1/orders/admin/**").authenticated()
+                    .requestMatchers(HttpMethod.GET, "/api/v1/orders/{id}").permitAll()
+                    .requestMatchers(HttpMethod.POST, "/api/v1/orders").permitAll()
+                    .requestMatchers("/api/v1/orders/**").permitAll()
                     .requestMatchers("/api/v1/ai/admin/**").hasRole("ADMIN")
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                     .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()

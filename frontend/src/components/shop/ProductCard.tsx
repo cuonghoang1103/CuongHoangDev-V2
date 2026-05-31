@@ -22,7 +22,7 @@ function formatPrice(price: number): string {
 }
 
 export default function ProductCard({ product, index = 0 }: ProductCardProps) {
-  const addItem = useCartStore((state) => state.addItem);
+  const addShopItem = useCartStore((state) => state.addShopItem);
 
   const discountPercent = product.originalPrice
     ? Math.round((1 - product.price / product.originalPrice) * 100)
@@ -131,7 +131,7 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
 
             {/* Add to cart */}
             <button
-              onClick={() => addItem(product)}
+              onClick={() => addShopItem(product)}
               disabled={product.stock === 0}
               className="flex items-center gap-1.5 px-3 py-2 bg-neon-violet/20 hover:bg-neon-violet/30 border border-neon-violet/40 text-neon-violet rounded-xl text-xs font-semibold transition-all hover:shadow-neon-sm disabled:opacity-40 disabled:cursor-not-allowed"
             >

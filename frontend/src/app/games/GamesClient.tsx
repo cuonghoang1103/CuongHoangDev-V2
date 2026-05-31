@@ -31,7 +31,7 @@ export default function GamesClient({ games }: GamesClientProps) {
         !search ||
         g.title.toLowerCase().includes(search.toLowerCase()) ||
         g.shortDescription.toLowerCase().includes(search.toLowerCase()) ||
-        g.technologies.some((t) => t.toLowerCase().includes(search.toLowerCase()));
+        (Array.isArray(g.technologies) && g.technologies.some((t) => t.toLowerCase().includes(search.toLowerCase())));
       const matchCat = activeCategory === 'All' || g.category === activeCategory;
       return matchSearch && matchCat;
     });

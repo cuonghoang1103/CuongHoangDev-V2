@@ -1,22 +1,8 @@
 import ProjectsClient from './ProjectsClient';
 
-async function getProjects() {
-  const base = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082';
-  try {
-    const res = await fetch(`${base}/api/v1/projects?page=0&size=9`, {
-      cache: 'no-store',
-    });
-    if (!res.ok) return [];
-    const data = await res.json();
-    return data?.data?.content ?? [];
-  } catch {
-    return [];
-  }
-}
+export const dynamic = 'force-dynamic';
 
-export default async function ProjectsPage() {
-  const initialProjects = await getProjects();
-
+export default function ProjectsPage() {
   return (
     <div className="min-h-screen bg-darkbg pt-24 pb-20">
       {/* Header */}
@@ -27,7 +13,7 @@ export default async function ProjectsPage() {
         </div>
         <div className="relative max-w-7xl mx-auto px-4 text-center">
           <h1 className="text-4xl md:text-5xl lg:text-6xl font-heading font-bold text-text-primary mb-6">
-            My <span className="bg-clip-text text-transparent bg-gradient-to-r from-neon-indigo via-neon-violet to-neon-fuchsia">Projects</span>
+            My <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-indigo via-neon-violet to-neon-fuchsia">Projects</span>
           </h1>
           <p className="text-lg text-text-secondary max-w-2xl mx-auto">
             Products I have built throughout my learning and development journey
@@ -35,7 +21,7 @@ export default async function ProjectsPage() {
         </div>
       </section>
 
-      <ProjectsClient initialProjects={initialProjects} />
+      <ProjectsClient />
     </div>
   );
 }

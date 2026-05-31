@@ -1,16 +1,18 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Plus, Search, Trash2, X, Loader2,
-  Edit, Star, Eye, EyeOff, ChevronLeft, ChevronRight,
-  ShoppingBag, Flame, Sparkles, CheckCircle2,
+  Edit, Star, Flame, Sparkles, CheckCircle2,
+  ShoppingBag, ChevronLeft, ChevronRight,
 } from 'lucide-react';
 import Image from 'next/image';
 import { toast } from 'sonner';
-import { MOCK_PRODUCTS } from '@/data/products';
+import { useProductStore } from '@/store/productStore';
+import { adminCreateProduct, adminUpdateProduct, adminDeleteProduct, mapProductFromBackend } from '@/lib/api/shop';
 import type { Product, ProductCategory } from '@/types';
 import ImageUpload from '@/components/admin/ImageUpload';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const CATEGORIES: ProductCategory[] = ['Web Template', 'Tools', 'Software', 'Accounts', 'Ebook'];
 
@@ -51,7 +53,10 @@ function slugify(text: string): string {
 }
 
 export default function AdminShopPage() {
-  const [products, setProducts] = useState<Product[]>(MOCK_PRODUCTS);
+  const { t } = useTranslation();
+  const { products, fetchProducts, isLoaded, updateProduct, deleteProduct, toggleFeatured, toggleHot, toggleNew } = useProductStore();
+  const [mounted, setMounted] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<ProductCategory | 'all'>('all');
   const [page, setPage] = useState(0);
@@ -64,6 +69,21 @@ export default function AdminShopPage() {
   const [featureInput, setFeatureInput] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Wait for hydration
+  useEffect(() => {
+    setMounted(true);
+    if (!isLoaded) fetchProducts();
+  }, []);
+
+  // Show loading during hydration
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-darkbg pt-20 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-neon-violet" />
+      </div>
+    );
+  }
 
   // Filter
   const filtered = products.filter((p) => {
@@ -114,55 +134,80 @@ export default function AdminShopPage() {
   };
 
   // Delete
-  const handleDelete = (id: string) => {
-    if (!confirm('Delete this product?')) return;
-    setProducts((prev) => prev.filter((p) => p.id !== id));
-    toast.success('Product deleted');
+  const handleDelete = async (id: string) => {
+    if (!confirm(t('admin.shop.deleteConfirm'))) return;
+    setLoading(true);
+    try {
+      await adminDeleteProduct(parseInt(id));
+      deleteProduct(id);
+      toast.success(t('admin.shop.deleteSuccess'));
+    } catch {
+      toast.error(t('admin.shop.deleteError'));
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Save
   const handleSave = async () => {
     if (!productForm.name.trim()) {
-      toast.error('Product name is required');
+      toast.error(t('checkout.requiredField'));
       return;
     }
-    if (!productForm.slug.trim()) {
-      setProductForm((f) => ({ ...f, slug: slugify(f.name) }));
-    }
     setSaving(true);
-    await new Promise((r) => setTimeout(r, 600)); // simulate API
+    setLoading(true);
 
-    if (editingId) {
-      setProducts((prev) =>
-        prev.map((p) => (p.id === editingId ? { ...productForm, id: editingId } : p))
-      );
-      toast.success('Product updated');
-    } else {
-      const newProduct: Product = {
-        ...productForm,
-        id: Date.now().toString(),
-        slug: productForm.slug || slugify(productForm.name),
-        createdAt: new Date().toISOString(),
-      };
-      setProducts((prev) => [newProduct, ...prev]);
-      toast.success('Product created');
+    try {
+      const slug = productForm.slug.trim() || slugify(productForm.name);
+
+      if (editingId) {
+        await adminUpdateProduct(parseInt(editingId), {
+          name: productForm.name,
+          slug,
+          price: productForm.price,
+          originalPrice: productForm.originalPrice || undefined,
+          thumbnailUrl: productForm.thumbnail,
+          shortDescription: productForm.description,
+          stockQuantity: productForm.stock,
+          featured: productForm.isFeatured,
+        });
+        toast.success(t('admin.shop.updateSuccess'));
+        updateProduct(editingId, { ...productForm, id: editingId, slug });
+      } else {
+        const res = await adminCreateProduct({
+          name: productForm.name,
+          slug,
+          price: productForm.price,
+          originalPrice: productForm.originalPrice || undefined,
+          thumbnailUrl: productForm.thumbnail,
+          shortDescription: productForm.description,
+          stockQuantity: productForm.stock,
+          featured: productForm.isFeatured,
+          active: true,
+        });
+        toast.success(t('admin.shop.createSuccess'));
+        const created = mapProductFromBackend(res.data);
+        updateProduct(created.id, created);
+      }
+      setShowForm(false);
+      if (!isLoaded) fetchProducts();
+    } catch (err) {
+      toast.error(t('admin.shop.saveError'));
+    } finally {
+      setSaving(false);
+      setLoading(false);
     }
-    setSaving(false);
-    setShowForm(false);
   };
 
   // Toggle featured
-  const toggleFeatured = (id: string) => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, isFeatured: !p.isFeatured } : p))
-    );
-  };
-
-  // Toggle hot/new
-  const toggleFlag = (id: string, flag: 'isHot' | 'isNew') => {
-    setProducts((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, [flag]: !p[flag] } : p))
-    );
+  const handleToggleFeatured = async (product: Product) => {
+    const newVal = !product.isFeatured;
+    try {
+      await adminUpdateProduct(parseInt(product.id), { featured: newVal });
+      toggleFeatured(product.id);
+    } catch {
+      toast.error(t('admin.shop.toggleError'));
+    }
   };
 
   const addFeature = () => {
@@ -192,16 +237,16 @@ export default function AdminShopPage() {
         <div>
           <h1 className="text-2xl font-heading font-bold text-text-primary flex items-center gap-3">
             <ShoppingBag className="w-6 h-6 text-neon-violet" />
-            Quản lý Shop
+            {t('admin.shop.title')}
           </h1>
-          <p className="text-text-muted text-sm mt-1">{products.length} sản phẩm</p>
+          <p className="text-text-muted text-sm mt-1">{t('admin.shop.totalProducts', { count: products.length })}</p>
         </div>
         <button
           onClick={openCreate}
           className="flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-medium rounded-xl hover:opacity-90 transition-opacity"
         >
           <Plus className="w-4 h-4" />
-          Thêm sản phẩm
+          {t('admin.shop.addProduct')}
         </button>
       </div>
 
@@ -213,22 +258,32 @@ export default function AdminShopPage() {
             type="text"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            placeholder="Search products..."
+            placeholder={t('admin.shop.searchPlaceholder')}
             className="w-full pl-9 pr-4 py-2.5 bg-darkcard border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50"
           />
         </div>
         <div className="flex gap-2 flex-wrap">
-          {(['all', ...CATEGORIES] as const).map((cat) => (
+          <button
+            onClick={() => { setCategoryFilter('all'); setPage(0); }}
+            className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
+              categoryFilter === 'all'
+                ? 'bg-neon-violet/20 border-neon-violet text-neon-violet'
+                : 'bg-darkcard border-darkborder text-text-secondary hover:border-neon-violet/30'
+            }`}
+          >
+            {t('admin.shop.all')}
+          </button>
+          {CATEGORIES.map((cat) => (
             <button
               key={cat}
-              onClick={() => { setCategoryFilter(cat as ProductCategory | 'all'); setPage(0); }}
+              onClick={() => { setCategoryFilter(cat); setPage(0); }}
               className={`px-3 py-1.5 rounded-xl text-xs font-medium border transition-all ${
                 categoryFilter === cat
                   ? 'bg-neon-violet/20 border-neon-violet text-neon-violet'
                   : 'bg-darkcard border-darkborder text-text-secondary hover:border-neon-violet/30'
               }`}
             >
-              {cat === 'all' ? 'All' : cat}
+              {cat}
             </button>
           ))}
         </div>
@@ -240,20 +295,20 @@ export default function AdminShopPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-darkborder">
-                <th className="text-left px-4 py-3 text-text-muted font-medium">Product</th>
-                <th className="text-left px-4 py-3 text-text-muted font-medium hidden md:table-cell">Category</th>
-                <th className="text-left px-4 py-3 text-text-muted font-medium">Price</th>
-                <th className="text-left px-4 py-3 text-text-muted font-medium hidden lg:table-cell">Badges</th>
-                <th className="text-left px-4 py-3 text-text-muted font-medium hidden sm:table-cell">Stock</th>
-                <th className="text-left px-4 py-3 text-text-muted font-medium hidden xl:table-cell">Sold</th>
-                <th className="text-right px-4 py-3 text-text-muted font-medium">Actions</th>
+                <th className="text-left px-4 py-3 text-text-muted font-medium">{t('admin.shop.product')}</th>
+                <th className="text-left px-4 py-3 text-text-muted font-medium hidden md:table-cell">{t('admin.shop.category')}</th>
+                <th className="text-left px-4 py-3 text-text-muted font-medium">{t('admin.shop.price')}</th>
+                <th className="text-left px-4 py-3 text-text-muted font-medium hidden lg:table-cell">{t('admin.shop.tags')}</th>
+                <th className="text-left px-4 py-3 text-text-muted font-medium hidden sm:table-cell">{t('admin.shop.stock')}</th>
+                <th className="text-left px-4 py-3 text-text-muted font-medium hidden xl:table-cell">{t('admin.shop.sold')}</th>
+                <th className="text-right px-4 py-3 text-text-muted font-medium">{t('admin.shop.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {paginated.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="text-center py-12 text-text-muted">
-                    No products found
+                    {t('admin.shop.noProducts')}
                   </td>
                 </tr>
               ) : (
@@ -306,34 +361,34 @@ export default function AdminShopPage() {
                     </td>
                     <td className="px-4 py-3 hidden sm:table-cell">
                       {product.stock === 0 ? (
-                        <span className="text-xs text-red-400">Out of stock</span>
+                        <span className="text-xs text-red-400">{t('admin.shop.outOfStock')}</span>
                       ) : product.stock <= 20 ? (
-                        <span className="text-xs text-yellow-400">Low ({product.stock})</span>
+                        <span className="text-xs text-yellow-400">{t('admin.shop.inStock')} ({product.stock})</span>
                       ) : (
                         <span className="text-xs text-text-muted">{product.stock}</span>
                       )}
                     </td>
                     <td className="px-4 py-3 hidden xl:table-cell">
-                      <span className="text-xs text-text-muted">{product.soldCount?.toLocaleString()}</span>
+                      <span className="text-xs text-text-muted">{(product.soldCount || 0).toLocaleString()}</span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center justify-end gap-1">
                         <button
-                          onClick={() => toggleFeatured(product.id)}
+                          onClick={() => handleToggleFeatured(product)}
                           className={`p-1.5 rounded-lg transition-colors ${product.isFeatured ? 'text-neon-violet bg-neon-violet/10' : 'text-text-muted hover:text-text-primary hover:bg-white/5'}`}
-                          title={product.isFeatured ? 'Remove featured' : 'Mark featured'}
+                          title={product.isFeatured ? t('admin.shop.removeFeatured') : t('admin.shop.markFeatured')}
                         >
                           <Star className={`w-4 h-4 ${product.isFeatured ? 'fill-current' : ''}`} />
                         </button>
                         <button
-                          onClick={() => toggleFlag(product.id, 'isHot')}
+                          onClick={() => toggleHot(product.id)}
                           className={`p-1.5 rounded-lg transition-colors ${product.isHot ? 'text-orange-400 bg-orange-500/10' : 'text-text-muted hover:text-text-primary hover:bg-white/5'}`}
                           title="Toggle Hot"
                         >
                           <Flame className="w-4 h-4" />
                         </button>
                         <button
-                          onClick={() => toggleFlag(product.id, 'isNew')}
+                          onClick={() => toggleNew(product.id)}
                           className={`p-1.5 rounded-lg transition-colors ${product.isNew ? 'text-neon-cyan bg-neon-cyan/10' : 'text-text-muted hover:text-text-primary hover:bg-white/5'}`}
                           title="Toggle New"
                         >
@@ -342,14 +397,14 @@ export default function AdminShopPage() {
                         <button
                           onClick={() => openEdit(product)}
                           className="p-1.5 rounded-lg text-text-muted hover:text-neon-violet hover:bg-neon-violet/10 transition-colors"
-                          title="Edit"
+                          title={t('admin.shop.edit')}
                         >
                           <Edit className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(product.id)}
                           className="p-1.5 rounded-lg text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                          title="Delete"
+                          title={t('admin.shop.delete')}
                         >
                           <Trash2 className="w-4 h-4" />
                         </button>
@@ -366,7 +421,7 @@ export default function AdminShopPage() {
         {totalPages > 1 && (
           <div className="flex items-center justify-between px-4 py-3 border-t border-darkborder">
             <p className="text-xs text-text-muted">
-              Showing {page * pageSize + 1}–{Math.min((page + 1) * pageSize, filtered.length)} of {filtered.length}
+              {t('admin.shop.paginationInfo', { start: page * pageSize + 1, end: Math.min((page + 1) * pageSize, filtered.length), total: filtered.length })}
             </p>
             <div className="flex gap-1">
               <button
@@ -409,7 +464,7 @@ export default function AdminShopPage() {
             {/* Modal Header */}
             <div className="sticky top-0 bg-darkcard border-b border-darkborder px-6 py-4 flex items-center justify-between z-10">
               <h2 className="font-heading font-bold text-text-primary">
-                {editingId ? 'Edit Product' : 'Add Product'}
+                {editingId ? t('admin.shop.editProduct') : t('admin.shop.addProductTitle')}
               </h2>
               <button
                 onClick={() => setShowForm(false)}
@@ -424,12 +479,12 @@ export default function AdminShopPage() {
               {/* Name + Slug */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-text-muted mb-1.5">Product Name *</label>
+                  <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.productName')} *</label>
                   <input
                     type="text"
                     value={productForm.name}
                     onChange={(e) => setProductForm((f) => ({ ...f, name: e.target.value, slug: f.slug || slugify(e.target.value) }))}
-                    placeholder="e.g. Nexus Dashboard"
+                    placeholder="VD: Nexus Dashboard"
                     className="w-full px-4 py-2.5 bg-darkbg border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50"
                   />
                 </div>
@@ -448,7 +503,7 @@ export default function AdminShopPage() {
               {/* Category + Price */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-text-muted mb-1.5">Category</label>
+                  <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.categoryLabel')}</label>
                   <select
                     value={productForm.category}
                     onChange={(e) => setProductForm((f) => ({ ...f, category: e.target.value as ProductCategory }))}
@@ -458,7 +513,7 @@ export default function AdminShopPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-text-muted mb-1.5">Price (VND)</label>
+                  <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.price')} (VND)</label>
                   <input
                     type="number"
                     value={productForm.price}
@@ -467,12 +522,12 @@ export default function AdminShopPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-text-muted mb-1.5">Original Price (VND)</label>
+                  <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.originalPrice')} (VND)</label>
                   <input
                     type="number"
                     value={productForm.originalPrice || ''}
                     onChange={(e) => setProductForm((f) => ({ ...f, originalPrice: Number(e.target.value) || 0 }))}
-                    placeholder="Optional"
+                    placeholder={t('admin.shop.optional')}
                     className="w-full px-4 py-2.5 bg-darkbg border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50"
                   />
                 </div>
@@ -480,7 +535,7 @@ export default function AdminShopPage() {
 
               {/* Thumbnail */}
               <div>
-                <label className="block text-xs font-medium text-text-muted mb-1.5">Thumbnail URL</label>
+                <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.productImage')}</label>
                 <ImageUpload
                   value={productForm.thumbnail}
                   onChange={(url) => setProductForm((f) => ({ ...f, thumbnail: url }))}
@@ -489,30 +544,30 @@ export default function AdminShopPage() {
 
               {/* Description */}
               <div>
-                <label className="block text-xs font-medium text-text-muted mb-1.5">Description</label>
+                <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.description')}</label>
                 <textarea
                   value={productForm.description}
                   onChange={(e) => setProductForm((f) => ({ ...f, description: e.target.value }))}
                   rows={4}
-                  placeholder="Product description..."
+                  placeholder={t('admin.shop.descriptionPlaceholder')}
                   className="w-full px-4 py-2.5 bg-darkbg border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 resize-none"
                 />
               </div>
 
               {/* Features */}
               <div>
-                <label className="block text-xs font-medium text-text-muted mb-1.5">Features</label>
+                <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.features')}</label>
                 <div className="flex gap-2 mb-2">
                   <input
                     type="text"
                     value={featureInput}
                     onChange={(e) => setFeatureInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addFeature(); } }}
-                    placeholder="Add a feature..."
+                    placeholder={t('admin.shop.addFeaturePlaceholder')}
                     className="flex-1 px-4 py-2.5 bg-darkbg border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50"
                   />
                   <button onClick={addFeature} className="px-4 py-2.5 bg-neon-indigo/20 border border-neon-indigo/40 text-neon-indigo rounded-xl text-sm font-medium hover:bg-neon-indigo/30 transition-colors">
-                    Add
+                    {t('admin.shop.add')}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -529,18 +584,18 @@ export default function AdminShopPage() {
 
               {/* Tags */}
               <div>
-                <label className="block text-xs font-medium text-text-muted mb-1.5">Tags</label>
+                <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.tagsLabel')}</label>
                 <div className="flex gap-2 mb-2">
                   <input
                     type="text"
                     value={tagInput}
                     onChange={(e) => setTagInput(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addTag(); } }}
-                    placeholder="Add a tag..."
+                    placeholder={t('admin.shop.addTagPlaceholder')}
                     className="flex-1 px-4 py-2.5 bg-darkbg border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50"
                   />
                   <button onClick={addTag} className="px-4 py-2.5 bg-neon-cyan/20 border border-neon-cyan/40 text-neon-cyan rounded-xl text-sm font-medium hover:bg-neon-cyan/30 transition-colors">
-                    Add
+                    {t('admin.shop.add')}
                   </button>
                 </div>
                 <div className="flex flex-wrap gap-2">
@@ -557,30 +612,42 @@ export default function AdminShopPage() {
 
               {/* Badges */}
               <div>
-                <label className="block text-xs font-medium text-text-muted mb-1.5">Badges</label>
+                <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.specialBadges')}</label>
                 <div className="flex gap-3">
-                  {[
-                    { key: 'isHot', label: 'Hot', color: 'text-orange-400' },
-                    { key: 'isNew', label: 'New', color: 'text-neon-cyan' },
-                    { key: 'isFeatured', label: 'Featured', color: 'text-neon-violet' },
-                  ].map(({ key, label, color }) => (
-                    <label key={key} className="flex items-center gap-2 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={productForm[key as 'isHot' | 'isNew' | 'isFeatured'] as boolean}
-                        onChange={(e) => setProductForm((f) => ({ ...f, [key]: e.target.checked }))}
-                        className="w-4 h-4 rounded border-darkborder bg-darkbg text-neon-violet focus:ring-neon-violet/50 cursor-pointer"
-                      />
-                      <span className={`text-sm ${color}`}>{label}</span>
-                    </label>
-                  ))}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={productForm.isHot}
+                      onChange={(e) => setProductForm((f) => ({ ...f, isHot: e.target.checked }))}
+                      className="w-4 h-4 rounded border-darkborder bg-darkbg text-neon-violet focus:ring-neon-violet/50 cursor-pointer"
+                    />
+                    <span className="text-sm text-orange-400">Hot</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={productForm.isNew}
+                      onChange={(e) => setProductForm((f) => ({ ...f, isNew: e.target.checked }))}
+                      className="w-4 h-4 rounded border-darkborder bg-darkbg text-neon-violet focus:ring-neon-violet/50 cursor-pointer"
+                    />
+                    <span className="text-sm text-neon-cyan">New</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={productForm.isFeatured}
+                      onChange={(e) => setProductForm((f) => ({ ...f, isFeatured: e.target.checked }))}
+                      className="w-4 h-4 rounded border-darkborder bg-darkbg text-neon-violet focus:ring-neon-violet/50 cursor-pointer"
+                    />
+                    <span className="text-sm text-neon-violet">Featured</span>
+                  </label>
                 </div>
               </div>
 
               {/* Stock + Sold */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-medium text-text-muted mb-1.5">Stock</label>
+                  <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.stockLabel')}</label>
                   <input
                     type="number"
                     value={productForm.stock}
@@ -589,7 +656,7 @@ export default function AdminShopPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-text-muted mb-1.5">Sold Count</label>
+                  <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.soldLabel')}</label>
                   <input
                     type="number"
                     value={productForm.soldCount || 0}
@@ -606,7 +673,7 @@ export default function AdminShopPage() {
                 onClick={() => setShowForm(false)}
                 className="px-5 py-2.5 border border-darkborder rounded-xl text-sm text-text-muted hover:text-text-primary hover:border-darkborder/80 transition-colors"
               >
-                Cancel
+                {t('admin.shop.cancel')}
               </button>
               <button
                 onClick={handleSave}
@@ -614,7 +681,7 @@ export default function AdminShopPage() {
                 className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
               >
                 {saving && <Loader2 className="w-4 h-4 animate-spin" />}
-                {editingId ? 'Update Product' : 'Create Product'}
+                {editingId ? t('admin.shop.update') : t('admin.shop.createProduct')}
               </button>
             </div>
           </div>

@@ -48,8 +48,9 @@ public class VectorSearchService {
         List<ScoredResult> scored = new ArrayList<>();
         for (DocumentChunk chunk : chunks) {
             double score;
-            if (hasRealVectors && chunk.getEmbedding() != null && !chunk.getEmbedding().isBlank()) {
-                float[] chunkVector = embeddingService.stringToVector(chunk.getEmbedding());
+            String chunkEmbedding = chunk.getEmbedding();
+            if (hasRealVectors && chunkEmbedding != null && !chunkEmbedding.isBlank()) {
+                float[] chunkVector = embeddingService.stringToVector(chunkEmbedding);
                 score = embeddingService.cosineSimilarity(queryVector, chunkVector);
             } else {
                 score = textSimilarity(query, chunk.getContent());

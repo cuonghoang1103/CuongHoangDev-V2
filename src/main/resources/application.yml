@@ -2,6 +2,10 @@ spring:
   application:
     name: api-backend
 
+  dotenv:
+    enabled: true
+    filename: .env
+
   springdoc:
     api-docs:
       path: /v3/api-docs
@@ -64,16 +68,6 @@ spring:
   cache:
     type: simple
 
-  ai:
-    openai:
-      api-key: ${OPENAI_API_KEY:your-api-key-here}
-    chat:
-      model: gpt-4o-mini
-    embedding:
-      model: text-embedding-3-small
-    max-tokens: 2048
-    temperature: 0.7
-
 server:
   port: 8082
 
@@ -116,10 +110,19 @@ app:
   contact:
     admin-email: ${APP_CONTACT_ADMIN_EMAIL:cuonghoang1103@gmail.com}
   ai:
+    gemini:
+      api-key: ${GEMINI_API_KEY:}
+      model: gemini-2.0-flash-lite
     embedding:
-      dimensions: 1536
+      provider: ${AI_EMBEDDING_PROVIDER:gemini}
+      model: ${AI_EMBEDDING_MODEL:gemini-embedding-2}
+      dimensions: 768
+    chat:
+      model: ${AI_CHAT_MODEL:gemini-2.0-flash-lite}
+      max-tokens: 2048
+      temperature: 0.7
     vectorstore:
-      dimension: 1536
+      dimension: 768
       index-type: HNSW
       distance-type: COSINE_DISTANCE
     auto-index-on-startup: ${AI_AUTO_INDEX:false}

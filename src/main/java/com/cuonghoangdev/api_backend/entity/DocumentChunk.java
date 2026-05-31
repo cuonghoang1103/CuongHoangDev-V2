@@ -6,6 +6,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 
+import com.cuonghoangdev.api_backend.config.JsonbStringType;
+import com.cuonghoangdev.api_backend.config.VectorStringType;
+
 @Entity
 @Table(name = "document_chunks")
 @EntityListeners(AuditingEntityListener.class)
@@ -18,9 +21,11 @@ public class DocumentChunk {
     @Column(name = "content", nullable = false, columnDefinition = "TEXT")
     private String content;
 
+    @org.hibernate.annotations.Type(value = JsonbStringType.class)
     @Column(name = "metadata", columnDefinition = "jsonb")
     private String metadata;
 
+    @org.hibernate.annotations.Type(value = VectorStringType.class)
     @Column(name = "embedding", columnDefinition = "vector")
     private String embedding;
 

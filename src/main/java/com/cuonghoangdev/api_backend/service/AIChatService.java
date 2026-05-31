@@ -18,14 +18,14 @@ import java.util.UUID;
 
 /**
  * AI Chat Service - Full RAG Implementation.
- * 
- * Khong can Spring AI. Chi goi truc tiep OpenAI API bang OpenAIService.
- * 
+ *
+ * Su dung AIService (Gemini) de goi AI thong qua RAG pipeline.
+ *
  * Qua trinh xu ly:
  * 1. Nhan cau hoi tu nguoi dung
  * 2. Tim kiem trong kho tri thuc (RAGSearchService)
  * 3. Build prompt voi context tu RAG
- * 4. Goi OpenAI (streaming hoac non-streaming)
+ * 4. Goi Gemini (streaming hoac non-streaming)
  * 5. Luu lich su vao DB
  */
 @Service
@@ -35,17 +35,17 @@ public class AIChatService {
 
     private final ChatSessionRepository chatSessionRepository;
     private final ChatMessageRepository chatMessageRepository;
-    private final OpenAIService openAIService;
+    private final AIService aiService;
     private final RAGSearchService ragSearchService;
 
     public AIChatService(
             ChatSessionRepository chatSessionRepository,
             ChatMessageRepository chatMessageRepository,
-            OpenAIService openAIService,
+            AIService aiService,
             RAGSearchService ragSearchService) {
         this.chatSessionRepository = chatSessionRepository;
         this.chatMessageRepository = chatMessageRepository;
-        this.openAIService = openAIService;
+        this.aiService = aiService;
         this.ragSearchService = ragSearchService;
     }
 
@@ -68,21 +68,21 @@ public class AIChatService {
         // Lay lich su chat (5 tin nhan cuoi)
         List<ChatMessage> history = chatMessageRepository
                 .findBySessionIdOrderByCreatedAtAsc(sessionId);
-        List<OpenAIService.ChatMessage> chatHistory = history.stream()
+        List<AIService.ChatMessage> chatHistory = history.stream()
                 .filter(m -> m.getRole() != null && m.getContent() != null)
-                .map(m -> new OpenAIService.ChatMessage(m.getRole(), m.getContent()))
+                .map(m -> new AIService.ChatMessage(m.getRole(), m.getContent()))
                 .toList();
 
-        // Goi OpenAI
+        // Goi Gemini
         String answer;
-        if (!openAIService.isConfigured()) {
+        if (!aiService.isConfigured()) {
             answer = buildFallbackResponse(userMessage);
         } else {
-            OpenAIService.ChatResult result = openAIService.chat(systemPrompt, userMessage, chatHistory);
+            AIService.ChatResult result = aiService.chat(systemPrompt, userMessage, chatHistory);
             if (result.success) {
                 answer = result.content;
             } else {
-                log.warn("OpenAI tra ve loi: {}", result.error);
+                log.warn("Gemini tra ve loi: {}", result.error);
                 answer = "Xin loi, gap loi khi xu ly yeu cau cua ban: " + result.error;
             }
         }
@@ -119,12 +119,12 @@ public class AIChatService {
         // Lay lich su chat
         List<ChatMessage> history = chatMessageRepository
                 .findBySessionIdOrderByCreatedAtAsc(sessionId);
-        List<OpenAIService.ChatMessage> chatHistory = history.stream()
+        List<AIService.ChatMessage> chatHistory = history.stream()
                 .filter(m -> m.getRole() != null && m.getContent() != null)
-                .map(m -> new OpenAIService.ChatMessage(m.getRole(), m.getContent()))
+                .map(m -> new AIService.ChatMessage(m.getRole(), m.getContent()))
                 .toList();
 
-        if (!openAIService.isConfigured()) {
+        if (!aiService.isConfigured()) {
             // Tra loi fallback voi streaming gia
             String fallback = buildFallbackResponse(userMessage);
             Flux<String> fallbackStream = streamText(fallback);
@@ -132,8 +132,8 @@ public class AIChatService {
             return new StreamingChatResponse(sessionId, fallbackStream, ragResult.sources());
         }
 
-        // Streaming tu OpenAI
-        Flux<String> stream = openAIService.chatStreamSSE(systemPrompt, userMessage, chatHistory)
+        // Streaming tu Gemini
+        Flux<String> stream = aiService.chatStreamSSE(systemPrompt, userMessage, chatHistory)
                 .filter(sc -> !sc.content.isBlank())
                 .map(sc -> {
                     // Chi tra ve content cua chunk
@@ -187,25 +187,25 @@ public class AIChatService {
         String lowerQ = question.toLowerCase();
 
         if (lowerQ.contains("gioi thieu") || lowerQ.contains("ban la ai") || lowerQ.contains("who are you")) {
-            return "Toi la AI Assistant cua CuongHoangDev - mot Full Stack Developer. Toi co 3+ nam kinh nghiem voi Java, Spring Boot, React, Next.js, PostgreSQL va Redis. Toi co the giup ban tra loi ve portfolio, ky nang, du an va blog cua Hoang.";
+            return "Toi la Ai CuongMini cua CuongHoangDev - mot Full Stack Developer. Toi co 3+ nam kinh nghiem voi Java, Spring Boot, React, Next.js, PostgreSQL va Redis. Toi co the giup ban tra loi ve portfolio, ky nang, du an va blog cua Hoang.";
         }
         if (lowerQ.contains("ky nang") || lowerQ.contains("skill") || lowerQ.contains("cong nghe") || lowerQ.contains("technology")) {
-            return "Hoang co cac ky nang chinh:\n\n**Frontend:** React, Next.js, TypeScript, Tailwind CSS\n**Backend:** Java, Spring Boot, Node.js\n**Database:** PostgreSQL, Redis, MongoDB\n**DevOps:** Docker, GitHub Actions, Linux\n**AI:** OpenAI API, RAG Architecture, Vector Databases\n\nBan muon biet them ve ky nang nao?";
+            return "Hoang co cac ky nang chinh:\n\n**Frontend:** React, Next.js, TypeScript, Tailwind CSS\n**Backend:** Java, Spring Boot, Node.js\n**Database:** PostgreSQL, Redis, MongoDB\n**DevOps:** Docker, GitHub Actions, Linux\n**AI:** OpenAI API, RAG Architecture, Vector Databases, pgvector\n\nBan muon biet them ve ky nang nao?";
         }
         if (lowerQ.contains("du an") || lowerQ.contains("project") || lowerQ.contains("portfolio")) {
-            return "Hoang da lam nhieu du an, bao gom:\n\n1. **CuongHoangDev V2** - Portfolio + AI Chatbot tich hop kien truc RAG\n2. **E-Commerce Platform** - Nen tang TMĐT voi Spring Boot + React\n3. **Microservices Demo** - He thong microservice voi Spring Cloud\n\nBan muon xem chi tiet du an nao?";
+            return "Hoang da lam nhieu du an, bao gom:\n\n1. **CuongHoangDev V2** - Portfolio + AI Chatbot tich hop kien truc RAG voi pgvector\n2. **E-Commerce Platform** - Nen tang TMĐT voi Spring Boot + React\n3. **Microservices Demo** - He thong microservice voi Spring Cloud\n\nBan muon xem chi tiet du an nao?";
         }
         if (lowerQ.contains("blog") || lowerQ.contains("bai viet") || lowerQ.contains("article")) {
-            return "Hoang co nhieu bai viet ve:\n- Java & Spring Boot\n- React & Next.js\n- AI Integration\n- DevOps & Docker\n\nTruy cap /blog de xem danh sach day du cac bai viet.";
+            return "Hoang co nhieu bai viet ve:\n- Java & Spring Boot\n- React & Next.js\n- AI Integration & RAG\n- DevOps & Docker\n\nTruy cap /blog de xem danh sach day du cac bai viet.";
         }
         if (lowerQ.contains("lien he") || lowerQ.contains("contact") || lowerQ.contains("email")) {
-            return "Ban co the lien he Hoang qua:\n- GitHub: github.com/cuonghoangdev\n- LinkedIn: linkedin.com/in/cuonghoangdev\n\nHoac gui email neu ban muon trao doi truc tiep!";
+            return "Ban co the lien he Hoang qua:\n- GitHub: github.com/cuonghoangdev\n- LinkedIn: linkedin.com/in/cuonghoangdev\n- Email: cuonghoang1103@gmail.com\n\nHoac gui email neu ban muon trao doi truc tiep!";
         }
         if (lowerQ.contains("kinh nghiem") || lowerQ.contains("experience") || lowerQ.contains("nam")) {
-            return "Hoang co 3+ nam kinh nghiem lam viec voi cac cong nghe:\n- **Backend:** Java, Spring Boot, Node.js (2+ nam)\n- **Frontend:** React, Next.js, TypeScript (2+ nam)\n- **Database:** PostgreSQL, Redis, MongoDB (2+ nam)\n- **DevOps:** Docker, CI/CD, Linux (1+ nam)\n\nHoang lien tuc hoc tap va cap nhat cong nghe moi.";
+            return "Hoang co 3+ nam kinh nghiem lam viec voi cac cong nghe:\n- **Backend:** Java, Spring Boot, Node.js (3+ nam)\n- **Frontend:** React, Next.js, TypeScript (3+ nam)\n- **Database:** PostgreSQL, Redis, MongoDB (2+ nam)\n- **AI:** RAG, pgvector, OpenAI API (2+ nam)\n- **DevOps:** Docker, CI/CD, Linux (1+ nam)\n\nHoang lien tuc hoc tap va cap nhat cong nghe moi.";
         }
 
-        return "Cam on ban da hoi! Toi la AI Assistant cua Hoang. Toi co the tra loi ve portfolio, ky nang, du an va blog cua Hoang. Ban muon hoi gi? Hay thu:\n- 'Gioi thieu ve Hoang'\n- 'Ky nang cua Hoang'\n- 'Du an da lam'\n- 'Blog gần đây'\n\n*(Luu y: Chatbot se hoat dong tot hon khi co OpenAI API key)*";
+        return "Cam on ban da hoi! Toi la Ai CuongMini cua Hoang. Toi co the tra loi ve portfolio, ky nang, du an va blog cua Hoang. Ban muon hoi gi? Hay thu:\n- 'Gioi thieu ve Hoang'\n- 'Ky nang cua Hoang'\n- 'Du an da lam'\n- 'Blog gần đây'\n\n*(Luu y: Chatbot se hoat dong tot hon khi co GEMINI_API_KEY duoc cau hinh)*";
     }
 
     // ===================== SESSION MANAGEMENT =====================

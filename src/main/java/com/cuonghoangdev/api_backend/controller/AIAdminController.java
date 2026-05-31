@@ -23,16 +23,13 @@ public class AIAdminController {
 
     private final DocumentIndexingService documentIndexingService;
     private final DocumentChunkRepository documentChunkRepository;
-    private final KnowledgeIngestionService knowledgeIngestionService;
     private final AIConfigRepository aiConfigRepository;
 
     public AIAdminController(DocumentIndexingService documentIndexingService,
                             DocumentChunkRepository documentChunkRepository,
-                            KnowledgeIngestionService knowledgeIngestionService,
                             AIConfigRepository aiConfigRepository) {
         this.documentIndexingService = documentIndexingService;
         this.documentChunkRepository = documentChunkRepository;
-        this.knowledgeIngestionService = knowledgeIngestionService;
         this.aiConfigRepository = aiConfigRepository;
     }
 
@@ -147,59 +144,7 @@ public class AIAdminController {
         public long getProjectsCount() { return projectsCount; }
     }
 
-    // ============ Knowledge Ingestion ============
-
-    /**
-     * Index tất cả tri thức (posts + profiles)
-     */
-    @PostMapping("/knowledge/index-all")
-    public ResponseEntity<ApiResponse<KnowledgeIngestionService.IndexingResult>> indexAllKnowledge() {
-        var result = knowledgeIngestionService.indexAllKnowledge();
-        return ResponseEntity.ok(ApiResponse.ok(
-                "Đã index thành công", result));
-    }
-
-    /**
-     * Tái index toàn bộ tri thức
-     */
-    @PostMapping("/knowledge/reindex-all")
-    public ResponseEntity<ApiResponse<KnowledgeIngestionService.IndexingResult>> reindexAllKnowledge() {
-        var result = knowledgeIngestionService.reindexAllKnowledge();
-        return ResponseEntity.ok(ApiResponse.ok(
-                "Đã tái index thành công", result));
-    }
-
-    /**
-     * Xóa toàn bộ tri thức
-     */
-    @DeleteMapping("/knowledge/clear-all")
-    public ResponseEntity<ApiResponse<Void>> clearAllKnowledge() {
-        knowledgeIngestionService.clearAllKnowledge();
-        return ResponseEntity.ok(ApiResponse.ok(
-                "Đã xóa toàn bộ tri thức", null));
-    }
-
-    /**
-     * Index tất cả posts đã publish
-     */
-    @PostMapping("/knowledge/index-posts")
-    public ResponseEntity<ApiResponse<Map<String, Integer>>> indexAllPosts() {
-        int count = knowledgeIngestionService.indexAllPublishedPosts();
-        return ResponseEntity.ok(ApiResponse.ok(
-                "Đã index " + count + " posts", Map.of("postsIndexed", count)));
-    }
-
-    /**
-     * Index tất cả profiles
-     */
-    @PostMapping("/knowledge/index-profiles")
-    public ResponseEntity<ApiResponse<Map<String, Integer>>> indexAllProfiles() {
-        int count = knowledgeIngestionService.indexAllProfiles();
-        return ResponseEntity.ok(ApiResponse.ok(
-                "Đã index " + count + " profiles", Map.of("profilesIndexed", count)));
-    }
-
-    // ============ AI Config ============
+    // ============ Knowledge Config ============
 
     /**
      * Lấy tất cả AI config

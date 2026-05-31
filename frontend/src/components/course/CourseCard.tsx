@@ -1,8 +1,10 @@
 'use client';
 
 import Link from 'next/link';
-import { Star, Users, BookOpen, Clock, Play } from 'lucide-react';
+import { Star, Users, BookOpen, Clock, Play, ShoppingCart, Check } from 'lucide-react';
 import type { Course } from '@/types';
+import { useCartStore } from '@/store/cartStore';
+import { toast } from 'sonner';
 
 function formatDuration(seconds: number): string {
   if (!seconds) return '0 min';
@@ -19,7 +21,18 @@ function formatPrice(price: number, isFree: boolean): string {
 }
 
 export default function CourseCard({ course }: { course: Course }) {
+  const { addAcademyItem, isInCart } = useCartStore();
   const hasDiscount = course.discountPrice && course.discountPrice > 0;
+  const inCart = isInCart('academy', undefined, course.id);
+  const isFree = course.isFree || course.price === 0;
+
+  const handleAddToCart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (inCart || course.isEnrolled) return;
+    addAcademyItem(course);
+    toast.success('Đã thêm khóa học vào giỏ hàng!');
+  };
 
   return (
     <Link href={`/courses/${course.slug}`} className="group block">
@@ -106,7 +119,7 @@ export default function CourseCard({ course }: { course: Course }) {
             )}
           </div>
 
-          {/* Price */}
+          {/* Price + Add to Cart */}
           <div className="flex items-center justify-between pt-3 border-t border-darkborder/30">
             <div className="flex items-center gap-2">
               {hasDiscount ? (
@@ -124,11 +137,31 @@ export default function CourseCard({ course }: { course: Course }) {
                 </span>
               )}
             </div>
-            {course.totalLessons > 0 && (
-              <span className="flex items-center gap-1 text-text-muted text-xs">
-                <BookOpen className="w-3.5 h-3.5" />
-                {course.totalLessons} lessons
-              </span>
+
+            {/* Add to cart button for non-free, non-enrolled courses */}
+            {!isFree && !course.isEnrolled && (
+              <button
+                onClick={handleAddToCart}
+                disabled={inCart}
+                className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl transition-all ${
+                  inCart
+                    ? 'bg-green-500/20 text-green-400 border border-green-500/30 cursor-default'
+                    : 'bg-neon-violet/20 hover:bg-neon-violet/30 border border-neon-violet/40 text-neon-violet hover:shadow-neon-sm'
+                }`}
+                title={inCart ? 'Đã có trong giỏ hàng' : 'Thêm vào giỏ hàng'}
+              >
+                {inCart ? (
+                  <>
+                    <Check className="w-3.5 h-3.5" />
+                    Đã thêm
+                  </>
+                ) : (
+                  <>
+                    <ShoppingCart className="w-3.5 h-3.5" />
+                    Thêm
+                  </>
+                )}
+              </button>
             )}
           </div>
         </div>

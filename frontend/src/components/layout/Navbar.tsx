@@ -10,8 +10,10 @@ import {
   Menu, X, User, LogOut, Settings, ChevronDown,
   BookOpen, Music, Globe, Phone, Mail, Facebook, ShoppingBag, Gamepad2,
   Home, GraduationCap, ShoppingCart, FileText, FolderOpen, MessageCircle,
+  Receipt,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import LanguageSwitcher from '@/components/LanguageSwitcher';
 
 const CONTACT_LINKS = {
   phone: 'tel:+84399360938',
@@ -51,12 +53,21 @@ export default function Navbar() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
-  const [langMenuOpen, setLangMenuOpen] = useState(false);
-  const [locale, setLocale] = useState('vi');
+  const [locale, setLocale] = useState('en');
 
   // Avoid hydration mismatch — don't check session on server
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+
+  // Load locale from cookie — defaults to 'en' (English)
+  useEffect(() => {
+    const match = document.cookie.match(/locale=(\w+)/);
+    if (match && (match[1] === 'vi' || match[1] === 'en')) {
+      setLocale(match[1]);
+    } else {
+      setLocale('en');
+    }
+  }, []);
 
   // Merge NextAuth session with backend auth
   const isAuthenticated = mounted && (isBackendAuth || !!session);
@@ -65,11 +76,6 @@ export default function Navbar() {
   const isAdmin = mounted && !!backendUser?.roles?.some(
     (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
   );
-
-  useEffect(() => {
-    const match = document.cookie.match(/NEXT_LOCALE=(\w+)/);
-    setLocale(match ? match[1] : 'vi');
-  }, []);
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
@@ -85,24 +91,25 @@ export default function Navbar() {
   const isAuthPage = pathname === '/login' || pathname === '/register';
   if (isAuthPage) return null;
 
+  // Translation helper — uses the locale to pick the right label
   const t = (key: string) => LABELS[key as keyof typeof LABELS]?.[locale as 'vi' | 'en'] ?? key;
 
+  // Nav links — labels come from translation system
   const navLinks = [
     { href: '/', label: t('home'), icon: Home },
     { href: '/academy', label: t('academy'), icon: GraduationCap },
-    { href: '/shop', label: t('shop'), icon: ShoppingCart },
+    { href: '/shop', label: t('shop'), icon: ShoppingCart, iconNode: <img src="/shop-icon.png" alt="Shop" className="w-4 h-4 object-contain" /> },
     { href: '/blog', label: t('blog'), icon: FileText },
     { href: '/projects', label: t('projects'), icon: FolderOpen },
-    { href: '/games', label: t('games'), icon: Gamepad2 },
+    { href: '/games', label: t('games'), icon: Gamepad2, iconNode: <img src="/games-icon.png" alt="Games" className="w-4 h-4 object-contain" /> },
     { href: '/music', label: t('music'), icon: Music },
     { href: '/chat', label: t('aiChat'), icon: MessageCircle },
   ];
 
   const switchLocale = (newLocale: string) => {
-    document.cookie = `NEXT_LOCALE=${newLocale}; path=/; max-age=31536000`;
+    document.cookie = `locale=${newLocale}; path=/; max-age=31536000; SameSite=Lax`;
     setLocale(newLocale);
-    router.refresh();
-    setLangMenuOpen(false);
+    window.dispatchEvent(new Event('locale-changed'));
   };
 
   const handleLogout = async () => {
@@ -158,7 +165,7 @@ export default function Navbar() {
                       : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
                   }`}
                 >
-                  <link.icon className="w-4 h-4 shrink-0" />
+                  {link.iconNode ?? <link.icon className="w-4 h-4 shrink-0" />}
                   {link.label}
                 </Link>
               ))}
@@ -177,7 +184,7 @@ export default function Navbar() {
                       : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
                   }`}
                 >
-                  <link.icon className="w-5 h-5" />
+                  {link.iconNode ?? <link.icon className="w-5 h-5" />}
                 </Link>
               ))}
             </div>
@@ -214,38 +221,8 @@ export default function Navbar() {
                 )}
               </button>
 
-              {/* Lang Switcher */}
-              <div className="relative">
-                <button
-                  onClick={() => setLangMenuOpen(!langMenuOpen)}
-                  className="flex items-center gap-1.5 px-2 py-1.5 rounded-lg text-text-muted hover:text-text-primary hover:bg-white/5 transition-colors"
-                  title="Change language"
-                >
-                  <Globe className="w-4 h-4" />
-                  <span className="text-xs font-medium uppercase">{locale === 'vi' ? 'VN' : 'EN'}</span>
-                </button>
-                {langMenuOpen && (
-                  <>
-                    <div className="fixed inset-0 z-40" onClick={() => setLangMenuOpen(false)} />
-                    <div className="absolute right-0 top-full mt-1.5 w-36 bg-darkcard border border-darkborder rounded-xl shadow-xl z-50 overflow-hidden">
-                      {['vi', 'en'].map((loc) => (
-                        <button
-                          key={loc}
-                          onClick={() => switchLocale(loc)}
-                          className={`w-full flex items-center gap-2 px-4 py-2.5 text-sm transition-colors ${
-                            locale === loc
-                              ? 'text-neon-violet bg-neon-violet/10'
-                              : 'text-text-secondary hover:text-text-primary hover:bg-white/5'
-                          }`}
-                        >
-                          <span className="text-xs font-medium uppercase w-6">{loc === 'vi' ? 'VN' : 'EN'}</span>
-                          <span className="text-xs">{loc === 'vi' ? 'Tiếng Việt' : 'English'}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
+              {/* Lang Switcher - Using new component */}
+              <LanguageSwitcher />
 
               {/* User area */}
               {isAuthenticated ? (
@@ -288,6 +265,10 @@ export default function Navbar() {
                         <Link href="/my-courses" onClick={() => setUserMenuOpen(false)}
                           className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
                           <BookOpen className="w-4 h-4" />{t('myCourses')}
+                        </Link>
+                        <Link href="/my-orders" onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                          <Receipt className="w-4 h-4" />Đơn hàng
                         </Link>
                         <Link href="/music" onClick={() => setUserMenuOpen(false)}
                           className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
@@ -342,7 +323,7 @@ export default function Navbar() {
               <div className="pt-3 pb-1 border-t border-darkborder">
                 <div className="flex items-center gap-2 px-4 mb-2">
                   <Globe className="w-4 h-4 text-text-muted" />
-                  <span className="text-xs text-text-muted">Language</span>
+                  <span className="text-xs text-text-muted">{t('language')}</span>
                 </div>
                 <div className="flex gap-2 px-4 mb-3">
                   {['vi', 'en'].map((loc) => (
@@ -372,6 +353,26 @@ export default function Navbar() {
                   ))}
                 </div>
               </div>
+
+              {isAuthenticated && (
+                <div className="pt-3 pb-1 border-t border-darkborder space-y-1">
+                  <Link href="/my-orders" onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                    <Receipt className="w-5 h-5 shrink-0" />
+                    {t('navbar.myOrders')}
+                  </Link>
+                  <Link href="/my-courses" onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                    <BookOpen className="w-5 h-5 shrink-0" />
+                    {t('myCourses')}
+                  </Link>
+                  <Link href="/music" onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                    <Music className="w-5 h-5 shrink-0" />
+                    {t('music')}
+                  </Link>
+                </div>
+              )}
 
               {!isAuthenticated && (
                 <div className="pt-3 border-t border-darkborder space-y-2">

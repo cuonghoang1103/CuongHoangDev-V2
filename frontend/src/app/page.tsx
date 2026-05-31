@@ -3,31 +3,35 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { blogApi, api } from '@/lib/api';
-import type { Post, Category, Project } from '@/types';
+import { blogApi } from '@/lib/api';
+import type { Post, Category } from '@/types';
+import { useProjectStore } from '@/store/projectStore';
+import { useTranslation } from '@/hooks/useTranslation';
 import BlogCard from '@/components/blog/BlogCard';
 import ServicesSection from '@/components/home/ServicesSection';
 import ContactSection from '@/components/home/ContactSection';
 import Footer from '@/components/home/Footer';
+import BenefitCard, { benefits } from '@/components/home/BenefitCard';
+import StatsSection from '@/components/home/StatsSection';
 import { formatNumber } from '@/lib/utils';
+import { ArrowRight, Sparkles, Code2 } from 'lucide-react';
 
 export default function HomePage() {
+  const { t, locale } = useTranslation();
   const [featuredPosts, setFeaturedPosts] = useState<Post[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [featuredProjects, setFeaturedProjects] = useState<Project[]>([]);
+  const getFeaturedProjects = useProjectStore((s) => s.getFeaturedProjects);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [postsRes, categoriesRes, projectsRes] = await Promise.all([
+        const [postsRes, categoriesRes] = await Promise.all([
           blogApi.getPosts({ size: 6 }),
           blogApi.getCategories(),
-          api.get('/api/v1/projects/featured'),
         ]);
         setFeaturedPosts(postsRes.data.data?.content || []);
         setCategories(categoriesRes.data.data || []);
-        setFeaturedProjects(projectsRes.data.data?.content?.slice(0, 4) || []);
       } catch (err) {
         console.error('Failed to fetch data:', err);
       } finally {
@@ -37,99 +41,137 @@ export default function HomePage() {
     fetchData();
   }, []);
 
+  const featuredProjects = getFeaturedProjects().slice(0, 4);
+
   return (
     <div className="min-h-screen bg-darkbg">
       {/* Hero Section */}
-      <section className="relative min-h-[85vh] flex items-center overflow-hidden">
+      <section className="relative min-h-[90vh] flex items-center overflow-hidden pt-20">
         {/* Background Effects */}
         <div className="absolute inset-0">
-          <div className="absolute top-1/4 left-1/4 w-[500px] h-[500px] bg-neon-indigo/20 rounded-full blur-[150px] animate-pulse" />
+          <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-neon-indigo/20 rounded-full blur-[180px] animate-pulse" />
           <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-neon-violet/20 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '1s' }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[300px] h-[300px] bg-neon-fuchsia/10 rounded-full blur-[100px]" />
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-neon-fuchsia/10 rounded-full blur-[120px]" />
         </div>
 
         {/* Grid Pattern */}
-        <div className="absolute inset-0 opacity-20" style={{
+        <div className="absolute inset-0 opacity-15" style={{
           backgroundImage: `linear-gradient(rgba(99, 102, 241, 0.1) 1px, transparent 1px),
                            linear-gradient(90deg, rgba(99, 102, 241, 0.1) 1px, transparent 1px)`,
-          backgroundSize: '50px 50px'
+          backgroundSize: '60px 60px'
         }} />
 
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left - Text Content */}
             <div>
               {/* Badge */}
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-neon-violet/10 border border-neon-violet/20 rounded-full mb-6">
-                <span className="w-2 h-2 bg-neon-violet rounded-full animate-pulse" />
-                <span className="text-sm text-neon-violet font-medium">Available for Projects</span>
-              </div>
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5 }}
+                className="inline-flex items-center gap-2 px-4 py-2 bg-neon-violet/10 border border-neon-violet/30 rounded-full mb-6"
+              >
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-violet opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-neon-violet"></span>
+                </span>
+                <span className="text-sm text-neon-violet font-medium">{t('hero.badge')}</span>
+              </motion.div>
 
               {/* Main Title */}
-              <h1 className="text-5xl md:text-6xl lg:text-7xl font-heading font-bold mb-4 leading-tight">
-                <span className="text-text-primary">Hi, I am </span>
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-heading font-bold mb-4 leading-tight"
+              >
+                <span className="text-text-primary">{t('hero.greeting')}</span>
                 <br />
                 <span className="bg-clip-text text-transparent bg-gradient-to-r from-neon-indigo via-neon-violet to-neon-fuchsia">
-                  CuongHoang
+                  {t('hero.name')}
                 </span>
-              </h1>
+              </motion.h1>
 
               {/* Tagline */}
-              <p className="text-xl md:text-2xl text-neon-violet font-semibold mb-4">
-                Full-Stack Developer & AI Builder
-              </p>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="text-xl md:text-2xl font-bold mb-4"
+              >
+                <span className="text-neon-indigo">{t('hero.tagline')}</span>
+                <span className="text-text-muted"> + </span>
+                <span className="text-neon-fuchsia">{t('hero.tagline2')}</span>
+              </motion.p>
 
               {/* Description */}
-              <p className="text-lg text-text-secondary max-w-xl mb-8 leading-relaxed">
-                I help startups and small businesses build modern websites, fast and powered by intelligent AI solutions.
-              </p>
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="text-base md:text-lg text-text-secondary max-w-xl mb-6 leading-relaxed"
+              >
+                {t('hero.description')}
+              </motion.p>
 
-              {/* Core Values */}
-              <div className="grid grid-cols-3 gap-4 mb-8">
-                {[
-                  { icon: '⚡', label: 'Fast Delivery', desc: 'On-time quality solutions' },
-                  { icon: '🧠', label: 'AI-Powered', desc: 'Intelligent web experiences' },
-                  { icon: '💎', label: 'High Quality', desc: 'Clean, scalable code & UX' },
-                ].map((value) => (
-                  <div key={value.label} className="group text-center p-4 bg-darkcard/50 rounded-xl border border-darkborder/30 hover:border-neon-violet/40 hover:bg-darkcard/70 transition-all duration-300 cursor-default">
-                    <div className="text-3xl mb-2">{value.icon}</div>
-                    <div className="text-sm font-semibold text-text-primary mb-1">{value.label}</div>
-                    <div className="text-xs text-text-muted">{value.desc}</div>
-                  </div>
+              {/* Benefit Cards - Upgraded */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.4 }}
+                className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8"
+              >
+                {benefits.map((benefit, index) => (
+                  <BenefitCard
+                    key={benefit.titleKey}
+                    icon={benefit.icon}
+                    titleKey={benefit.titleKey}
+                    descriptionKey={benefit.descriptionKey}
+                    color={benefit.color}
+                    delay={index * 0.1}
+                  />
                 ))}
-              </div>
+              </motion.div>
 
               {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row items-start gap-4">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+                className="flex flex-col sm:flex-row items-start gap-4"
+              >
                 <Link
                   href="/projects"
-                  className="group px-8 py-4 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-semibold rounded-2xl hover:shadow-lg hover:shadow-neon-violet/30 transition-all duration-300"
+                  className="group relative px-8 py-4 bg-gradient-to-r from-neon-indigo via-neon-violet to-neon-fuchsia text-white font-semibold rounded-2xl overflow-hidden"
                 >
-                  <span className="flex items-center gap-2">
-                    View Projects
-                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                    </svg>
+                  <span className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
+                  <span className="relative flex items-center justify-center gap-2">
+                    {t('hero.viewProjects')}
+                    <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </span>
                 </Link>
-                <a
-                  href="/courses"
-                  className="group px-8 py-4 bg-darkcard border border-darkborder text-text-primary font-semibold rounded-2xl hover:border-neon-violet hover:text-neon-violet transition-all duration-300"
+                <Link
+                  href="/chat"
+                  className="group px-8 py-4 bg-darkcard border-2 border-darkborder text-text-primary font-semibold rounded-2xl hover:border-neon-violet hover:bg-darkcard/80 transition-all duration-300"
                 >
-                  <span className="flex items-center gap-2">
-                    Explore Academy
-                    <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                    </svg>
+                  <span className="flex items-center justify-center gap-2">
+                    <Sparkles className="w-5 h-5 text-neon-fuchsia" />
+                    {t('hero.chatWithAI')}
                   </span>
-                </a>
-              </div>
+                </Link>
+              </motion.div>
             </div>
 
             {/* Right - Avatar */}
-            <div className="hidden lg:flex justify-center">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 0.8, delay: 0.3 }}
+              className="hidden lg:flex justify-center items-center"
+            >
               <div className="relative">
-                <div className="w-[420px] h-[420px] rounded-3xl bg-gradient-to-br from-neon-indigo/30 to-neon-violet/30 border border-neon-violet/20 p-3 max-w-full max-h-full overflow-hidden">
+                <div className="w-[400px] h-[400px] xl:w-[450px] xl:h-[450px] rounded-3xl bg-gradient-to-br from-neon-indigo/30 via-neon-violet/20 to-neon-fuchsia/30 border border-neon-violet/20 p-3 max-w-full max-h-full overflow-hidden">
                   <img
                     src="/images/avatar.png"
                     alt="CuongHoang"
@@ -138,61 +180,77 @@ export default function HomePage() {
                   />
                 </div>
                 {/* Decorative Elements */}
-                <div className="absolute -top-4 -right-4 w-32 h-32 bg-neon-fuchsia/20 rounded-full blur-2xl" />
-                <div className="absolute -bottom-4 -left-4 w-40 h-40 bg-neon-indigo/20 rounded-full blur-2xl" />
+                <div className="absolute -top-6 -right-6 w-40 h-40 bg-neon-fuchsia/20 rounded-full blur-3xl" />
+                <div className="absolute -bottom-6 -left-6 w-48 h-48 bg-neon-indigo/20 rounded-full blur-3xl" />
+                
                 {/* Floating badges */}
-                <div className="absolute -top-4 left-8 px-4 py-2 bg-darkcard/90 backdrop-blur-md border border-darkborder rounded-xl shadow-xl">
+                <motion.div
+                  initial={{ opacity: 0, x: -20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.8 }}
+                  className="absolute -top-4 left-6 px-4 py-2.5 bg-darkcard/95 backdrop-blur-md border border-darkborder rounded-xl shadow-xl"
+                >
                   <div className="flex items-center gap-2 text-sm">
-                    <span className="w-2 h-2 bg-green-400 rounded-full animate-pulse" />
-                    <span className="text-text-primary font-medium">3+ Years Experience</span>
+                    <span className="relative flex h-2.5 w-2.5">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-400"></span>
+                    </span>
+                    <span className="text-text-primary font-medium">{t('hero.experience')}</span>
                   </div>
-                </div>
-                <div className="absolute -bottom-4 right-8 px-4 py-2 bg-darkcard/90 backdrop-blur-md border border-darkborder rounded-xl shadow-xl">
+                </motion.div>
+                
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: 0.9 }}
+                  className="absolute -bottom-4 right-6 px-4 py-2.5 bg-darkcard/95 backdrop-blur-md border border-darkborder rounded-xl shadow-xl"
+                >
                   <div className="flex items-center gap-2 text-sm">
                     <span className="text-yellow-400">★★★★★</span>
-                    <span className="text-text-primary font-medium">50+ Happy Clients</span>
+                    <span className="text-text-primary font-medium">{t('hero.happyClients')}</span>
                   </div>
-                </div>
+                </motion.div>
+                
+                {/* Tech stack badge */}
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 1 }}
+                  className="absolute -left-8 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-darkcard/95 backdrop-blur-md border border-darkborder rounded-lg shadow-xl"
+                >
+                  <div className="flex items-center gap-2">
+                    <Code2 className="w-4 h-4 text-neon-indigo" />
+                    <span className="text-xs text-text-primary font-medium">Next.js</span>
+                  </div>
+                </motion.div>
               </div>
-            </div>
+            </motion.div>
           </div>
 
           {/* Scroll Indicator */}
-          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce">
-            <svg className="w-6 h-6 text-text-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-            </svg>
-          </div>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.2 }}
+            className="absolute bottom-8 left-1/2 -translate-x-1/2"
+          >
+            <motion.div
+              animate={{ y: [0, 10, 0] }}
+              transition={{ duration: 1.5, repeat: Infinity }}
+              className="w-6 h-10 border-2 border-text-muted/30 rounded-full flex justify-center pt-2"
+            >
+              <motion.div
+                animate={{ y: [0, 12, 0], opacity: [1, 0.3, 1] }}
+                transition={{ duration: 1.5, repeat: Infinity }}
+                className="w-1.5 h-3 bg-text-muted/50 rounded-full"
+              />
+            </motion.div>
+          </motion.div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-16 border-y border-darkborder">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
-            {[
-              { label: 'Years of Experience', value: '3+' },
-              { label: 'Projects Delivered', value: '20+' },
-              { label: 'Technologies Used', value: '15+' },
-              { label: 'Happy Clients', value: '50+' },
-            ].map((stat, i) => (
-              <motion.div
-                key={i}
-                initial={{ opacity: 0, y: 20 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ duration: 0.5, delay: i * 0.1 }}
-                className="text-center"
-              >
-                <div className="text-4xl md:text-5xl font-heading font-bold bg-clip-text text-transparent bg-gradient-to-r from-neon-indigo to-neon-violet">
-                  {stat.value}
-                </div>
-                <div className="text-text-muted mt-2">{stat.label}</div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* Stats Section - Upgraded */}
+      <StatsSection />
 
       {/* Featured Projects */}
       <section className="py-20 relative">
@@ -205,13 +263,13 @@ export default function HomePage() {
             className="text-center mb-14"
           >
             <span className="inline-block px-4 py-1.5 bg-neon-fuchsia/10 border border-neon-fuchsia/20 rounded-full text-sm text-neon-fuchsia font-medium mb-4">
-              My Work
+              {t('featuredWork')}
             </span>
             <h2 className="text-4xl md:text-5xl font-heading font-bold text-text-primary mb-4">
-              Featured <span className="text-neon-fuchsia">Projects</span>
+              {t('projects.title')}
             </h2>
             <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-              Real-world projects showcasing my skills and experience
+              {t('projects.subtitle')}
             </p>
           </motion.div>
 
@@ -273,7 +331,7 @@ export default function HomePage() {
                       href={`/projects/${project.slug}`}
                       className="inline-flex items-center gap-1 text-sm text-neon-fuchsia hover:text-neon-violet transition-colors group/link"
                     >
-                      View Details
+                      {t('projects.viewDetails')}
                       <svg className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                       </svg>
@@ -357,7 +415,7 @@ export default function HomePage() {
                       href="/projects"
                       className="inline-flex items-center gap-1 text-sm text-neon-fuchsia hover:text-neon-violet transition-colors group/link"
                     >
-                      View Details
+                      {t('projects.viewDetails')}
                       <svg className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                       </svg>
@@ -381,13 +439,13 @@ export default function HomePage() {
               transition={{ duration: 0.6 }}
             >
               <h2 className="text-4xl font-heading font-bold text-text-primary mb-6">
-                About <span className="text-neon-violet">Me</span>
+                {t('about.title')}&nbsp;<span className="text-neon-violet">{t('about.subtitle')}</span>
               </h2>
               <p className="text-text-secondary text-lg leading-relaxed mb-6">
-                CuongHoang is a passionate Full Stack Developer who loves building creative and efficient solutions for complex problems. With experience in modern web development, he specializes in React, Next.js, Spring Boot, and AI integration.
+                {t('about.description1')}
               </p>
               <p className="text-text-secondary text-lg leading-relaxed mb-8">
-                When not coding, he enjoys sharing knowledge through blog posts and contributing to open source projects.
+                {t('about.description2')}
               </p>
               <div className="flex flex-wrap gap-3">
                 {['JavaScript', 'TypeScript', 'React', 'Next.js', 'Java', 'Spring Boot', 'PostgreSQL', 'Redis', 'Docker'].map((skill) => (
@@ -430,10 +488,10 @@ export default function HomePage() {
             className="text-center mb-16"
           >
             <h2 className="text-4xl font-heading font-bold text-text-primary mb-4">
-              Latest <span className="text-neon-violet">Articles</span>
+              {t('latestArticles')}&nbsp;<span className="text-neon-violet">{t('articles')}</span>
             </h2>
             <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-              Explore the latest articles about technology and programming experience
+              {t('blog.subtitle')}
             </p>
           </motion.div>
 
@@ -471,7 +529,7 @@ export default function HomePage() {
                   href="/blog"
                   className="inline-flex items-center gap-2 px-8 py-4 bg-darkcard border border-darkborder text-text-primary font-semibold rounded-2xl hover:border-neon-violet hover:text-neon-violet transition-all duration-300"
                 >
-                  View All Articles
+                  {t('viewAllArticles')}
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
@@ -480,7 +538,7 @@ export default function HomePage() {
             </>
           ) : (
             <div className="text-center py-12">
-              <p className="text-text-muted text-lg">No articles yet</p>
+              <p className="text-text-muted text-lg">{t('noArticles')}</p>
             </div>
           )}
         </div>
@@ -497,10 +555,10 @@ export default function HomePage() {
             className="text-center mb-16"
           >
             <h2 className="text-4xl font-heading font-bold text-text-primary mb-4">
-              Blog <span className="text-neon-fuchsia">Categories</span>
+              {t('blogCategories')}&nbsp;<span className="text-neon-fuchsia">{t('categories')}</span>
             </h2>
             <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-              Find articles by topics you&apos;re interested in
+              {t('categoriesSubtitle')}
             </p>
           </motion.div>
 
@@ -548,13 +606,13 @@ export default function HomePage() {
                   {category.name}
                 </h3>
                 <p className="text-sm text-text-muted line-clamp-2">
-                  {category.description || 'Explore articles about ' + category.name.toLowerCase()}
+                  {category.description || t('categoriesSubtitle')}
                 </p>
               </Link>
               </motion.div>
             )) : (
               <div className="col-span-4 text-center py-12">
-                <p className="text-text-muted text-lg">No categories yet</p>
+                <p className="text-text-muted text-lg">{t('noCategories')}</p>
               </div>
             )}
           </div>
@@ -572,10 +630,10 @@ export default function HomePage() {
             className="text-center mb-16"
           >
             <h2 className="text-4xl font-heading font-bold text-text-primary mb-4">
-              Skills & <span className="text-neon-indigo">Technologies</span>
+              {t('skillsTech')}&nbsp;<span className="text-neon-indigo">{t('about.title')}</span>
             </h2>
             <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-              Technologies and skills I use to build products
+              {t('skillsTechSubtitle')}
             </p>
           </motion.div>
 
@@ -620,93 +678,6 @@ export default function HomePage() {
 
       {/* Services Section */}
       <ServicesSection />
-
-      {/* Projects Section */}
-      <section className="py-24 bg-gradient-to-b from-darkbg to-darkcard">
-        <div className="max-w-6xl mx-auto px-4">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-heading font-bold text-text-primary mb-4">
-              Featured <span className="text-neon-fuchsia">Projects</span>
-            </h2>
-            <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-              Outstanding products I have built
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[
-              {
-                title: 'CuongHoang Portfolio V2',
-                desc: 'Next-generation portfolio system with AI chatbot integrated with RAG architecture',
-                tags: ['Java', 'Spring Boot', 'Next.js', 'AI'],
-                status: 'IN_PROGRESS',
-                color: 'from-neon-indigo',
-              },
-              {
-                title: 'E-Commerce Platform',
-                desc: 'Complete e-commerce platform with online payment integration',
-                tags: ['Java', 'React', 'PostgreSQL', 'Stripe'],
-                status: 'COMPLETED',
-                color: 'from-green-500',
-              },
-              {
-                title: 'Microservices Demo',
-                desc: 'Microservices system with Spring Cloud, Eureka and API Gateway',
-                tags: ['Java', 'Spring Cloud', 'Docker', 'K8s'],
-                status: 'COMPLETED',
-                color: 'from-blue-500',
-              },
-            ].map((project, i) => (
-              <div key={project.title} className="group bg-darkcard rounded-2xl border border-darkborder/50 hover:border-neon-violet/40 transition-all overflow-hidden">
-                <div className={`h-2 bg-gradient-to-r ${project.color} to-neon-violet`} />
-                <div className="p-6">
-                  <div className="flex items-start justify-between mb-3">
-                    <h3 className="text-lg font-heading font-bold text-text-primary group-hover:text-neon-violet transition-colors line-clamp-1">
-                      {project.title}
-                    </h3>
-                    <span className={`ml-2 px-2 py-0.5 text-xs rounded-md border shrink-0 ${
-                      project.status === 'COMPLETED'
-                        ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                        : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                    }`}>
-                      {project.status === 'COMPLETED' ? 'Completed' : 'In Progress'}
-                    </span>
-                  </div>
-                  <p className="text-sm text-text-secondary line-clamp-2 mb-4">{project.desc}</p>
-                  <div className="flex flex-wrap gap-1.5 mb-4">
-                    {project.tags.map((tag) => (
-                      <span key={tag} className="px-2 py-0.5 bg-darkbg text-text-muted text-xs rounded-md border border-darkborder">
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-                  <Link
-                    href="/projects"
-                    className="inline-flex items-center gap-1 text-sm text-neon-violet hover:text-neon-indigo transition-colors group/link"
-                  >
-                    View Details
-                    <svg className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                    </svg>
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          <div className="text-center mt-12">
-            <Link
-              href="/projects"
-              className="inline-flex items-center gap-2 px-8 py-4 bg-darkcard border border-darkborder text-text-primary font-semibold rounded-2xl hover:border-neon-violet hover:text-neon-violet transition-all duration-300"
-            >
-              View All Projects
-              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-              </svg>
-            </Link>
-          </div>
-        </div>
-      </section>
 
       {/* Contact Section */}
       <ContactSection />

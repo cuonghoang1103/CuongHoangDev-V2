@@ -9,7 +9,8 @@ import { z } from 'zod';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
-import { signIn } from 'next-auth/react';
+
+import { signIn } from "next-auth/react";
 
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
@@ -26,23 +27,13 @@ type LoginForm = z.infer<typeof loginSchema>;
 // Social login button component
 function SocialLoginButtons() {
   const [loading, setLoading] = useState<string | null>(null);
-  const router = useRouter();
 
   const handleSocialLogin = async (provider: string) => {
     setLoading(provider);
     try {
-      const result = await signIn(provider, {
-        callbackUrl: '/',
-        redirect: false,
-      });
-      if (result?.url) {
-        router.push(result.url);
-      } else if (result?.error) {
-        toast.error(`Login failed: ${result.error}`);
-      }
-    } catch {
-      toast.error('Something went wrong. Please try again.');
-    } finally {
+      await signIn(provider, { callbackUrl: '/' });
+    } catch (err) {
+      console.error('OAuth login error:', err);
       setLoading(null);
     }
   };

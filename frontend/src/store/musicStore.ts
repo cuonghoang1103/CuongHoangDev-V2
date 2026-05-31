@@ -1,11 +1,20 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Track } from '@/types';
+import { ssrSafeStorage } from './ssrSafeStorage';
 
 type RepeatMode = 'none' | 'one' | 'all';
 
 const BLOB_STORAGE_KEY = 'music-audio-blobs-v2';
 const STORE_KEY = 'music-storage-v2';
+
+// ============================================================
+// Persistence strategy for local (blob) tracks:
+// - Track metadata (title, artist, cover, duration) IS persisted.
+// - Blob URL is NOT persisted (blob: URLs die on reload).
+// - After hydration, restoreBlobs() re-creates blob: URLs from
+//   the base64 data stored separately in localStorage.
+// ============================================================
 
 // ============================================================
 // Persistence strategy for local (blob) tracks:
@@ -304,7 +313,7 @@ export const useMusicStore = create<MusicState>()(
     }),
     {
       name: STORE_KEY,
-      storage: createJSONStorage(() => localStorage),
+      storage: createJSONStorage(() => ssrSafeStorage),
       partialize: (state) => ({
         tracks: state.tracks,
         queue: state.queue,
@@ -331,6 +340,7 @@ export const useMusicStore = create<MusicState>()(
 // ============================================================
 
 export function saveBlobToStorage(trackId: string, file: File): Promise<void> {
+  if (typeof window === 'undefined') return Promise.resolve();
   return new Promise((resolve) => {
     const MAX_SIZE = 8 * 1024 * 1024; // 8MB limit
     if (file.size > MAX_SIZE) {
@@ -340,9 +350,9 @@ export function saveBlobToStorage(trackId: string, file: File): Promise<void> {
     const reader = new FileReader();
     reader.onloadend = () => {
       try {
-        const stored = JSON.parse(localStorage.getItem(BLOB_STORAGE_KEY) || '{}');
+        const stored = JSON.parse(ssrSafeStorage.getItem(BLOB_STORAGE_KEY) || '{}');
         stored[trackId] = { data: reader.result, type: file.type, name: file.name };
-        localStorage.setItem(BLOB_STORAGE_KEY, JSON.stringify(stored));
+        ssrSafeStorage.setItem(BLOB_STORAGE_KEY, JSON.stringify(stored));
       } catch {
         // quota exceeded
       }
@@ -354,8 +364,9 @@ export function saveBlobToStorage(trackId: string, file: File): Promise<void> {
 }
 
 function loadBlobFromStorage(trackId: string): string | null {
+  if (typeof window === 'undefined') return null;
   try {
-    const stored = JSON.parse(localStorage.getItem(BLOB_STORAGE_KEY) || '{}');
+    const stored = JSON.parse(ssrSafeStorage.getItem(BLOB_STORAGE_KEY) || '{}');
     const entry = stored[trackId];
     if (entry?.data) return entry.data;
   } catch { /* corrupt */ }
@@ -363,9 +374,10 @@ function loadBlobFromStorage(trackId: string): string | null {
 }
 
 function removeBlobFromStorage(trackId: string) {
+  if (typeof window === 'undefined') return;
   try {
-    const stored = JSON.parse(localStorage.getItem(BLOB_STORAGE_KEY) || '{}');
+    const stored = JSON.parse(ssrSafeStorage.getItem(BLOB_STORAGE_KEY) || '{}');
     delete stored[trackId];
-    localStorage.setItem(BLOB_STORAGE_KEY, JSON.stringify(stored));
+    ssrSafeStorage.setItem(BLOB_STORAGE_KEY, JSON.stringify(stored));
   } catch { /* ignore */ }
 }

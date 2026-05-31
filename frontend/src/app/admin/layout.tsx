@@ -4,14 +4,12 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '@/store/authStore';
 import {
   LayoutDashboard,
   FileText,
   Users,
   Code2,
   Sparkles,
-  Settings,
   LogOut,
   Menu,
   X,
@@ -21,13 +19,18 @@ import {
   BarChart3,
   BookOpen,
   ShoppingBag,
+  Tag,
+  Receipt,
 } from 'lucide-react';
+import { signOut } from 'next-auth/react';
 
 const adminNav = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { label: 'Quản lý Khoá học', href: '/admin/courses', icon: BookOpen },
   { label: 'Danh mục Khoá học', href: '/admin/course-categories', icon: Sparkles },
   { label: 'Quản lý Shop', href: '/admin/shop', icon: ShoppingBag },
+  { label: 'Quản lý Mã giảm giá', href: '/admin/discounts', icon: Tag },
+  { label: 'Quản lý Đơn hàng', href: '/admin/orders', icon: Receipt },
   { label: 'Quản lý Posts', href: '/admin/posts', icon: FileText },
   { label: 'Quản lý Users', href: '/admin/users', icon: Users },
   { label: 'Quản lý Skills', href: '/admin/skills', icon: Code2 },
@@ -39,76 +42,84 @@ const adminNav = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const logout = useAuthStore((s) => s.logout);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
-
-  // Zustand hydration is unreliable for SSR/hydration timing.
-  // Read auth state directly from cookies/localStorage to avoid redirect loops.
-  const [currentUser, setCurrentUser] = useState<{ username: string; email: string } | null>(null);
+  const [currentUser, setCurrentUser] = useState<{ name: string; email: string } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    // Check backend auth cookie (__auth__)
-    const authToken = document.cookie.match(/__auth__=([^;]+)/)?.[1];
-    const authStorage = localStorage.getItem('auth-storage');
-    const hasBackendCookie = authToken && authToken.length > 10;
-    const hasStorage = authStorage && authStorage.length > 10;
+    // Check NextAuth v5 session first
+    fetch('/api/auth/session')
+      .then((res) => res.json())
+      .then(async (data) => {
+        if (data?.user?.role === 'ADMIN') {
+          setCurrentUser({
+            name: data.user.name || data.user.email || 'Admin',
+            email: data.user.email || '',
+          });
+          setAuthChecked(true);
+          return;
+        }
 
-    // Check NextAuth session cookie (social login)
-    const nextAuthSession = document.cookie.match(/next-auth\.session-token=([^;]+)/)?.[1] ||
-                            document.cookie.match(/__Secure-next-auth\.session-token=([^;]+)/)?.[1];
-    const hasSocialSession = !!nextAuthSession;
+        // Fall back to backend JWT cookie
+        const authToken = document.cookie.match(/__auth__=([^;]+)/)?.[1];
+        const authStorage = localStorage.getItem('auth-storage');
+        const hasBackendCookie = authToken && authToken.length > 10;
+        const hasStorage = authStorage && authStorage.length > 10;
 
-    // Admin requires backend auth (has roles) — social login users don't have admin roles
-    if (!hasBackendCookie && !hasStorage) {
-      // If user has social session but no backend auth, redirect to home (not admin)
-      if (hasSocialSession) {
-        router.push('/');
-        return;
-      }
-      router.push('/login?redirect=' + pathname);
-      return;
-    }
+        if (!hasBackendCookie && !hasStorage) {
+          router.push('/login?redirect=' + pathname);
+          return;
+        }
 
-    let roles: string[] = [];
-    let username = '';
-    let email = '';
+        let roles: string[] = [];
+        let username = '';
+        let email = '';
 
-    if (hasBackendCookie) {
-      try {
-        const parsed = JSON.parse(decodeURIComponent(authToken));
-        roles = parsed.roles || [];
-        username = parsed.username || '';
-      } catch {}
-    }
+        if (hasBackendCookie) {
+          try {
+            const parsed = JSON.parse(decodeURIComponent(authToken));
+            roles = parsed.roles || [];
+            username = parsed.username || '';
+          } catch {}
+        }
 
-    if (hasStorage) {
-      try {
-        const parsed = JSON.parse(authStorage);
-        const state = parsed?.state;
-        if (state?.user?.roles) roles = state.user.roles;
-        if (state?.user?.username) username = state.user.username;
-        if (state?.user?.email) email = state.user.email;
-      } catch {}
-    }
+        if (hasStorage) {
+          try {
+            const parsed = JSON.parse(authStorage);
+            const state = parsed?.state;
+            if (state?.user?.roles) roles = state.user.roles;
+            if (state?.user?.username) username = state.user.username;
+            if (state?.user?.email) email = state.user.email;
+          } catch {}
+        }
 
-    const isAdmin = roles.some((r) =>
-      (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
-    );
+        const isAdmin = roles.some((r) =>
+          (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+        );
 
-    if (!isAdmin) {
-      router.push('/');
-      return;
-    }
+        if (!isAdmin) {
+          router.push('/');
+          return;
+        }
 
-    setCurrentUser({ username, email });
-    setAuthChecked(true);
+        setCurrentUser({ name: username || email || 'Admin', email });
+        setAuthChecked(true);
+      })
+      .catch(() => {
+        router.push('/login?redirect=' + pathname);
+      });
   }, [pathname, router]);
 
-  const handleLogout = () => {
-    logout();
-    router.push('/');
+  const handleLogout = async () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    document.cookie = '__auth__=; path=/; max-age=0';
+    document.cookie = 'next-auth.session-token=; path=/; max-age=0';
+    document.cookie = '__Secure-next-auth.session-token=; path=/; max-age=0';
+    localStorage.removeItem('auth-storage');
+    await signOut({ redirect: false });
+    router.push('/login');
   };
 
   if (!authChecked) {
@@ -126,7 +137,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     <div className="flex h-screen bg-darkbg pt-16">
       {/* Desktop Sidebar */}
       <aside className={`${sidebarOpen ? 'w-64' : 'w-20'} flex-shrink-0 border-r border-darkborder bg-darkcard flex flex-col transition-all duration-300 hidden md:flex`}>
-        {/* Header */}
         <div className="p-4 border-b border-darkborder flex items-center justify-between">
           <div className={`flex items-center gap-3 overflow-hidden ${!sidebarOpen && 'justify-center w-full'}`}>
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neon-indigo to-neon-violet flex items-center justify-center flex-shrink-0">
@@ -141,7 +151,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </div>
         </div>
 
-        {/* Nav */}
         <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
           {adminNav.map((item) => {
             const isActive = pathname === item.href;
@@ -166,7 +175,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        {/* Bottom */}
         <div className="p-3 border-t border-darkborder space-y-1">
           <Link
             href="/"
@@ -184,7 +192,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </button>
         </div>
 
-        {/* Toggle */}
         <button
           onClick={() => setSidebarOpen(!sidebarOpen)}
           className="absolute top-20 right-0 translate-x-1/2 w-6 h-6 bg-darkcard border border-darkborder rounded-full flex items-center justify-center text-text-muted hover:text-text-primary transition-colors z-10"
@@ -205,7 +212,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 </div>
                 <div>
                   <h1 className="font-heading font-bold text-text-primary text-sm">Admin Panel</h1>
-                  <p className="text-xs text-text-muted">{currentUser?.username}</p>
+                  <p className="text-xs text-text-muted">{currentUser?.name}</p>
                 </div>
               </div>
               <button onClick={() => setMobileOpen(false)} className="p-1 hover:bg-white/5 rounded-lg">
@@ -247,7 +254,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
       {/* Main content */}
       <div className="flex-1 flex flex-col min-w-0">
-        {/* Top bar */}
         <header className="h-16 px-6 border-b border-darkborder flex items-center justify-between bg-darkcard/50 backdrop-blur-sm">
           <button
             onClick={() => setMobileOpen(true)}
@@ -262,13 +268,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <div>
               <h1 className="font-heading font-bold text-text-primary text-sm">Admin Dashboard</h1>
               <p className="text-xs text-text-muted hidden sm:block">
-                Chào, {currentUser?.username}!
+                Chào, {currentUser?.name}!
               </p>
             </div>
           </div>
         </header>
 
-        {/* Page content */}
         <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>

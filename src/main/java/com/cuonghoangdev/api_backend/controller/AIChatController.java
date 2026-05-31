@@ -103,7 +103,7 @@ public class AIChatController {
                     try {
                         emitter.send(SseEmitter.event()
                                 .name("error")
-                                .data("{\"error\": \"" + escapeJson(error.getMessage()) + "\"}"));
+                                .data("{\"error\": " + escapeJson(error.getMessage()) + "}"));
                         emitter.completeWithError(error);
                     } catch (IOException e) {
                         emitter.completeWithError(error);
