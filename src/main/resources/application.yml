@@ -35,6 +35,16 @@ spring:
     hibernate:
       ddl-auto: none
     show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+        order_updates: true
+        generate_statistics: false
+        hbm2ddl:
+          auto: none
 
   flyway:
     enabled: true
