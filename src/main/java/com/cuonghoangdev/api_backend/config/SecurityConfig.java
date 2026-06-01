@@ -178,7 +178,9 @@ public class SecurityConfig {
             "http://127.0.0.1:3000", "http://127.0.0.1:3001", "http://127.0.0.1:3002", "http://127.0.0.1:3003",
             "http://[::1]:3000", "http://[::1]:3001", "http://[::1]:3002", "http://[::1]:3003",
             "http://localhost", "http://127.0.0.1", "http://[::1]",
-            "http://localhost:5173"
+            "http://localhost:5173",
+            "https://cuong-hoang-dev-v2.vercel.app",
+            "https://*.vercel.app"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList(
