@@ -43,6 +43,9 @@ spring:
     validate-on-migrate: false
     validate-on-start: false
     baseline-version: '1'
+    ignore-pending-migrations: true
+    ignore-missing-migrations: true
+    ignore-future-migrations: true
 
   mail:
     host: ${SPRING_MAIL_HOST:smtp.gmail.com}
