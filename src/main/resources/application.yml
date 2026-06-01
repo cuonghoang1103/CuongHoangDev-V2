@@ -117,7 +117,7 @@ app:
     expiration-ms: 86400000
   base-url: ${APP_BASE_URL:}
   file:
-    storage-path: ${APP_FILE_STORAGE_PATH:/Users/admin/Downloads/api-backend/uploads}
+    storage-path: ${APP_FILE_STORAGE_PATH:/app/uploads}
   email:
     from: ${APP_EMAIL_FROM:noreply@cuonghoangdev.com}
   contact:
