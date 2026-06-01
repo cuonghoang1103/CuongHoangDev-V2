@@ -72,7 +72,7 @@ spring:
     type: simple
 
 server:
-  port: 8082
+  port: ${SERVER_PORT:${PORT:10000}}
 
   oauth2:
     client:
@@ -105,7 +105,7 @@ app:
   jwt:
     secret: ${JWT_SECRET:CuongHoangDevV2SecretKeyNangCao2026NheMaNayCanItNhat256BitNhe}
     expiration-ms: 86400000
-  base-url: ${APP_BASE_URL:http://localhost:8082}
+  base-url: ${APP_BASE_URL:}
   file:
     storage-path: ${APP_FILE_STORAGE_PATH:/Users/admin/Downloads/api-backend/uploads}
   email:
