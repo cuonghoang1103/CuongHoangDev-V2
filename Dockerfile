@@ -18,18 +18,20 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-ENV PORT=8082
-ENV SERVER_PORT=8082
-
+# Run as non-root
 RUN addgroup -S spring && adduser -S spring -G spring
 
 COPY --from=builder /app/target/*.jar app.jar
 
 USER spring:spring
 
-EXPOSE 8082
+# Render sets PORT (default 10000). Spring Boot can read SERVER_PORT.
+ENV SERVER_PORT=${PORT:-10000}
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
-  CMD wget -qO- http://localhost:8082/api/v1/system/health || exit 1
+EXPOSE 10000
 
-ENTRYPOINT ["java", "-jar", "app.jar", "-Dserver.port=8082"]
+# Healthcheck uses the Render-assigned port (fallback 10000)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=5 \
+  CMD wget -qO- "http://localhost:${PORT:-10000}/api/v1/system/health" || exit 1
+
+ENTRYPOINT ["sh", "-c", "java -Dserver.port=${PORT:-10000} -jar app.jar"]
