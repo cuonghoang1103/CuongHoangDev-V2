@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { authApi } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 /**
  * POST /api/auth/sync
  * Syncs a NextAuth social user to Spring Boot backend so they appear

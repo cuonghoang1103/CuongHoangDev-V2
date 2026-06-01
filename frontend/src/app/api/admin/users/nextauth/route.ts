@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { userApi } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 /**
  * GET /api/admin/users/nextauth
  * Returns all users from the Spring Boot backend.
