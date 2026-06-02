@@ -58,7 +58,7 @@ export async function POST(request: NextRequest) {
     // Store backend JWT in httpOnly cookie (7 days)
     const response = NextResponse.json({
       success: true,
-      data: { userId, username, email, role },
+      data: { userId, username, email, role, token },
     });
 
     response.cookies.set("backend_token", token, {

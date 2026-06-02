@@ -59,32 +59,36 @@ function LoginForm() {
         toast.error(errorMsg);
       } else {
         let profileData = null;
+        // Extract token from response body and store in cookie for middleware
+        const token = result.data?.token ?? '';
+
         // Fetch profile and sync to Zustand store so Navbar shows logged-in state
         try {
-          const profileRes = await fetch('/api/v1/profile', { credentials: 'include' });
+          const profileRes = await fetch('/api/v1/profile', {
+            headers: { Authorization: `Bearer ${token}` },
+          });
           if (profileRes.ok) {
-            profileData = await profileRes.json();
+            const profileData = await profileRes.json();
             const user = profileData.data;
             if (user && typeof window !== 'undefined') {
-              const authResponse = {
-                userId: user.id,
+              localStorage.setItem('user', JSON.stringify({
+                id: user.id,
                 username: user.username,
                 email: user.email,
-                role: user.primaryRole || (user.roles?.[0] ?? 'USER'),
                 roles: user.roles ?? [],
-                token: document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] ?? '',
-              };
-              localStorage.setItem('token', authResponse.token);
-              localStorage.setItem('user', JSON.stringify({
-                id: authResponse.userId,
-                username: authResponse.username,
-                email: authResponse.email,
-                roles: authResponse.roles,
                 enabled: true,
                 accountNonLocked: true,
                 createdAt: new Date().toISOString(),
               }));
-              window.dispatchEvent(new CustomEvent('auth-updated', { detail: authResponse }));
+              window.dispatchEvent(new CustomEvent('auth-updated', {
+                detail: {
+                  userId: user.id,
+                  username: user.username,
+                  email: user.email,
+                  roles: user.roles ?? [],
+                  token,
+                },
+              }));
             }
           }
         } catch {}
