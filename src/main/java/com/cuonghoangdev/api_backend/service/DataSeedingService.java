@@ -131,6 +131,15 @@ public class DataSeedingService {
                 userRepository.save(user);
                 log.info("Da tao tai khoan testuser/test123");
             }
+
+            // Tạo cuong03dx nếu chưa có
+            if (!userRepository.existsByUsername("cuong03dx")) {
+                User admin2 = new User("cuong03dx", passwordEncoder.encode("cuong123"), "cuong03dx@gmail.com");
+                admin2.setFullName("Cuong Admin");
+                admin2.getRoles().add(adminRole);
+                userRepository.save(admin2);
+                log.info("Da tao tai khoan cuong03dx/cuong123 voi quyen ADMIN");
+            }
         };
     }
 }
