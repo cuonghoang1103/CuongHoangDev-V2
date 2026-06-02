@@ -79,19 +79,25 @@ export default function AdminUsersPage() {
   const [editRoles, setEditRoles] = useState<string[]>([]);
   const [selfRoleChanged, setSelfRoleChanged] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
+  const [isOAuthAdmin, setIsOAuthAdmin] = useState(false);
   const initialRoleVersion = useRef<number | null>(null);
   const pageSize = 15;
 
-  // Detect super-admin (only cuong03dx can change roles)
+  // Read backendUser and token from Zustand store (reactive)
+  const backendUser = useAuthStore((s) => s.user);
+  const backendToken = useAuthStore((s) => s.token);
+
+  // Detect super-admin (only cuong03dx can change roles) — runs when BOTH session and backendUser change
   useEffect(() => {
     const currentUser = session?.user as any;
-    const backendUser = useAuthStore.getState().user;
     const isSAdmin = currentUser?.username === 'cuong03dx' ||
       backendUser?.username === 'cuong03dx' ||
       (currentUser?.email || '').toLowerCase() === 'cuong03dx@gmail.com' ||
       (backendUser?.email || '').toLowerCase() === 'cuong03dx@gmail.com';
     setIsSuperAdmin(isSAdmin);
-  }, [session]);
+    // Detect OAuth admin (has NextAuth session but no credentials token) — role may be stale
+    setIsOAuthAdmin(!!session?.user && !backendToken);
+  }, [session, backendUser, backendToken]);
 
   // Detect when the current user's role was changed by the admin (cuong03dx)
   useEffect(() => {
@@ -166,24 +172,28 @@ export default function AdminUsersPage() {
       String(currentUser.id) === String(userBeingEdited?.id)
     );
 
-    try {
-      await api.put(`/admin/users/${userId}/roles`, { roles: editRoles });
-      toast.success('Cập nhật roles thành công!');
-      setEditingId(null);
+      try {
+        await api.put(`/admin/users/${userId}/roles`, { roles: editRoles });
+        toast.success('Cập nhật roles thành công!');
+        setEditingId(null);
 
-      if (isEditingSelf) {
-        toast.info('Vai trò của bạn đã thay đổi. Đang đăng nhập lại...', { duration: 3000 });
-        await signOut({ redirect: false });
-        setTimeout(() => {
-          router.push('/login');
-        }, 1500);
-        return;
+        if (isEditingSelf) {
+          toast.info('Vai trò của bạn đã thay đổi. Đang đăng nhập lại...', { duration: 3000 });
+          await signOut({ redirect: false });
+          setTimeout(() => {
+            router.push('/login');
+          }, 1500);
+          return;
+        }
+
+        fetchUsers();
+      } catch (err: any) {
+        // Show backend error message if available
+        const msg = err?.response?.data?.message ||
+          err?.message ||
+          'Cập nhật thất bại';
+        toast.error(msg);
       }
-
-      fetchUsers();
-    } catch {
-      toast.error('Cập nhật thất bại');
-    }
   };
 
   const toggleRole = (role: string) => {
@@ -197,15 +207,39 @@ export default function AdminUsersPage() {
       await api.patch(`/admin/users/${user.id}/toggle-enabled`);
       toast.success(user.enabled ? 'Đã vô hiệu hóa' : 'Đã kích hoạt');
       fetchUsers();
-    } catch {
-      toast.error('Thao tác thất bại');
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Thao tác thất bại';
+      toast.error(msg);
     }
+  };
+
+  const refreshOAuthSession = async () => {
+    toast.info('Đang làm mới phiên...');
+    await signOut({ redirect: false });
+    setTimeout(() => router.push('/login'), 500);
   };
 
   const allRoles = ['ADMIN', 'USER', 'MODERATOR', 'EDITOR'];
 
   return (
     <div className="space-y-6">
+      {/* OAuth admin warning — NextAuth JWT role is cached for up to 1h, may be stale */}
+      {isOAuthAdmin && (session?.user as any)?.role === 'ADMIN' && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-yellow-500/10 border border-yellow-500/20 rounded-xl">
+          <AlertTriangle className="w-5 h-5 text-yellow-400 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-yellow-400">Phiên OAuth có thể chưa cập nhật vai trò mới nhất</p>
+            <p className="text-xs text-yellow-300/70">Vai trò trong session được cache 1 giờ. Nếu bạn mới được thêm ADMIN, hãy đăng nhập lại để cập nhật.</p>
+          </div>
+          <button
+            onClick={refreshOAuthSession}
+            className="px-3 py-1.5 bg-yellow-500/20 hover:bg-yellow-500/30 text-yellow-400 text-xs font-medium rounded-lg transition-colors shrink-0"
+          >
+            Đăng nhập lại
+          </button>
+        </div>
+      )}
+
       {/* Self-role-changed warning */}
       {selfRoleChanged && (
         <div className="flex items-center gap-3 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl">
