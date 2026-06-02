@@ -2,27 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import {
-  LayoutDashboard,
-  FileText,
-  Users,
-  Code2,
-  Sparkles,
-  LogOut,
-  Menu,
-  X,
-  ChevronRight,
-  Shield,
-  MessageSquare,
-  BarChart3,
-  BookOpen,
-  ShoppingBag,
-  Tag,
-  Receipt,
+  LayoutDashboard, FileText, Users, Code2, Sparkles,
+  LogOut, Menu, X, ChevronRight, Shield,
+  MessageSquare, BarChart3, BookOpen, ShoppingBag, Tag, Receipt,
 } from 'lucide-react';
-import { signOut } from 'next-auth/react';
 
 const adminNav = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -48,62 +33,40 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    // Check NextAuth v5 session first
-    fetch('/api/auth/session')
-      .then((res) => res.json())
-      .then(async (data) => {
-        if (data?.user?.role === 'ADMIN') {
-          setCurrentUser({
-            name: data.user.name || data.user.email || 'Admin',
-            email: data.user.email || '',
-          });
-          setAuthChecked(true);
-          return;
-        }
+    // Get backend_token cookie
+    const getToken = () => {
+      const match = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/);
+      return match ? decodeURIComponent(match[1]) : '';
+    };
 
-        // Fall back to backend JWT cookie
-        const authToken = document.cookie.match(/__auth__=([^;]+)/)?.[1];
-        const authStorage = localStorage.getItem('auth-storage');
-        const hasBackendCookie = authToken && authToken.length > 10;
-        const hasStorage = authStorage && authStorage.length > 10;
+    const token = getToken();
+    if (!token) {
+      router.push('/login?redirect=' + pathname);
+      return;
+    }
 
-        if (!hasBackendCookie && !hasStorage) {
-          router.push('/login?redirect=' + pathname);
-          return;
-        }
-
-        let roles: string[] = [];
-        let username = '';
-        let email = '';
-
-        if (hasBackendCookie) {
-          try {
-            const parsed = JSON.parse(decodeURIComponent(authToken));
-            roles = parsed.roles || [];
-            username = parsed.username || '';
-          } catch {}
-        }
-
-        if (hasStorage) {
-          try {
-            const parsed = JSON.parse(authStorage);
-            const state = parsed?.state;
-            if (state?.user?.roles) roles = state.user.roles;
-            if (state?.user?.username) username = state.user.username;
-            if (state?.user?.email) email = state.user.email;
-          } catch {}
-        }
-
-        const isAdmin = roles.some((r) =>
-          (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+    // Fetch current user profile from backend
+    fetch('/api/v1/profile', {
+      credentials: 'include',
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Unauthorized');
+        return res.json();
+      })
+      .then((data) => {
+        const user = data.data;
+        const roles = user?.roles || [];
+        const isAdmin = roles.some(
+          (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
         );
-
         if (!isAdmin) {
           router.push('/');
           return;
         }
-
-        setCurrentUser({ name: username || email || 'Admin', email });
+        setCurrentUser({
+          name: user?.fullName || user?.username || 'Admin',
+          email: user?.email || '',
+        });
         setAuthChecked(true);
       })
       .catch(() => {
@@ -112,13 +75,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }, [pathname, router]);
 
   const handleLogout = async () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('user');
-    document.cookie = '__auth__=; path=/; max-age=0';
-    document.cookie = 'next-auth.session-token=; path=/; max-age=0';
-    document.cookie = '__Secure-next-auth.session-token=; path=/; max-age=0';
-    localStorage.removeItem('auth-storage');
-    await signOut({ redirect: false });
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch {}
     router.push('/login');
   };
 
@@ -191,13 +150,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             {sidebarOpen && <span>Đăng xuất</span>}
           </button>
         </div>
-
-        <button
-          onClick={() => setSidebarOpen(!sidebarOpen)}
-          className="absolute top-20 right-0 translate-x-1/2 w-6 h-6 bg-darkcard border border-darkborder rounded-full flex items-center justify-center text-text-muted hover:text-text-primary transition-colors z-10"
-        >
-          <ChevronRight className={`w-3 h-3 transition-transform ${sidebarOpen ? 'rotate-180' : ''}`} />
-        </button>
       </aside>
 
       {/* Mobile sidebar overlay */}

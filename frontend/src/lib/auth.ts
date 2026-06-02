@@ -1,21 +1,19 @@
 import NextAuth from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
-import CredentialsProvider from "next-auth/providers/credentials";
 import type { NextAuthConfig } from "next-auth";
 
-const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
-
 /**
- * Unified auth config — Spring Boot backend is the SOLE source of truth for users.
+ * NextAuth config — used ONLY for OAuth providers (Google, GitHub).
  *
- * Auth flow:
- *  1. Credentials: authorize() calls backend /auth/login, gets JWT + role.
- *  2. OAuth (Google/GitHub): NextAuth handles OAuth dance, then we call backend
- *     to create/find user and get their role.
+ * Credentials login bypasses NextAuth entirely. Instead, the user submits
+ * credentials to /api/auth/login (a custom route), which:
+ * 1. Calls Spring Boot backend to validate credentials
+ * 2. Stores the JWT in a backend_token httpOnly cookie
+ * 3. Frontend uses that cookie for all authenticated API calls
  *
- * Both flows: role is fetched from backend at sign-in and cached in JWT.
- * Admin changes role → user must sign out & back in to pick up new role.
+ * OAuth users flow through NextAuth, which calls /api/v1/auth/oauth/register
+ * on first sign-in to create/find the user in the backend DB.
  */
 export const authConfig: NextAuthConfig = {
   session: { strategy: "jwt" },
@@ -32,66 +30,17 @@ export const authConfig: NextAuthConfig = {
       clientId: process.env.GITHUB_CLIENT_ID ?? "",
       clientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
     }),
-    CredentialsProvider({
-      id: "credentials",
-      name: "credentials",
-      credentials: {
-        username: { label: "Username", type: "text" },
-        password: { label: "Password", type: "password" },
-      },
-      async authorize(credentials) {
-        if (!credentials?.username || !credentials?.password) return null;
-
-        try {
-          const res = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              username: credentials.username,
-              password: credentials.password,
-            }),
-          });
-
-          if (!res.ok) return null;
-
-          const data = await res.json();
-          const userData = data.data;
-
-          if (!userData?.token) return null;
-
-          const role = normalizeRole(userData.role);
-
-          return {
-            id: String(userData.userId ?? userData.id ?? ""),
-            email: userData.email ?? `${credentials.username}@local.local`,
-            name: userData.username ?? credentials.username,
-            username: userData.username ?? credentials.username,
-            role,
-            isSocialUser: false,
-          };
-        } catch {
-          return null;
-        }
-      },
-    }),
   ],
   callbacks: {
-    async jwt({ token, user, account }) {
-      if (user) {
-        token.id = user.id;
-        token.role = (user as any).role ?? "USER";
-        token.username = (user as any).username ?? null;
-        token.isSocialUser = false;
-        token.provider = "credentials";
-      }
-
-      // OAuth first sign-in: fetch role from backend
+    async jwt({ token, account }) {
+      // OAuth first sign-in: fetch/create user in backend and get role
       if (account && account.provider !== "credentials" && !token.backendRoleFetched) {
         const email = token.email as string | undefined;
         const name = token.name as string | undefined;
         const provider = account.provider;
 
         if (email) {
+          const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
           try {
             const res = await fetch(`${BACKEND_URL}/api/v1/auth/oauth/register`, {
               method: "POST",
@@ -129,12 +78,12 @@ export const authConfig: NextAuthConfig = {
       return token;
     },
 
-    session({ session, token }) {
+    async session({ session, token }) {
       if (session.user) {
         session.user.id = (token.id as string) ?? "";
         session.user.role = (token.role as string) as any ?? "USER";
         session.user.username = (token.username as string | null) ?? null;
-        session.user.isSocialUser = (token.isSocialUser as boolean) ?? false;
+        session.user.isSocialUser = (token.isSocialUser as boolean) ?? true;
         session.user.provider = (token.provider as string | null) ?? null;
       }
       return session;

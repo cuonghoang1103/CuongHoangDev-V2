@@ -1,15 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { signIn } from "@/lib/auth";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
 
 /**
  * POST /api/auth/login
- * Unified login — calls Spring Boot backend, stores the JWT token in a cookie
- * so that subsequent API calls via the middleware can attach the Bearer token.
  *
- * This replaces the direct backend auth approach while keeping NextAuth session
- * for frontend auth (OAuth, session management, middleware protection).
+ * Credentials login — calls Spring Boot backend directly.
+ * Sets backend_token cookie so all /api/v1/* proxy calls are authenticated.
+ *
+ * For credentials users: NextAuth session is NOT needed — the backend_token cookie
+ * is sufficient for auth. NextAuth is used only for OAuth sessions.
  */
 export const dynamic = "force-dynamic";
 
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Call Spring Boot backend to authenticate
+    // Call Spring Boot backend
     const res = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -53,14 +53,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Also trigger NextAuth credentials sign-in so the session cookie is set
-    await signIn("credentials", {
-      username,
-      password,
-      redirect: false,
-    });
-
-    // Store backend JWT in a short-lived cookie (7 days)
+    // Store backend JWT in httpOnly cookie (7 days)
     const response = NextResponse.json({
       success: true,
       data: { userId, username, email, role },
@@ -70,7 +63,7 @@ export async function POST(request: NextRequest) {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7, // 7 days
+      maxAge: 60 * 60 * 24 * 7,
       path: "/",
     });
 
