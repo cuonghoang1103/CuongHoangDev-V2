@@ -163,14 +163,18 @@ export default function AdminMusicPage() {
       return;
     }
 
+    if (!audioFile && !audioUrl) {
+      toast.error('Vui long tai len file nhac');
+      return;
+    }
+
     setSaving(true);
     try {
       if (editingId) {
-        // Update existing — if new audio file uploaded, re-upload to Supabase
+        // Update existing
         let finalAudioUrl = audioUrl;
         if (audioFile) {
-          const uploadRes = await uploadAudioFile(audioFile);
-          finalAudioUrl = uploadRes.url;
+          finalAudioUrl = await uploadViaProxy(audioFile);
         }
         let finalCoverImage = coverImage;
         if (coverFile) {
@@ -193,15 +197,15 @@ export default function AdminMusicPage() {
         });
         toast.success('Cap nhat thanh cong');
       } else {
-        // Create new — upload audio to Supabase, cover to Cloudinary, then create track
+        // Create new — upload audio through backend proxy → Supabase
         if (!audioFile) {
           toast.error('Vui long tai len file nhac');
           setSaving(false);
           return;
         }
 
-        // Upload audio to Supabase
-        const uploadRes = await uploadAudioFile(audioFile);
+        // Upload audio via backend (backend forwards to Supabase)
+        const audioUrl = await uploadViaProxy(audioFile);
 
         // Upload cover to Cloudinary (if provided)
         let finalCover: string | null = null;
@@ -217,7 +221,7 @@ export default function AdminMusicPage() {
           body: JSON.stringify({
             title: title.trim(),
             artist: artist.trim(),
-            audioUrl: uploadRes.url,
+            audioUrl,
             coverImageUrl: finalCover,
             durationSeconds,
             active: true,
@@ -236,47 +240,38 @@ export default function AdminMusicPage() {
     }
   };
 
-  // Upload audio directly to Supabase to bypass Vercel's 4.5MB body limit
-  // Audio goes: browser → Supabase (no Vercel in between)
-  // Returns { url, path } — does NOT create track record
-  const uploadAudioFile = async (file: File): Promise<{ url: string; path: string }> => {
+  // Upload audio file through Next.js proxy → backend → Supabase
+  // File goes through Vercel to backend server, then backend uploads to Supabase.
+  // This bypasses the Vercel 4.5MB browser limit because the upload
+  // is initiated from the backend server (not the browser).
+  const uploadViaProxy = async (file: File): Promise<string> => {
     setUploading(true);
     try {
       const token = getToken();
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('title', title);
+      formData.append('artist', artist);
+      formData.append('coverUrl', coverImage || '');
+      formData.append('durationSeconds', String(durationSeconds));
 
-      // Step 1: Get upload URL from backend
-      const urlRes = await fetch(`${API}/admin/upload/supabase?fileName=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const res = await fetch(`${API}/admin/upload`, {
+        method: 'POST',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
       });
 
-      if (!urlRes.ok) {
-        const err = await urlRes.json().catch(() => ({}));
-        throw new Error(err.message || `HTTP ${urlRes.status}`);
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(data.message || `Upload failed: HTTP ${res.status}`);
       }
 
-      const urlData = await urlRes.json();
-      if (!urlData.data) {
-        throw new Error('Khong the lay upload URL tu Supabase');
+      if (!data.success || !data.data?.audioUrl) {
+        throw new Error(data.message || 'Upload failed: invalid response');
       }
 
-      const { uploadUrl, path } = urlData.data;
-
-      // Step 2: Upload directly to Supabase from browser (no Vercel proxy)
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type || 'audio/mpeg',
-        },
-        body: file,
-      });
-
-      if (!uploadRes.ok) {
-        throw new Error(`Supabase upload failed: HTTP ${uploadRes.status}`);
-      }
-
-      // Step 3: Return the public URL
-      const publicUrl = urlData.data.publicUrl;
-      return { url: publicUrl, path };
+      return data.data.audioUrl;
     } catch (err: any) {
       throw new Error(err.message || 'Upload that bai');
     } finally {

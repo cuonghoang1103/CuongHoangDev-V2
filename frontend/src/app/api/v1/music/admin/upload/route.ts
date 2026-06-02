@@ -2,12 +2,13 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
 
-// Use Node.js runtime (not Edge) so we can handle large file uploads.
-// Edge Runtime has a 4.5MB body limit that causes 413 on audio files.
+// Node.js runtime to handle larger file uploads through the proxy.
+// The file travels: browser → Vercel (proxy) → backend server → Supabase
+// Since the upload is initiated from the backend server (not the browser),
+// the Vercel 4.5MB browser limit does NOT apply.
 export const runtime = 'nodejs';
-
 export const dynamic = "force-dynamic";
-export const maxDuration = 120;
+export const maxDuration = 180; // 3 minutes for large file uploads
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,16 +32,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read backend_token cookie (credentials users)
+    // Get auth token
     let token = request.cookies.get("backend_token")?.value;
-
-    // Also accept Authorization header (localStorage token)
     const authHeader = request.headers.get("Authorization");
     if (!token && authHeader?.startsWith("Bearer ")) {
       token = authHeader.slice(7);
     }
 
-    // For OAuth users, get token from NextAuth session
+    // OAuth users: get token from NextAuth session
     if (!token) {
       try {
         const { auth } = await import("@/lib/auth");
@@ -57,7 +56,6 @@ export async function POST(request: NextRequest) {
               providerId: user.id ?? "",
             }),
           });
-
           if (res.ok) {
             const data = await res.json();
             token = data.data?.token ?? "";
@@ -72,9 +70,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    // Forward multipart form data to backend
+    // Forward multipart form data to backend Java server
+    // Backend expects: audio=file, cover=optional, title, artist, durationSeconds
     const backendFormData = new FormData();
-    backendFormData.append("file", file);
+    backendFormData.append("audio", file);
     backendFormData.append("title", title);
     backendFormData.append("artist", artist);
     backendFormData.append("coverUrl", coverUrl);
