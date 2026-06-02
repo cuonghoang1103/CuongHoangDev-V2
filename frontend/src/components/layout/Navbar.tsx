@@ -102,17 +102,58 @@ export default function Navbar() {
   const isAuthenticated = mounted && (isBackendAuth || !!session);
   const displayUser = mounted ? ((session?.user || backendUser) as any) : backendUser;
 
-  // ── Admin check ──────────────────────────────────────────────────────────
-  const sessionRole = ((session?.user as any)?.role as string | null) ?? null;
-  const isOAuthAdmin = sessionRole
-    ? sessionRole.replace('ROLE_', '').toUpperCase() === 'ADMIN'
-    : false;
-  const isAdmin = mounted && (
-    !!backendUser?.roles?.some(
-      (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
-    ) ||
-    isOAuthAdmin
-  );
+  // ── Admin check — ALWAYS verify from backend to ensure fresh role ──
+  // We check the backend profile on every session change. This is the only way
+  // to guarantee the Navbar shows the correct admin state after role changes.
+  const [verifiedAdmin, setVerifiedAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!mounted) return;
+
+    const verifyAdmin = async () => {
+      // Credentials user: use token from localStorage
+      if (backendUser?.token) {
+        try {
+          const res = await fetch('/api/v1/profile', {
+            headers: { Authorization: `Bearer ${backendUser.token}` },
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const roles: string[] = data.data?.roles ?? [];
+            const isAdmin = roles.some(
+              (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+            );
+            setVerifiedAdmin(isAdmin);
+            return;
+          }
+        } catch {}
+      }
+
+      // OAuth user: fetch profile using httpOnly cookie (backend_token set by oauth-callback)
+      if (session?.user?.email) {
+        try {
+          const res = await fetch('/api/v1/profile', {
+            credentials: 'include',
+          });
+          if (res.ok) {
+            const data = await res.json();
+            const roles: string[] = data.data?.roles ?? [];
+            const isAdmin = roles.some(
+              (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+            );
+            setVerifiedAdmin(isAdmin);
+            return;
+          }
+        } catch {}
+      }
+
+      setVerifiedAdmin(false);
+    };
+
+    verifyAdmin();
+  }, [session, backendUser, mounted]);
+
+  const isAdmin = mounted && verifiedAdmin;
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);

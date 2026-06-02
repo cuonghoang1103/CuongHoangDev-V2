@@ -180,7 +180,9 @@ public class SecurityConfig {
             "http://localhost", "http://127.0.0.1", "http://[::1]",
             "http://localhost:5173",
             "https://cuong-hoang-dev-v2.vercel.app",
-            "https://*.vercel.app"
+            "https://*.vercel.app",
+            "https://cuong-hoang-dev-v2.onrender.com",
+            "https://*.onrender.com"
         ));
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"));
         configuration.setAllowedHeaders(Arrays.asList(

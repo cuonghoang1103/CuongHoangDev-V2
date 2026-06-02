@@ -15,8 +15,9 @@ export async function middleware(request: NextRequest) {
     if (backendToken) {
       try {
         console.log('[middleware] verifying backend_token via /api/v1/profile');
-        const res = await fetch(`${BACKEND_URL}/api/v1/profile`, {
+        const res = await fetch(`/api/v1/profile`, {
           headers: { Authorization: `Bearer ${backendToken}` },
+          credentials: 'include',
           cache: 'no-store',
         });
         console.log('[middleware] profile res.status:', res.status);
@@ -68,8 +69,9 @@ export async function middleware(request: NextRequest) {
     if (backendToken) {
       console.log('[middleware] OAuth user has backend_token — fetching FRESH profile from backend');
       try {
-        const res = await fetch(`${BACKEND_URL}/api/v1/profile`, {
+        const res = await fetch(`/api/v1/profile`, {
           headers: { Authorization: `Bearer ${backendToken}` },
+          credentials: 'include',
           cache: 'no-store',
         });
         console.log('[middleware] backend profile status:', res.status);

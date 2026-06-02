@@ -4,8 +4,9 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
 
 /**
  * ALL backend API calls go through this proxy route: /api/v1/*
- * The middleware reads the backend_token cookie and attaches it as a Bearer header.
- * This way the browser always sends the JWT to the backend, even on cross-origin.
+ * The browser attaches the backend_token from the httpOnly cookie automatically.
+ * We additionally pass it as Authorization: Bearer header to satisfy JwtAuthenticationFilter
+ * (which reads from the Authorization header, not from cookies).
  *
  * Frontend code calls: /api/v1/courses, /api/v1/admin/users, etc.
  * This route proxies to: https://backend.com/api/v1/courses, etc.

@@ -44,6 +44,8 @@ function OAuthCallbackContent() {
       // Step 2: Fetch the FRESH profile from the backend to get the CURRENT role.
       // This reflects any role changes made by the admin (cuong03dx) immediately.
       let freshRole = 'USER';
+      let freshRoles: string[] = [];
+      let freshEmail = session.user.email;
       if (backendToken) {
         try {
           const profileRes = await fetch('/api/v1/profile', {
@@ -52,16 +54,28 @@ function OAuthCallbackContent() {
           });
           if (profileRes.ok) {
             const profileData = await profileRes.json();
-            const backendRoles: string[] = profileData?.data?.roles ?? [];
-            const isAdmin = backendRoles.some(
+            freshRoles = profileData?.data?.roles ?? [];
+            const isAdmin = freshRoles.some(
               (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
             );
             freshRole = isAdmin ? 'ADMIN' : 'USER';
-            console.log('[oauth-callback] Fresh role from backend:', freshRole, 'roles:', backendRoles);
+            console.log('[oauth-callback] Fresh role from backend:', freshRole, 'roles:', freshRoles);
           }
         } catch (err) {
           console.error('[oauth-callback] Failed to fetch profile:', err);
         }
+      }
+
+      // Dispatch auth-updated so Navbar gets the fresh role immediately
+      if (freshEmail && typeof window !== 'undefined') {
+        window.dispatchEvent(new CustomEvent('auth-updated', {
+          detail: {
+            email: freshEmail,
+            role: freshRole,
+            roles: freshRoles,
+            isSocialUser: true,
+          },
+        }));
       }
 
       // Step 3: Redirect based on FRESH role (not cached NextAuth JWT role)
