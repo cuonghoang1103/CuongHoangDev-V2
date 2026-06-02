@@ -96,7 +96,7 @@ export default function ProfilePage() {
     const fetchProfile = async () => {
       try {
         setLoading(true);
-        const res = await api.get('/api/v1/profile');
+        const res = await api.get('/profile');
         const data = res.data?.data;
         setProfile(data);
         setForm({
@@ -160,7 +160,7 @@ export default function ProfilePage() {
   const handleSaveProfile = async () => {
     setSaving(true);
     try {
-      const res = await api.put('/api/v1/profile', {
+      const res = await api.put('/profile', {
         fullName: form.fullName,
         email: form.email,
         bio: form.bio,
@@ -189,7 +189,7 @@ export default function ProfilePage() {
     }
     setSaving(true);
     try {
-      await api.post('/api/v1/auth/change-password', {
+      await api.post('/auth/change-password', {
         currentPassword: passwordForm.currentPassword,
         newPassword: passwordForm.newPassword,
       });
@@ -264,7 +264,7 @@ export default function ProfilePage() {
                   try {
                     const formData = new FormData();
                     formData.append('file', file);
-                    const res = await api.post('/api/v1/files/upload', formData, {
+                    const res = await api.post('/files/upload', formData, {
                       headers: { 'Content-Type': 'multipart/form-data' },
                     });
                     const url = res.data?.data?.url || res.data?.data;

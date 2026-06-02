@@ -87,7 +87,9 @@ export const useAuthStore = create<AuthState>()(
         if (typeof window !== 'undefined') {
           localStorage.removeItem('token');
           localStorage.removeItem('user');
+          // Clear the backend JWT cookie
           document.cookie = '__auth__=; path=/; max-age=0';
+          document.cookie = 'backend_token=; path=/; max-age=0';
         }
         set({
           user: null,

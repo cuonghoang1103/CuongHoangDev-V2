@@ -1,6 +1,7 @@
-// NextAuth v5 + Prisma Adapter schema
-// Standard models required by @auth/prisma-adapter
-// Docs: https://authjs.dev/reference/adapters/prisma
+// Unified User schema — Spring Boot is the sole source of truth for users.
+// NextAuth uses JWT sessions only (no Prisma adapter, no DB tables needed).
+// All user data (credentials + OAuth) lives in the Spring Boot `users` table.
+// Prisma is kept for potential future data needs, but is not used for auth.
 
 generator client {
   provider = "prisma-client-js"
@@ -12,71 +13,13 @@ datasource db {
   provider = "postgresql"
 }
 
-// ─── NextAuth Required Models ────────────────────────────────────────────────
-
-model Account {
-  id                String  @id @default(cuid())
-  userId            String
-  type              String
-  provider          String
-  providerAccountId String
-  refresh_token     String? @db.Text
-  access_token      String? @db.Text
-  expires_at        Int?
-  token_type        String?
-  scope             String?
-  id_token          String? @db.Text
-  session_state     String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([provider, providerAccountId])
-}
-
-model Session {
-  id           String   @id @default(cuid())
-  sessionToken String   @unique
-  userId       String
-  expires      DateTime
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model VerificationToken {
-  identifier String
-  token      String   @unique
-  expires    DateTime
-
-  @@unique([identifier, token])
-}
-
-// ─── Extended User Model (NextAuth + Custom fields) ──────────────────────────
-
-model User {
-  id            String    @id @default(cuid())
-  name          String?
-  email         String?   @unique
-  emailVerified DateTime?
-  image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  // Custom fields
-  username  String?  @unique
-  fullName  String?
-  bio       String?
-  role      UserRole @default(USER)
-
-  // Relations
-  accounts  Account[]
-  sessions  Session[]
-
-  @@map("nextauth_users")
-}
-
-enum UserRole {
-  USER
-  ADMIN
-  MODERATOR
-  EDITOR
-}
+// NOTE: The actual `users` table (Spring Boot/JPA) is managed by the backend,
+// NOT by Prisma. This Prisma schema is kept minimal and may be extended
+// later for non-auth data if needed (e.g., analytics, cache).
+//
+// The `nextauth_users` table that existed before was for NextAuth v4 with
+// Prisma adapter. It has been replaced by a pure-JWT approach where
+// NextAuth sessions are stateless and backed entirely by Spring Boot.
+//
+// To avoid Prisma migrate conflict with the real `users` table managed by
+// the backend, we don't define a User model here.

@@ -33,11 +33,7 @@ export default function AdminCategoriesPage() {
   const fetchCategories = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:8082/api/v1/course-categories/admin/all', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-        },
-      });
+      const res = await fetch('/course-categories/admin/all', { credentials: 'include' });
       const data = await res.json();
       setCategories(Array.isArray(data?.data) ? data.data : []);
     } catch {
@@ -93,21 +89,19 @@ export default function AdminCategoriesPage() {
         sortOrder: form.sortOrder,
         isActive: form.isActive,
       };
-      const headers = {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${localStorage.getItem('token') || ''}`,
-      };
       let res;
       if (editingId) {
-        res = await fetch(`http://localhost:8082/api/v1/course-categories/${editingId}`, {
+        res = await fetch(`/course-categories/${editingId}`, {
           method: 'PUT',
-          headers,
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify(payload),
         });
       } else {
-        res = await fetch('http://localhost:8082/api/v1/course-categories', {
+        res = await fetch('/course-categories', {
           method: 'POST',
-          headers,
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
           body: JSON.stringify(payload),
         });
       }
@@ -125,9 +119,9 @@ export default function AdminCategoriesPage() {
   const handleDelete = async (id: number) => {
     if (!confirm('Delete this category?')) return;
     try {
-      const res = await fetch(`http://localhost:8082/api/v1/course-categories/${id}`, {
+      const res = await fetch(`/course-categories/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+        credentials: 'include',
       });
       if (!res.ok) throw new Error();
       toast.success('Deleted!');

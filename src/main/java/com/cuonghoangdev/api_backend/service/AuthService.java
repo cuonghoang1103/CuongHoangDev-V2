@@ -3,6 +3,7 @@ package com.cuonghoangdev.api_backend.service;
 import com.cuonghoangdev.api_backend.dto.AuthResponse;
 import com.cuonghoangdev.api_backend.dto.ChangePasswordRequest;
 import com.cuonghoangdev.api_backend.dto.LoginRequest;
+import com.cuonghoangdev.api_backend.dto.OAuthRegisterRequest;
 import com.cuonghoangdev.api_backend.dto.RegisterRequest;
 import com.cuonghoangdev.api_backend.entity.PasswordResetToken;
 import com.cuonghoangdev.api_backend.entity.Role;
@@ -22,6 +23,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
@@ -176,5 +178,58 @@ public class AuthService {
 
         user.setPassword(passwordEncoder.encode(request.getNewPassword()));
         userRepository.save(user);
+    }
+
+    /**
+     * Handles OAuth sign-in: finds existing user by email/provider, or creates a
+     * new account. Returns the user so NextAuth can set role in JWT.
+     */
+    @Transactional
+    public User oauthRegister(OAuthRegisterRequest request) {
+        Optional<User> byEmail = userRepository.findByEmail(request.getEmail());
+        if (byEmail.isPresent()) {
+            return byEmail.get();
+        }
+
+        Optional<User> byProvider = userRepository.findByProviderAndProviderId(
+                request.getProvider(), request.getProviderId());
+        if (byProvider.isPresent()) {
+            return byProvider.get();
+        }
+
+        User user = new User();
+        user.setUsername(generateOAuthUsername(request.getEmail()));
+        user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
+        user.setEmail(request.getEmail());
+        user.setFullName(request.getFullName());
+        user.setProvider(request.getProvider());
+        user.setProviderId(request.getProviderId());
+        user.setEnabled(true);
+        user.setAccountNonExpired(true);
+        user.setAccountNonLocked(true);
+        user.setCredentialsNonExpired(true);
+
+        Role userRole = roleRepository.findByName("ROLE_USER")
+                .orElseGet(() -> {
+                    Role r = new Role("ROLE_USER");
+                    return roleRepository.save(r);
+                });
+
+        Set<Role> roles = new HashSet<>();
+        roles.add(userRole);
+        user.setRoles(roles);
+
+        return userRepository.save(user);
+    }
+
+    private String generateOAuthUsername(String email) {
+        String base = email.split("@")[0].replaceAll("[^a-zA-Z0-9]", "");
+        String candidate = base;
+        int suffix = 1;
+        while (userRepository.existsByUsername(candidate)) {
+            candidate = base + suffix;
+            suffix++;
+        }
+        return candidate;
     }
 }

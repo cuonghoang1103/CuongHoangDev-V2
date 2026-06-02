@@ -39,7 +39,7 @@ export default function AdminStatsPage() {
     const fetchStats = async () => {
       try {
         setLoading(true);
-        const res = await api.get('/api/v1/admin/stats/overview');
+        const res = await api.get('/admin/stats/overview');
         const data = res.data?.data || {};
         setStats({
           totalUsers: data.totalUsers || 0,

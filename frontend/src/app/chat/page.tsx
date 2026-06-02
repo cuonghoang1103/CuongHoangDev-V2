@@ -70,10 +70,16 @@ function ChatWelcome({ prompts, onSelect, isLoading }: {
 }
 
 export default function ChatPage() {
-  const { isAuthenticated: isBackendAuth, token } = useAuthStore();
+  const { isAuthenticated: isBackendAuth } = useAuthStore();
   const { status } = useSession();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
+
+  const getToken = () => {
+    if (typeof document === 'undefined') return '';
+    const match = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  };
 
   const isAuthenticated = mounted && (isBackendAuth || status === 'authenticated');
 
@@ -112,7 +118,7 @@ export default function ChatPage() {
   useEffect(() => {
     const checkBackend = async () => {
       try {
-        await fetch(`${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082'}/api/v1/system/health`, {
+        await fetch(`/api/v1/system/health`, {
           signal: AbortSignal.timeout(3000),
         });
         setBackendConnected(true);
@@ -128,7 +134,7 @@ export default function ChatPage() {
     if (!mounted) return;
     const fetchSessions = async () => {
       try {
-        const res = await api.get('/api/v1/ai/chat/sessions');
+        const res = await api.get('/ai/chat/sessions');
         setSessions(res.data?.data || []);
       } catch {
         // silently ignore — use persisted local state
@@ -150,7 +156,7 @@ export default function ChatPage() {
 
   const fetchHistory = useCallback(async (sessionId: string) => {
     try {
-      const res = await api.get(`/api/v1/ai/chat/history/${sessionId}`);
+      const res = await api.get(`/ai/chat/history/${sessionId}`);
       setMessages(sessionId, res.data.data || []);
     } catch { /* ignore */ }
   }, [setMessages]);
@@ -162,7 +168,7 @@ export default function ChatPage() {
 
   const handleDeleteSession = useCallback(async (sessionId: string) => {
     try {
-      await api.delete(`/api/v1/ai/chat/sessions/${sessionId}`);
+      await api.delete(`/ai/chat/sessions/${sessionId}`);
       removeSession(sessionId);
       toast.success('Conversation deleted');
     } catch {
@@ -258,12 +264,12 @@ export default function ChatPage() {
 
       // ========== NORMAL AI MODE ==========
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082'}/api/v1/ai/chat/stream`,
+        `/api/v1/ai/chat/stream`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
           },
           body: JSON.stringify({
             message: text.trim(),
@@ -446,7 +452,7 @@ export default function ChatPage() {
       setStreaming(false);
     }
   }, [
-    isStreaming, currentSessionId, token, addMessage, setStreaming, setRobotEmotion,
+    isStreaming, currentSessionId, addMessage, setStreaming, setRobotEmotion,
     currentMessages, setSuggestedPrompts, setMessages, setCurrentSessionId, addSession,
     updateLastAssistantMessage, removePendingMessage, limitedMode, setLimitedMode,
   ]);

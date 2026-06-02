@@ -24,8 +24,8 @@ export default function AdminAIAnalyticsPage() {
       try {
         setLoading(true);
         const [overviewRes, feedbackRes] = await Promise.all([
-          api.get('/api/v1/ai/analytics/overview').catch(() => ({ data: { data: {} } })),
-          api.get('/api/v1/ai/feedback/stats').catch(() => ({ data: { data: {} } })),
+          api.get('/ai/analytics/overview').catch(() => ({ data: { data: {} } })),
+          api.get('/ai/feedback/stats').catch(() => ({ data: { data: {} } })),
         ]);
         setStats(overviewRes.data?.data || {});
         setFeedback(feedbackRes.data?.data || {});

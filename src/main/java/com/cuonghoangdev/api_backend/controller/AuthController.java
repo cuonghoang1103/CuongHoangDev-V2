@@ -73,4 +73,11 @@ public class AuthController {
         authService.changePassword(currentUser, request);
         return ResponseEntity.ok(ApiResponse.<Void>ok("Doi mat khau thanh cong", null));
     }
+
+    @PostMapping("/oauth/register")
+    @Operation(summary = "OAuth register/login", description = "Called by NextAuth during OAuth sign-in to create or find user in backend, returns role for JWT session")
+    public ResponseEntity<ApiResponse<UserDto>> oauthRegister(@Valid @RequestBody OAuthRegisterRequest request) {
+        User user = authService.oauthRegister(request);
+        return ResponseEntity.ok(ApiResponse.ok(UserDto.fromEntity(user)));
+    }
 }

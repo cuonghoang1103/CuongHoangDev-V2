@@ -154,11 +154,17 @@ function TypingIndicator() {
 }
 
 export default function ChatModal({ onClose }: ChatModalProps) {
-  const { isAuthenticated: isBackendAuth, token } = useAuthStore();
+  const { isAuthenticated: isBackendAuth } = useAuthStore();
   const { status } = useSession();
   const [mounted, setMounted] = useState(false);
   useEffect(() => { setMounted(true); }, []);
   const isAuthenticated = mounted && (isBackendAuth || status === 'authenticated');
+
+  const getToken = () => {
+    if (typeof document === 'undefined') return '';
+    const match = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  };
 
   const {
     currentSessionId, messages, isStreaming,
@@ -226,12 +232,12 @@ export default function ChatModal({ onClose }: ChatModalProps) {
 
     try {
       const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082'}/api/v1/ai/chat/stream`,
+        `/api/v1/ai/chat/stream`,
         {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(getToken() ? { Authorization: `Bearer ${getToken()}` } : {}),
           },
           body: JSON.stringify({
             message: text.trim(),

@@ -1,4 +1,4 @@
-import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from 'axios';
+import axios, { AxiosError, AxiosInstance } from 'axios';
 import type { ApiResponse, AuthResponse } from '@/types';
 
 export type ApiError = AxiosError<ApiResponse<unknown>> & {
@@ -10,7 +10,6 @@ export function getFriendlyErrorMessage(error: ApiError): string {
     const status = error.response.status;
     const rawMsg = error.response.data?.message?.toLowerCase() ?? '';
 
-    // 401 Unauthorized — bad credentials
     if (status === 401) {
       if (rawMsg.includes('bad') || rawMsg.includes('invalid') || rawMsg.includes('credentials')) {
         return 'Incorrect username or password. Please try again.';
@@ -24,7 +23,6 @@ export function getFriendlyErrorMessage(error: ApiError): string {
       return 'Authentication failed. Please log in again.';
     }
 
-    // 400 Bad Request — bad credentials (direct password check, no AuthManager)
     if (status === 400) {
       if (rawMsg.includes('bad') || rawMsg.includes('invalid') || rawMsg.includes('credentials')) {
         return 'Incorrect username or password. Please try again.';
@@ -38,7 +36,6 @@ export function getFriendlyErrorMessage(error: ApiError): string {
       if (rawMsg.includes('exists') || rawMsg.includes('already')) {
         return 'This record already exists. Please use a different value.';
       }
-      // Generic 400 — show the actual message from backend
       const msg = error.response.data?.message;
       if (msg) return msg;
     }
@@ -58,57 +55,37 @@ export function getFriendlyErrorMessage(error: ApiError): string {
   return 'Something went wrong. Please try again.';
 }
 
-// Tạo axios instance
+/**
+ * All API calls go through the /api/v1 proxy route which:
+ * 1. Reads the backend_token cookie
+ * 2. Forwards the request to the Spring Boot backend with Bearer token
+ * This avoids CORS issues and keeps auth secure.
+ */
 const api: AxiosInstance = axios.create({
-  baseURL: (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082') + '/api/v1',
+  baseURL: '/api/v1',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 });
-api.interceptors.request.use(
-  (config: InternalAxiosRequestConfig) => {
-    if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('token');
-      if (token && config.headers) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
 
-// Response interceptor - xử lý lỗi
 api.interceptors.response.use(
   (response) => response,
   (error: ApiError) => {
     const friendlyMsg = getFriendlyErrorMessage(error);
     error.userFriendlyMessage = friendlyMsg;
 
-    if (error.response) {
-      // Xử lý lỗi 401 - Unauthorized (chỉ redirect khi KHÔNG phải login request)
-      if (error.response.status === 401) {
-        const isLoginRequest =
-          error.config?.url?.includes('/auth/login') ||
-          error.config?.url?.includes('/api/auth/signin');
-        if (!isLoginRequest && typeof window !== 'undefined') {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
-        }
+    if (error.response?.status === 401) {
+      const isLoginRequest = error.config?.url?.includes('/auth/login');
+      if (!isLoginRequest && typeof window !== 'undefined') {
+        window.location.href = '/login';
       }
-    } else if (error.request) {
-      // Request đã gửi nhưng không nhận được response
-      console.error('Network Error:', error.request);
-    } else {
-      console.error('Error:', error.message);
     }
     return Promise.reject(error);
   }
 );
 
-// Re-export api instance
 export { api };
 
 // Auth API
@@ -122,14 +99,6 @@ export const authApi = {
     email: string;
     fullName?: string;
   }) => api.post('/auth/register', data),
-
-  loginWithGoogle: () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/oauth2/authorization/google`;
-  },
-
-  loginWithGithub: () => {
-    window.location.href = `${process.env.NEXT_PUBLIC_API_URL}/api/v1/oauth2/authorization/github`;
-  },
 
   getProfile: () => api.get('/profile'),
 
@@ -264,20 +233,15 @@ export const aiApi = {
 
 // AI Admin API
 export const aiAdminApi = {
-  indexAll: () =>
-    api.post('/ai/admin/knowledge/index-all'),
+  indexAll: () => api.post('/ai/admin/knowledge/index-all'),
 
-  reindexAll: () =>
-    api.post('/ai/admin/knowledge/reindex-all'),
+  reindexAll: () => api.post('/ai/admin/knowledge/reindex-all'),
 
-  clearAll: () =>
-    api.delete('/ai/admin/knowledge/clear-all'),
+  clearAll: () => api.delete('/ai/admin/knowledge/clear-all'),
 
-  indexPosts: () =>
-    api.post('/ai/admin/knowledge/index-posts'),
+  indexPosts: () => api.post('/ai/admin/knowledge/index-posts'),
 
-  indexProfiles: () =>
-    api.post('/ai/admin/knowledge/index-profiles'),
+  indexProfiles: () => api.post('/ai/admin/knowledge/index-profiles'),
 
   indexDocument: (data: {
     documentId: string;
@@ -376,14 +340,12 @@ export const coursesApi = {
   getReviews: (courseId: number) =>
     api.get(`/courses/${courseId}/reviews`),
 
-  // Enrollment
   enroll: (courseId: number) =>
     api.post(`/courses/${courseId}/enroll`),
 
   cancelEnrollment: (courseId: number) =>
     api.delete(`/courses/${courseId}/enroll`),
 
-  // Learning
   getCurriculum: (courseId: number) =>
     api.get(`/courses/${courseId}/curriculum`),
 
@@ -400,14 +362,12 @@ export const coursesApi = {
     lastPositionSeconds?: number;
   }) => api.post(`/courses/${courseId}/progress`, data),
 
-  // My courses
   getMyCourses: (params?: {
     page?: number;
     size?: number;
     status?: string;
   }) => api.get('/courses/my', { params }),
 
-  // Review
   createReview: (data: {
     courseId: number;
     rating: number;
@@ -471,7 +431,6 @@ export const adminCoursesApi = {
 
   delete: (id: number) => api.delete(`/courses/${id}`),
 
-  // Sections
   createSection: (data: {
     courseId: number;
     title: string;
@@ -490,7 +449,6 @@ export const adminCoursesApi = {
 
   deleteSection: (id: number) => api.delete(`/courses/sections/${id}`),
 
-  // Lessons
   createLesson: (data: {
     sectionId: number;
     title: string;
@@ -523,7 +481,6 @@ export const adminCoursesApi = {
 
   deleteLesson: (id: number) => api.delete(`/courses/lessons/${id}`),
 
-  // Documents
   createDocument: (data: {
     lessonId: number;
     title: string;

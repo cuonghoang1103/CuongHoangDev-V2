@@ -89,7 +89,7 @@ export default function AdminUsersPage() {
         size: String(pageSize),
         ...(search && { keyword: search }),
       });
-      const res = await api.get<{ data: PageData<BackendUser> }>(`/api/v1/admin/users?${params}`);
+      const res = await api.get<{ data: PageData<BackendUser> }>(`/admin/users?${params}`);
       const data = res.data?.data;
       setBackendUsers(data?.content || []);
       setTotalPages(data?.totalPages || 0);
@@ -171,7 +171,7 @@ export default function AdminUsersPage() {
 
   const saveRoles = async (userId: number) => {
     try {
-      await api.put(`/api/v1/admin/users/${userId}/roles`, { roles: editRoles });
+      await api.put(`/admin/users/${userId}/roles`, { roles: editRoles });
       toast.success('Cập nhật roles thành công!');
       setEditingId(null);
       fetchBackendUsers();
@@ -188,7 +188,7 @@ export default function AdminUsersPage() {
 
   const toggleEnabled = async (user: BackendUser) => {
     try {
-      await api.patch(`/api/v1/admin/users/${user.id}/toggle-enabled`);
+      await api.patch(`/admin/users/${user.id}/toggle-enabled`);
       toast.success(user.enabled ? 'Đã vô hiệu hóa' : 'Đã kích hoạt');
       fetchBackendUsers();
     } catch {

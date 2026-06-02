@@ -44,8 +44,8 @@ export default function AdminDashboard() {
     const fetchData = async () => {
       try {
         const [postsRes, chatRes] = await Promise.allSettled([
-          api.get('/api/v1/posts/admin/all?page=0&size=5'),
-          api.get('/api/v1/ai/analytics/overview').catch(() => ({ data: { data: {} } })),
+          api.get('/posts/admin/all?page=0&size=5'),
+          api.get('/ai/analytics/overview').catch(() => ({ data: { data: {} } })),
         ]);
 
         const posts = postsRes.status === 'fulfilled' ? postsRes.value.data?.data?.content || [] : [];

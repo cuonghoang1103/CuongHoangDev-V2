@@ -29,16 +29,24 @@ export default function ImageUpload({
   const [errorMsg, setErrorMsg] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const getBackendToken = () => {
+    if (typeof document === 'undefined') return '';
+    const match = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/);
+    return match ? decodeURIComponent(match[1]) : '';
+  };
+
   const uploadToBackend = useCallback(async (file: File): Promise<string | null> => {
     const formData = new FormData();
     formData.append('file', file);
     formData.append('category', folder);
 
-    const res = await fetch('http://localhost:8082/api/v1/files/upload', {
+    const token = getBackendToken();
+    const res = await fetch('/files/upload', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${typeof window !== 'undefined' ? localStorage.getItem('token') || '' : ''}`,
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
       },
+      credentials: 'include',
       body: formData,
     });
 

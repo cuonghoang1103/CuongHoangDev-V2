@@ -57,7 +57,7 @@ export default function AdminSkillsPage() {
         size: String(pageSize),
         ...(categoryFilter && { category: categoryFilter }),
       });
-      const res = await api.get(`/api/v1/skills?${params}`);
+      const res = await api.get(`/skills?${params}`);
       const data = res.data?.data;
       setSkills(data?.content || []);
       setTotalPages(data?.totalPages || 0);
@@ -100,10 +100,10 @@ export default function AdminSkillsPage() {
     setSaving(true);
     try {
       if (editingSkill) {
-        await api.put(`/api/v1/skills/${editingSkill.id}`, form);
+        await api.put(`/skills/${editingSkill.id}`, form);
         toast.success('Cập nhật kỹ năng thành công!');
       } else {
-        await api.post('/api/v1/skills', form);
+        await api.post('/skills', form);
         toast.success('Tạo kỹ năng thành công!');
       }
       closeForm();
@@ -118,7 +118,7 @@ export default function AdminSkillsPage() {
   const handleDelete = async (id: number) => {
     if (!confirm('Xóa kỹ năng này?')) return;
     try {
-      await api.delete(`/api/v1/skills/${id}`);
+      await api.delete(`/skills/${id}`);
       toast.success('Đã xóa kỹ năng');
       fetchSkills();
     } catch {

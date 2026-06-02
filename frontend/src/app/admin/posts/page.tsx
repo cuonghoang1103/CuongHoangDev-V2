@@ -88,7 +88,7 @@ export default function AdminPostsPage() {
         ...(search && { keyword: search }),
         ...(statusFilter && { status: statusFilter }),
       });
-      const res = await api.get(`/api/v1/posts/admin/all?${params}`);
+      const res = await api.get(`/posts/admin/all?${params}`);
       const data = res.data?.data;
       setPosts(data?.content || []);
       setTotalPages(data?.totalPages || 0);
@@ -217,10 +217,10 @@ export default function AdminPostsPage() {
       };
 
       if (editingPost) {
-        await api.put(`/api/v1/posts/admin/${editingPost.id}`, payload);
+        await api.put(`/posts/admin/${editingPost.id}`, payload);
         toast.success('Cập nhật bài viết thành công!');
       } else {
-        await api.post('/api/v1/blog/admin/posts', payload);
+        await api.post('/blog/admin/posts', payload);
         toast.success('Tạo bài viết thành công!');
       }
       closeForm();
@@ -235,7 +235,7 @@ export default function AdminPostsPage() {
   const handleDelete = async (id: number) => {
     if (!confirm('Bạn có chắc muốn xóa bài viết này?')) return;
     try {
-      await api.delete(`/api/v1/blog/admin/posts/${id}`);
+      await api.delete(`/blog/admin/posts/${id}`);
       toast.success('Đã xóa bài viết');
       fetchPosts();
     } catch {

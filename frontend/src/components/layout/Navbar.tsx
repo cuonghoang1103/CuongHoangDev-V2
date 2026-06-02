@@ -114,13 +114,14 @@ export default function Navbar() {
 
   const handleLogout = async () => {
     try {
-      if (session) await signOut({ redirect: false });
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
     } catch {}
     try {
       backendLogout();
     } catch {}
     toast.success('Logged out successfully');
     router.push('/');
+    router.refresh();
   };
 
   const contactItems = [
