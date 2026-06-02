@@ -44,7 +44,7 @@ public class UserDto {
         dto.setProvider(user.getProvider());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setRoleVersion(user.getRoleVersion() != null ? user.getRoleVersion() : 0L);
-        dto.setEnabled(user.isEnabled());
+        dto.setEnabled(user.getEnabled() != null ? user.getEnabled() : true);
         return dto;
     }
 
