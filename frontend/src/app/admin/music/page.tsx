@@ -236,7 +236,7 @@ export default function AdminMusicPage() {
       formData.append('durationSeconds', String(durationSeconds));
 
       const token = getToken();
-      const res = await fetch(`${API}/admin/upload`, {
+      const res = await fetch(`/api/v1/music/admin/upload`, {
         method: 'POST',
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: formData,
