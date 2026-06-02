@@ -26,11 +26,13 @@ export async function POST(request: NextRequest) {
     }
 
     // Call Spring Boot backend
+    console.log("[login] Calling backend:", `${BACKEND_URL}/api/v1/auth/login`);
     const res = await fetch(`${BACKEND_URL}/api/v1/auth/login`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ username, password }),
     });
+    console.log("[login] Backend response status:", res.status);
 
     if (!res.ok) {
       let message = "Incorrect username or password";
@@ -70,8 +72,9 @@ export async function POST(request: NextRequest) {
     return response;
   } catch (err) {
     console.error("[login] Error:", err);
+    const message = err instanceof Error ? err.message : "Server error";
     return NextResponse.json(
-      { success: false, message: "Server error" },
+      { success: false, message },
       { status: 500 }
     );
   }
