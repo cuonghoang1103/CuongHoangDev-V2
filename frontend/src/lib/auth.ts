@@ -33,13 +33,15 @@ export const authConfig: NextAuthConfig = {
   ],
   callbacks: {
     async jwt({ token, account }) {
-      // OAuth first sign-in: fetch/create user in backend and get role
-      if (account && account.provider !== "credentials" && !token.backendRoleFetched) {
+      // OAuth first sign-in: fetch/create user in backend and get role.
+      // Always re-fetch role from backend on every sign-in so ADMIN_EMAILS
+      // changes take effect without waiting for token expiry.
+      if (account && account.provider !== "credentials") {
         const email = token.email as string | undefined;
         const name = token.name as string | undefined;
         const provider = account.provider;
 
-          if (email) {
+        if (email) {
           const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
           try {
             const res = await fetch(`${BACKEND_URL}/api/v1/auth/oauth/register`, {
@@ -74,7 +76,6 @@ export const authConfig: NextAuthConfig = {
 
         token.isSocialUser = true;
         token.provider = provider;
-        token.backendRoleFetched = true;
       }
 
       return token;

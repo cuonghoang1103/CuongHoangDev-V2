@@ -102,8 +102,11 @@ export default function Navbar() {
   const isAuthenticated = mounted && (isBackendAuth || !!session);
   // Backend user has roles; social login users (session.user) don't
   const displayUser = mounted ? ((session?.user || backendUser) as any) : backendUser;
-  const isAdmin = mounted && !!backendUser?.roles?.some(
-    (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+  const isAdmin = mounted && (
+    !!backendUser?.roles?.some(
+      (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+    ) ||
+    (!!session?.user && (session.user.role as string || '').replace('ROLE_', '').toUpperCase() === 'ADMIN')
   );
 
   useEffect(() => {

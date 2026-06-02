@@ -33,45 +33,54 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    // Get backend_token cookie
     const getToken = () => {
       const match = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/);
       return match ? decodeURIComponent(match[1]) : '';
     };
 
     const token = getToken();
-    if (!token) {
-      router.push('/login?redirect=' + pathname);
-      return;
-    }
 
-    // Fetch current user profile from backend
-    fetch('/api/v1/profile', {
-      credentials: 'include',
-    })
-      .then((res) => {
+    const checkAuth = async () => {
+      // Credentials user: use backend_token + /api/v1/profile
+      if (token) {
+        try {
+          const res = await fetch('/api/v1/profile', {
+            credentials: 'include',
+            headers: { Authorization: `Bearer ${token}` },
+          });
+          if (!res.ok) throw new Error('Unauthorized');
+          const data = await res.json();
+          const user = data.data;
+          const roles = user?.roles || [];
+          const isAdmin = roles.some(
+            (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+          );
+          if (!isAdmin) { router.push('/'); return; }
+          setCurrentUser({ name: user?.fullName || user?.username || 'Admin', email: user?.email || '' });
+          setAuthChecked(true);
+          return;
+        } catch { router.push('/login?redirect=' + pathname); return; }
+      }
+
+      // OAuth user (NextAuth): use session-based profile endpoint
+      try {
+        const res = await fetch('/api/v1/profile/session', { credentials: 'include' });
         if (!res.ok) throw new Error('Unauthorized');
-        return res.json();
-      })
-      .then((data) => {
+        const data = await res.json();
         const user = data.data;
         const roles = user?.roles || [];
         const isAdmin = roles.some(
           (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
         );
-        if (!isAdmin) {
-          router.push('/');
-          return;
-        }
-        setCurrentUser({
-          name: user?.fullName || user?.username || 'Admin',
-          email: user?.email || '',
-        });
+        if (!isAdmin) { router.push('/'); return; }
+        setCurrentUser({ name: user?.fullName || user?.username || 'Admin', email: user?.email || '' });
         setAuthChecked(true);
-      })
-      .catch(() => {
+      } catch {
         router.push('/login?redirect=' + pathname);
-      });
+      }
+    };
+
+    checkAuth();
   }, [pathname, router]);
 
   const handleLogout = async () => {
