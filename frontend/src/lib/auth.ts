@@ -80,11 +80,17 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     async jwt({ token, user, account }) {
       if (user) {
         token.id = user.id ?? "";
-        token.role = (user as any).role || "USER";
         token.username = (user as any).username;
-        // Social users (non-credentials) are identified by their OAuth provider
         token.isSocialUser = account?.provider !== "credentials";
         token.provider = account?.provider;
+
+        // Determine role: ADMIN if email is in ADMIN_EMAILS env var, otherwise USER
+        const adminEmails = (process.env.ADMIN_EMAILS || "")
+          .split(",")
+          .map((e) => e.trim().toLowerCase())
+          .filter(Boolean);
+        const email = (token.email as string || "").toLowerCase();
+        token.role = adminEmails.includes(email) ? "ADMIN" : "USER";
       }
       return token;
     },
