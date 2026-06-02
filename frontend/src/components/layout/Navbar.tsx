@@ -109,6 +109,16 @@ export default function Navbar() {
     (!!session?.user && (session.user.role as string || '').replace('ROLE_', '').toUpperCase() === 'ADMIN')
   );
 
+  // DEBUG: remove after testing
+  if (mounted && session?.user) {
+    const role = (session.user.role as string || 'UNDEFINED');
+    if (role === 'UNDEFINED') {
+      console.warn('[Navbar] session.user.role is UNDEFINED — JWT callback not setting role!');
+    } else {
+      console.log('[Navbar] session.user.role:', role, '→ isAdmin:', isAdmin);
+    }
+  }
+
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);
     window.addEventListener('scroll', handleScroll);
