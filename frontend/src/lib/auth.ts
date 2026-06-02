@@ -33,45 +33,47 @@ export const authConfig: NextAuthConfig = {
   ],
   callbacks: {
     async jwt({ token, account }) {
-      // OAuth first sign-in: fetch/create user in backend and get role.
-      // Always re-fetch role from backend on every sign-in so ADMIN_EMAILS
-      // changes take effect without waiting for token expiry.
-      if (account && account.provider !== "credentials") {
-        const email = token.email as string | undefined;
+      // Always re-fetch role from backend when we have an email.
+      // This ensures role updates (ADMIN_EMAILS changes, DB updates) take effect
+      // on next sign-in without waiting for token expiry.
+      // account != null  → fresh OAuth sign-in
+      // account == null  → existing session hydration or re-auth; email is in token
+      const email = token.email as string | undefined;
+      const isOAuth = account?.provider !== "credentials";
+
+      if (isOAuth && email) {
+        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
         const name = token.name as string | undefined;
         const provider = account.provider;
 
-        if (email) {
-          const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
-          try {
-            const res = await fetch(`${BACKEND_URL}/api/v1/auth/oauth/register`, {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                email,
-                fullName: name ?? email.split("@")[0],
-                provider,
-                providerId: token.sub ?? "",
-              }),
-            });
+        try {
+          const res = await fetch(`${BACKEND_URL}/api/v1/auth/oauth/register`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              email,
+              fullName: name ?? email.split("@")[0],
+              provider,
+              providerId: token.sub ?? "",
+            }),
+          });
 
-            if (res.ok) {
-              const data = await res.json();
-              token.id = String(data.data?.id ?? token.sub ?? "");
-              token.role = normalizeRole(data.data?.primaryRole ?? "USER");
-              token.username = data.data?.username ?? email.split("@")[0];
-            } else {
-              console.error("[nextauth] OAuth register failed:", res.status);
-              token.id = token.sub ?? "";
-              token.role = guessRoleFromEmail(email);
-              token.username = email.split("@")[0];
-            }
-          } catch (err) {
-            console.error("[nextauth] OAuth backend unreachable:", err);
+          if (res.ok) {
+            const data = await res.json();
+            token.id = String(data.data?.id ?? token.sub ?? "");
+            token.role = normalizeRole(data.data?.primaryRole ?? "USER");
+            token.username = data.data?.username ?? email.split("@")[0];
+          } else {
+            console.error("[nextauth] OAuth register failed:", res.status);
             token.id = token.sub ?? "";
-            token.role = guessRoleFromEmail(email ?? "");
-            token.username = (email ?? "").split("@")[0];
+            token.role = guessRoleFromEmail(email);
+            token.username = email.split("@")[0];
           }
+        } catch (err) {
+          console.error("[nextauth] OAuth backend unreachable:", err);
+          token.id = token.sub ?? "";
+          token.role = guessRoleFromEmail(email ?? "");
+          token.username = (email ?? "").split("@")[0];
         }
 
         token.isSocialUser = true;
