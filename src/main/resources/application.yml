@@ -108,6 +108,7 @@ app:
     secret: ${JWT_SECRET:CuongHoangDevV2SecretKeyNangCao2026NheMaNayCanItNhat256BitNhe}
     expiration-ms: 86400000
   base-url: ${APP_BASE_URL:}
+  admin-emails: ${ADMIN_EMAILS:}
   file:
     storage-path: ${APP_FILE_STORAGE_PATH:/app/uploads}
   email:

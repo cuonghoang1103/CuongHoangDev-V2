@@ -15,6 +15,7 @@ import com.cuonghoangdev.api_backend.repository.UserRepository;
 import com.cuonghoangdev.api_backend.security.JwtTokenProvider;
 import com.cuonghoangdev.api_backend.security.UserPrincipal;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -47,6 +48,9 @@ public class AuthService {
 
     @Autowired
     private EmailService emailService;
+
+    @Value("${app.admin-emails:}")
+    private String adminEmails;
 
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
@@ -188,7 +192,18 @@ public class AuthService {
     public User oauthRegister(OAuthRegisterRequest request) {
         Optional<User> byEmail = userRepository.findByEmail(request.getEmail());
         if (byEmail.isPresent()) {
-            return byEmail.get();
+            User existing = byEmail.get();
+            // Re-check ADMIN_EMAILS — upgrade role if this email is now an admin
+            if (isAdminEmail(request.getEmail()) && !hasRole(existing, "ROLE_ADMIN")) {
+                Role adminRole = roleRepository.findByName("ROLE_ADMIN")
+                        .orElseGet(() -> {
+                            Role r = new Role("ROLE_ADMIN");
+                            return roleRepository.save(r);
+                        });
+                existing.getRoles().add(adminRole);
+                return userRepository.save(existing);
+            }
+            return existing;
         }
 
         Optional<User> byProvider = userRepository.findByProviderAndProviderId(
@@ -209,17 +224,37 @@ public class AuthService {
         user.setAccountNonLocked(true);
         user.setCredentialsNonExpired(true);
 
+        Set<Role> roles = new HashSet<>();
+        if (isAdminEmail(request.getEmail())) {
+            Role adminRole = roleRepository.findByName("ROLE_ADMIN")
+                    .orElseGet(() -> {
+                        Role r = new Role("ROLE_ADMIN");
+                        return roleRepository.save(r);
+                    });
+            roles.add(adminRole);
+        }
         Role userRole = roleRepository.findByName("ROLE_USER")
                 .orElseGet(() -> {
                     Role r = new Role("ROLE_USER");
                     return roleRepository.save(r);
                 });
-
-        Set<Role> roles = new HashSet<>();
         roles.add(userRole);
         user.setRoles(roles);
 
         return userRepository.save(user);
+    }
+
+    private boolean isAdminEmail(String email) {
+        if (adminEmails == null || adminEmails.isBlank()) return false;
+        return java.util.Arrays.stream(adminEmails.split(","))
+                .map(String::trim)
+                .map(String::toLowerCase)
+                .anyMatch(e -> e.equals(email.toLowerCase()));
+    }
+
+    private boolean hasRole(User user, String roleName) {
+        return user.getRoles().stream()
+                .anyMatch(r -> r.getName().equals(roleName));
     }
 
     private String generateOAuthUsername(String email) {
