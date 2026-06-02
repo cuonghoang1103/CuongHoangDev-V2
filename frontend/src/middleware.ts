@@ -4,7 +4,7 @@ import { getToken } from 'next-auth/jwt';
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082';
 
 export async function middleware(request: NextRequest) {
-  const { pathname } = request.url;
+  const pathname = request.nextUrl.pathname;
   console.log('[middleware] pathname:', pathname, 'cookies:', request.cookies.getAll().map(c => c.name));
 
   if (pathname.startsWith('/admin')) {
@@ -76,5 +76,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/admin/:path*'],
+  matcher: ['/admin/:path*', '/admin'],
 };
