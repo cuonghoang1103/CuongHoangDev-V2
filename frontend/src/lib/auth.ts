@@ -39,7 +39,7 @@ export const authConfig: NextAuthConfig = {
         const name = token.name as string | undefined;
         const provider = account.provider;
 
-        if (email) {
+          if (email) {
           const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
           try {
             const res = await fetch(`${BACKEND_URL}/api/v1/auth/oauth/register`, {
@@ -59,11 +59,13 @@ export const authConfig: NextAuthConfig = {
               token.role = normalizeRole(data.data?.primaryRole ?? "USER");
               token.username = data.data?.username ?? email.split("@")[0];
             } else {
+              console.error("[nextauth] OAuth register failed:", res.status);
               token.id = token.sub ?? "";
               token.role = guessRoleFromEmail(email);
               token.username = email.split("@")[0];
             }
-          } catch {
+          } catch (err) {
+            console.error("[nextauth] OAuth backend unreachable:", err);
             token.id = token.sub ?? "";
             token.role = guessRoleFromEmail(email ?? "");
             token.username = (email ?? "").split("@")[0];
