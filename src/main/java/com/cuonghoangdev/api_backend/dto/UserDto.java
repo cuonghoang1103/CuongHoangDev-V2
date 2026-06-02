@@ -23,6 +23,7 @@ public class UserDto {
     /** Monotonically increasing version — increments every time roles change.
         Used by NextAuth to detect stale sessions. */
     private Long roleVersion;
+    private boolean enabled;
 
     public static UserDto fromEntity(User user) {
         UserDto dto = new UserDto();
@@ -43,6 +44,7 @@ public class UserDto {
         dto.setProvider(user.getProvider());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setRoleVersion(user.getRoleVersion() != null ? user.getRoleVersion() : 0L);
+        dto.setEnabled(user.isEnabled());
         return dto;
     }
 
@@ -133,5 +135,13 @@ public class UserDto {
 
     public void setRoleVersion(Long roleVersion) {
         this.roleVersion = roleVersion;
+    }
+
+    public boolean isEnabled() {
+        return enabled;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
     }
 }
