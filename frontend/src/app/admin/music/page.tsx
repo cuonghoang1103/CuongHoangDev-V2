@@ -175,7 +175,11 @@ export default function AdminMusicPage() {
         let finalCoverImage = coverImage;
         if (coverFile) {
           const coverRes = await fileApi.upload(coverFile, 'music-covers');
-          finalCoverImage = coverRes.data?.data?.url || coverImage;
+          finalCoverImage = coverRes.data?.data?.url || null;
+        }
+        // Don't save blob: URLs (local preview that won't persist)
+        if (finalCoverImage?.startsWith('blob:')) {
+          finalCoverImage = null;
         }
 
         await apiFetch(`/admin/tracks/${editingId}`, {
@@ -198,8 +202,8 @@ export default function AdminMusicPage() {
         }
         const uploadRes = await uploadAudioFile(audioFile);
         const finalCover = coverFile
-          ? (await fileApi.upload(coverFile, 'music-covers'))?.data?.data?.url || coverImage
-          : coverImage;
+          ? (await fileApi.upload(coverFile, 'music-covers'))?.data?.data?.url || null
+          : (coverImage && !coverImage.startsWith('blob:') ? coverImage : null);
 
         await apiFetch('/admin/tracks', {
           method: 'POST',
