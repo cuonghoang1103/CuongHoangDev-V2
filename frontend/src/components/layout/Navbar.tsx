@@ -98,6 +98,10 @@ export default function Navbar() {
     return () => window.removeEventListener('auth-updated', handler);
   }, []);
 
+  // ── Auth state ──────────────────────────────────────────────────────────
+  const isAuthenticated = mounted && (isBackendAuth || !!session);
+  const displayUser = mounted ? ((session?.user || backendUser) as any) : backendUser;
+
   // ── Admin check ──────────────────────────────────────────────────────────
   // For NextAuth (OAuth) users: trust the session role if present and non-default.
   // For users already on /admin/* pages: middleware already verified ADMIN from the
