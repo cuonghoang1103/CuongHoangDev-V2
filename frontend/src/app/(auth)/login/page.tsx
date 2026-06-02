@@ -58,11 +58,12 @@ function LoginForm() {
         setBackendError(errorMsg);
         toast.error(errorMsg);
       } else {
+        let profileData = null;
         // Fetch profile and sync to Zustand store so Navbar shows logged-in state
         try {
           const profileRes = await fetch('/api/v1/profile', { credentials: 'include' });
           if (profileRes.ok) {
-            const profileData = await profileRes.json();
+            profileData = await profileRes.json();
             const user = profileData.data;
             if (user && typeof window !== 'undefined') {
               const authResponse = {
@@ -91,7 +92,7 @@ function LoginForm() {
         // Determine redirect destination:
         // - Admin role  → /admin
         // - Normal user  → redirect param or /
-        const roles: string[] = profileData.data?.roles ?? [];
+        const roles: string[] = profileData?.data?.roles ?? [];
         const isAdmin = roles.some(
           (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
         );
