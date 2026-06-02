@@ -7,11 +7,12 @@ import { useSession } from 'next-auth/react';
 import {
   LayoutDashboard, FileText, Users, Code2, Sparkles,
   LogOut, Menu, X, ChevronRight, Shield,
-  MessageSquare, BarChart3, BookOpen, ShoppingBag, Tag, Receipt,
+  MessageSquare, BarChart3, BookOpen, ShoppingBag, Tag, Receipt, Music,
 } from 'lucide-react';
 
 const adminNav = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { label: 'Quan ly Nhac', href: '/admin/music', icon: Music },
   { label: 'Quản lý Khoá học', href: '/admin/courses', icon: BookOpen },
   { label: 'Danh mục Khoá học', href: '/admin/course-categories', icon: Sparkles },
   { label: 'Quản lý Shop', href: '/admin/shop', icon: ShoppingBag },

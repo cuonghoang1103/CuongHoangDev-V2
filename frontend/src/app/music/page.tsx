@@ -1,92 +1,66 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Headphones, ListMusic } from 'lucide-react';
 import TrackList from '@/components/music/TrackList';
-import UploadTrackModal from '@/components/music/UploadTrackModal';
 import { useMusicStore } from '@/store/musicStore';
 import type { Track } from '@/types';
+import { Loader2 } from 'lucide-react';
 
-const SAMPLE_TRACKS: Track[] = [
-  {
-    id: 'sample-1',
-    title: 'Midnight Code',
-    artist: 'LoFi Beats',
-    duration: '3:24',
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-    coverImage: 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&q=80',
-  },
-  {
-    id: 'sample-2',
-    title: 'Deep Focus',
-    artist: 'Chill Wave',
-    duration: '4:12',
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-    coverImage: 'https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?w=400&q=80',
-  },
-  {
-    id: 'sample-3',
-    title: 'Neon Dreams',
-    artist: 'Synthwave FM',
-    duration: '3:58',
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
-    coverImage: 'https://images.unsplash.com/photo-1514525253161-7a46d19cd819?w=400&q=80',
-  },
-  {
-    id: 'sample-4',
-    title: 'Rainy Afternoon',
-    artist: 'Ambient Lab',
-    duration: '5:33',
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-4.mp3',
-    coverImage: 'https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=400&q=80',
-  },
-  {
-    id: 'sample-5',
-    title: 'Coffee Shop Vibes',
-    artist: 'Jazz Hop',
-    duration: '3:45',
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-5.mp3',
-    coverImage: 'https://images.unsplash.com/photo-1511379938547-c1f69419868d?w=400&q=80',
-  },
-  {
-    id: 'sample-6',
-    title: 'Late Night Debugging',
-    artist: 'Code & Coffee',
-    duration: '4:20',
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-6.mp3',
-    coverImage: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=400&q=80',
-  },
-  {
-    id: 'sample-7',
-    title: 'Sunrise Productivity',
-    artist: 'Morning Mix',
-    duration: '3:15',
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-7.mp3',
-    coverImage: 'https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80',
-  },
-  {
-    id: 'sample-8',
-    title: 'Electric Soul',
-    artist: 'Neon Pulse',
-    duration: '4:48',
-    audioUrl: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-8.mp3',
-    coverImage: 'https://images.unsplash.com/photo-1470225620780-dba8ba36b745?w=400&q=80',
-  },
-];
+function getToken(): string {
+  if (typeof window === 'undefined') return '';
+  return localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
+}
+
+async function fetchBackendTracks(): Promise<Track[]> {
+  try {
+    const token = getToken();
+    const res = await fetch('/api/v1/music/tracks', {
+      ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    return (data.data || []).map((t: any) => ({
+      id: String(t.id),
+      title: t.title,
+      artist: t.artist,
+      duration: formatSeconds(t.durationSeconds),
+      audioUrl: t.audioUrl,
+      coverImage: t.coverImage || '',
+    }));
+  } catch {
+    return [];
+  }
+}
+
+function formatSeconds(seconds?: number): string {
+  if (!seconds) return '0:00';
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  return `${m}:${s.toString().padStart(2, '0')}`;
+}
 
 export default function MusicPage() {
   const { tracks, setTracks, isHydrated } = useMusicStore();
-  const [uploadOpen, setUploadOpen] = useState(false);
   const [initialized, setInitialized] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Bootstrap sample tracks ONLY when store is empty (no local tracks, no sample tracks)
   useEffect(() => {
     if (!isHydrated || initialized) return;
-    if (tracks.length === 0) {
-      setTracks(SAMPLE_TRACKS);
-    }
-    setInitialized(true);
-  }, [isHydrated, initialized, tracks.length, setTracks]);
+
+    const init = async () => {
+      const backendTracks = await fetchBackendTracks();
+
+      // Only set backend tracks if the store is empty (no localStorage data)
+      if (tracks.length === 0) {
+        setTracks(backendTracks);
+      }
+      setInitialized(true);
+      setLoading(false);
+    };
+
+    init();
+  }, [isHydrated, initialized]);
 
   const totalSeconds = tracks.reduce((acc, t) => {
     const parts = t.duration.split(':').map(Number);
@@ -130,10 +104,10 @@ export default function MusicPage() {
       </section>
 
       <section className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-32">
-        {showSkeleton ? (
+        {loading || showSkeleton ? (
           <div className="flex items-center justify-center h-64">
             <div className="flex items-center gap-3 text-text-muted">
-              <div className="w-5 h-5 border-2 border-neon-violet border-t-transparent rounded-full animate-spin" />
+              <Loader2 className="w-5 h-5 border-2 border-neon-violet border-t-transparent rounded-full animate-spin" />
               <span className="text-sm">Loading your music...</span>
             </div>
           </div>
@@ -168,14 +142,12 @@ export default function MusicPage() {
               </div>
 
               <div className="bg-darkcard rounded-2xl border border-darkborder p-5">
-                <TrackList onUploadClick={() => setUploadOpen(true)} />
+                <TrackList onUploadClick={() => {}} />
               </div>
             </div>
           </div>
         )}
       </section>
-
-      <UploadTrackModal isOpen={uploadOpen} onClose={() => setUploadOpen(false)} />
     </div>
   );
 }
