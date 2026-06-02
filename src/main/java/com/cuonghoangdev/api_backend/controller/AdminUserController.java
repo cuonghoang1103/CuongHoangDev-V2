@@ -67,7 +67,7 @@ public class AdminUserController {
     }
 
     @PostMapping
-    public ResponseEntity<ApiResponse<User>> createUser(@Valid @RequestBody CreateUserRequest request) {
+    public ResponseEntity<ApiResponse<UserDto>> createUser(@Valid @RequestBody CreateUserRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
             throw new BadRequestException("Username da ton tai");
         }
@@ -97,7 +97,7 @@ public class AdminUserController {
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<User>> updateUser(
+    public ResponseEntity<ApiResponse<UserDto>> updateUser(
             @PathVariable Long id,
             @Valid @RequestBody UpdateUserRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
