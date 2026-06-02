@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
@@ -103,55 +103,67 @@ export default function Navbar() {
   const displayUser = mounted ? ((session?.user || backendUser) as any) : backendUser;
 
   // ── Admin check — ALWAYS verify from backend to ensure fresh role ──
-  // We check the backend profile on every session change. This is the only way
-  // to guarantee the Navbar shows the correct admin state after role changes.
+  // Triggered by: (1) component mount (2) auth-updated event (3) backendUser change
+  // This guarantees the Navbar updates for both credentials AND OAuth users immediately.
   const [verifiedAdmin, setVerifiedAdmin] = useState(false);
 
+  const verifyAdmin = useCallback(async () => {
+    // Credentials user: read token DIRECTLY from Zustand state (not from closure)
+    const token = useAuthStore.getState().token;
+    if (token) {
+      try {
+        const res = await fetch('/api/v1/profile', {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const roles: string[] = data.data?.roles ?? [];
+          const isAdmin = roles.some(
+            (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+          );
+          setVerifiedAdmin(isAdmin);
+          return;
+        }
+      } catch {}
+    }
+
+    // OAuth user: fetch profile using httpOnly cookie (backend_token set by oauth-callback)
+    if (session?.user?.email) {
+      try {
+        const res = await fetch('/api/v1/profile', {
+          credentials: 'include',
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const roles: string[] = data.data?.roles ?? [];
+          const isAdmin = roles.some(
+            (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+          );
+          setVerifiedAdmin(isAdmin);
+          return;
+        }
+      } catch {}
+    }
+
+    setVerifiedAdmin(false);
+  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Run on mount (after hydration) — catches users who already have a token in localStorage
   useEffect(() => {
     if (!mounted) return;
-
-    const verifyAdmin = async () => {
-      // Credentials user: use token from localStorage
-      if (backendUser?.token) {
-        try {
-          const res = await fetch('/api/v1/profile', {
-            headers: { Authorization: `Bearer ${backendUser.token}` },
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const roles: string[] = data.data?.roles ?? [];
-            const isAdmin = roles.some(
-              (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
-            );
-            setVerifiedAdmin(isAdmin);
-            return;
-          }
-        } catch {}
-      }
-
-      // OAuth user: fetch profile using httpOnly cookie (backend_token set by oauth-callback)
-      if (session?.user?.email) {
-        try {
-          const res = await fetch('/api/v1/profile', {
-            credentials: 'include',
-          });
-          if (res.ok) {
-            const data = await res.json();
-            const roles: string[] = data.data?.roles ?? [];
-            const isAdmin = roles.some(
-              (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
-            );
-            setVerifiedAdmin(isAdmin);
-            return;
-          }
-        } catch {}
-      }
-
-      setVerifiedAdmin(false);
-    };
-
     verifyAdmin();
-  }, [session, backendUser, mounted]);
+  }, [mounted, verifyAdmin]);
+
+  // Re-run when auth-updated event fires (dispatched by login page after credentials login)
+  useEffect(() => {
+    const handler = () => {
+      // Delay slightly to let Zustand update first
+      setTimeout(verifyAdmin, 50);
+    };
+    window.addEventListener('auth-updated', handler);
+    return () => window.removeEventListener('auth-updated', handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verifyAdmin]); // Only depend on id to avoid infinite loops
 
   const isAdmin = mounted && verifiedAdmin;
 
