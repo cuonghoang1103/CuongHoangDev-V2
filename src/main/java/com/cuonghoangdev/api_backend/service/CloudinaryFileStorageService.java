@@ -47,6 +47,28 @@ public class CloudinaryFileStorageService {
         return cloudName;
     }
 
+    public String getApiKey() {
+        return apiKey;
+    }
+
+    public String getApiSecret() {
+        return apiSecret;
+    }
+
+    public String sign(String toSign) {
+        try {
+            java.security.MessageDigest md = java.security.MessageDigest.getInstance("SHA-1");
+            byte[] hash = md.digest(toSign.getBytes("UTF-8"));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : hash) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
+
     public FileUploadResult upload(MultipartFile file, String folder) throws IOException {
         if (!configured) {
             throw new IOException("Cloudinary chua duoc cau hinh. Vui long kiem tra CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET");

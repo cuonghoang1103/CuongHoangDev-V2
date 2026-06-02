@@ -194,7 +194,7 @@ export default function AdminMusicPage() {
         });
         toast.success('Cap nhat thanh cong');
       } else {
-        // Create new — upload audio first
+        // Create new — upload audio directly to Cloudinary, then create track
         if (!audioFile) {
           toast.error('Vui long tai len file nhac');
           setSaving(false);
@@ -213,6 +213,8 @@ export default function AdminMusicPage() {
             audioUrl: uploadRes.url,
             coverImage: finalCover,
             durationSeconds,
+            publicId: uploadRes.publicId,
+            fileSize: audioFile.size,
             active: true,
           }),
         });
@@ -229,37 +231,54 @@ export default function AdminMusicPage() {
     }
   };
 
+  // Upload directly to Cloudinary to bypass Vercel's 4.5MB body limit
+  // Returns { url, publicId } — does NOT create track record
   const uploadAudioFile = async (file: File): Promise<{ url: string; publicId: string }> => {
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('title', title);
-      formData.append('artist', artist);
-      formData.append('coverUrl', coverImage);
-      formData.append('durationSeconds', String(durationSeconds));
-
       const token = getToken();
-      const res = await fetch(`/api/v1/music/admin/upload`, {
-        method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
+
+      // Step 1: Get signed upload params from backend
+      const signRes = await fetch(`${API}/admin/upload/sign`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      // Read response regardless of status
-      let msg = '';
-      try {
-        const errData = await res.clone().json();
-        msg = errData.message || errData.error || '';
-      } catch {}
-
-      if (!res.ok) {
-        const detail = msg || `HTTP ${res.status}`;
-        throw new Error(`Upload that bai: ${detail}`);
+      if (!signRes.ok) {
+        const err = await signRes.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${signRes.status}`);
       }
 
-      const data = await res.json();
-      return { url: data.data.url, publicId: data.data.publicId };
+      const signData = await signRes.json();
+      if (!signData.data) {
+        throw new Error('Khong the lay upload signature');
+      }
+
+      const { cloudName, apiKey, timestamp, signature, folder, publicId } = signData.data;
+
+      // Step 2: Upload directly to Cloudinary from browser (no Vercel proxy)
+      const uploadFormData = new FormData();
+      uploadFormData.append('file', file);
+      uploadFormData.append('api_key', apiKey);
+      uploadFormData.append('timestamp', String(timestamp));
+      uploadFormData.append('signature', signature);
+      uploadFormData.append('folder', folder);
+      uploadFormData.append('public_id', publicId);
+      uploadFormData.append('resource_type', 'auto');
+
+      const uploadRes = await fetch(
+        `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
+        { method: 'POST', body: uploadFormData }
+      );
+
+      if (!uploadRes.ok) {
+        const errText = await uploadRes.text();
+        throw new Error(`Cloudinary upload failed: ${errText}`);
+      }
+
+      const uploadResult = await uploadRes.json();
+      return { url: uploadResult.secure_url, publicId };
+    } catch (err: any) {
+      throw new Error(err.message || 'Upload that bai');
     } finally {
       setUploading(false);
     }

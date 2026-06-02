@@ -1,8 +1,11 @@
 package com.cuonghoangdev.api_backend.controller;
 
+import com.cloudinary.api.signing.CloudinarySignRequest;
+import com.cloudinary.utils.ObjectUtils;
 import com.cuonghoangdev.api_backend.dto.ApiResponse;
 import com.cuonghoangdev.api_backend.dto.MusicTrackDto;
 import com.cuonghoangdev.api_backend.entity.MusicTrack;
+import com.cuonghoangdev.api_backend.service.CloudinaryFileStorageService;
 import com.cuonghoangdev.api_backend.service.MusicTrackService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
@@ -11,8 +14,10 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.Date;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/music")
@@ -23,7 +28,7 @@ public class MusicController {
     private MusicTrackService musicTrackService;
 
     @Autowired
-    private com.cuonghoangdev.api_backend.service.CloudinaryFileStorageService cloudinaryService;
+    private CloudinaryFileStorageService cloudinaryService;
 
     // Public: anyone can view active tracks
     @GetMapping("/tracks")
@@ -143,6 +148,40 @@ public class MusicController {
             return ResponseEntity.badRequest().body(Map.of(
                 "success", false,
                 "message", "Upload failed: " + e.getMessage()
+            ));
+        }
+    }
+
+    // Return signed upload params so frontend can upload directly to Cloudinary
+    // This bypasses the Vercel 4.5MB body limit entirely
+    @PostMapping("/admin/upload/sign")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> getUploadSignature() {
+        try {
+            long timestamp = System.currentTimeMillis() / 1000;
+            String folder = "music";
+            String publicId = timestamp + "_" + UUID.randomUUID().toString().substring(0, 8);
+
+            // Build the string to sign for Cloudinary
+            String toSign = "folder=" + folder + "&public_id=" + publicId + "&timestamp=" + timestamp
+                    + cloudinaryService.getApiSecret();
+            String signature = cloudinaryService.sign(toSign);
+
+            return ResponseEntity.ok(Map.of(
+                "success", true,
+                "data", Map.of(
+                    "cloudName", cloudinaryService.getCloudName(),
+                    "apiKey", cloudinaryService.getApiKey(),
+                    "timestamp", timestamp,
+                    "signature", signature,
+                    "folder", folder,
+                    "publicId", publicId
+                )
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of(
+                "success", false,
+                "message", "Failed to generate upload signature: " + e.getMessage()
             ));
         }
     }
