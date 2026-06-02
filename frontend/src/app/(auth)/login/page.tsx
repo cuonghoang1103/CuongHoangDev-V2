@@ -68,7 +68,7 @@ function LoginForm() {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (profileRes.ok) {
-            const profileData = await profileRes.json();
+            profileData = await profileRes.json();
             const user = profileData.data;
             if (user && typeof window !== 'undefined') {
               localStorage.setItem('user', JSON.stringify({

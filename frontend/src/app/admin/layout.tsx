@@ -36,14 +36,17 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     const checkAuth = async () => {
-      const backendToken = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] || '';
+      // Read token from localStorage (set by login) OR from cookie (set by API route)
+      const localToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+      const cookieToken = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] ?? '';
+      const token = localToken || cookieToken;
 
       // ── Credentials user: verify via backend token ──
-      if (backendToken) {
+      if (token) {
         try {
           const res = await fetch('/api/v1/profile', {
             credentials: 'include',
-            headers: { Authorization: `Bearer ${backendToken}` },
+            headers: { Authorization: `Bearer ${token}` },
           });
           if (!res.ok) throw new Error('Unauthorized');
           const data = await res.json();

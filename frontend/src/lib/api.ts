@@ -79,7 +79,11 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       const isLoginRequest = error.config?.url?.includes('/auth/login');
       if (!isLoginRequest && typeof window !== 'undefined') {
-        window.location.href = '/login';
+        // Redirect to login preserving current URL so user can return after login
+        const currentPath = window.location.pathname;
+        window.location.href = currentPath !== '/login'
+          ? `/login?redirect=${encodeURIComponent(currentPath)}`
+          : '/login';
       }
     }
     return Promise.reject(error);
