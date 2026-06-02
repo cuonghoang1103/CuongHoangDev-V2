@@ -48,7 +48,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const router = useRouter();
   const { data: session } = useSession();
-  const { user: backendUser, isAuthenticated: isBackendAuth, logout: backendLogout } = useAuthStore();
+  const { user: backendUser, isAuthenticated: isBackendAuth, logout: backendLogout, setAuth, updateUser } = useAuthStore();
   const { getTotalItems, openDrawer } = useCartStore();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -67,6 +67,35 @@ export default function Navbar() {
     } else {
       setLocale('en');
     }
+  }, []);
+
+  // Sync localStorage into Zustand store on mount
+  useEffect(() => {
+    const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('token');
+    if (storedUser && storedToken && !backendUser) {
+      try {
+        const user = JSON.parse(storedUser);
+        setAuth({
+          userId: user.id,
+          username: user.username,
+          email: user.email,
+          role: user.roles?.[0] ?? 'USER',
+          roles: user.roles ?? [],
+          token: storedToken,
+        });
+      } catch {}
+    }
+  }, []);
+
+  // Listen for auth-updated event from login page
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const auth = (e as CustomEvent).detail;
+      setAuth(auth);
+    };
+    window.addEventListener('auth-updated', handler);
+    return () => window.removeEventListener('auth-updated', handler);
   }, []);
 
   // Merge NextAuth session with backend auth

@@ -58,8 +58,51 @@ function LoginForm() {
         setBackendError(errorMsg);
         toast.error(errorMsg);
       } else {
+        // Fetch profile and sync to Zustand store so Navbar shows logged-in state
+        try {
+          const profileRes = await fetch('/api/v1/profile', { credentials: 'include' });
+          if (profileRes.ok) {
+            const profileData = await profileRes.json();
+            const user = profileData.data;
+            if (user && typeof window !== 'undefined') {
+              const authResponse = {
+                userId: user.id,
+                username: user.username,
+                email: user.email,
+                role: user.primaryRole || (user.roles?.[0] ?? 'USER'),
+                roles: user.roles ?? [],
+                token: document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] ?? '',
+              };
+              localStorage.setItem('token', authResponse.token);
+              localStorage.setItem('user', JSON.stringify({
+                id: authResponse.userId,
+                username: authResponse.username,
+                email: authResponse.email,
+                roles: authResponse.roles,
+                enabled: true,
+                accountNonLocked: true,
+                createdAt: new Date().toISOString(),
+              }));
+              window.dispatchEvent(new CustomEvent('auth-updated', { detail: authResponse }));
+            }
+          }
+        } catch {}
+
+        // Determine redirect destination:
+        // - Admin role  → /admin
+        // - Normal user  → redirect param or /
+        const roles: string[] = profileData.data?.roles ?? [];
+        const isAdmin = roles.some(
+          (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+        );
+        let dest = '/';
+        if (isAdmin) {
+          dest = '/admin';
+        } else if (redirect && redirect !== '/') {
+          dest = redirect;
+        }
+
         toast.success(`Welcome back, ${data.username}!`);
-        const dest = redirect || '/';
         router.push(dest);
         router.refresh();
       }
