@@ -16,7 +16,6 @@ import {
   XCircle,
   RefreshCw,
   AlertTriangle,
-  Shield,
 } from 'lucide-react';
 
 interface BackendUser {
@@ -25,24 +24,13 @@ interface BackendUser {
   email: string;
   fullName?: string;
   bio?: string;
-  roles: any;
+  avatarUrl?: string;
+  /** The OAuth provider (google/github/facebook) or null for credentials accounts */
+  provider?: string;
+  roles: string[];
   enabled: boolean;
   accountNonLocked: boolean;
   createdAt: string;
-  roleVersion?: number;
-}
-
-interface NextAuthUser {
-  id: string;
-  name: string | null;
-  email: string | null;
-  username: string | null;
-  image: string | null;
-  role: string;
-  createdAt: string;
-  provider: string;
-  isSocialUser: boolean;
-  accounts: Array<{ provider: string }>;
   roleVersion?: number;
 }
 
@@ -60,7 +48,7 @@ const PROVIDER_LABELS: Record<string, { label: string; color: string }> = {
   google: { label: 'Google', color: 'bg-red-500/15 text-red-400' },
   github: { label: 'GitHub', color: 'bg-gray-500/15 text-gray-300' },
   facebook: { label: 'Facebook', color: 'bg-blue-500/15 text-blue-400' },
-  credentials: { label: 'Credentials', color: 'bg-neon-indigo/15 text-neon-indigo' },
+  credentials: { label: 'Thường', color: 'bg-neon-indigo/15 text-neon-indigo' },
 };
 
 function RoleBadge({ role }: { role: string }) {
@@ -79,9 +67,9 @@ function RoleBadge({ role }: { role: string }) {
 export default function AdminUsersPage() {
   const { data: session } = useSession();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<'backend' | 'social'>('backend');
-  const [backendUsers, setBackendUsers] = useState<BackendUser[]>([]);
-  const [socialUsers, setSocialUsers] = useState<NextAuthUser[]>([]);
+  // filterMode: 'all' | 'credentials' | 'oauth'
+  const [filterMode, setFilterMode] = useState<'all' | 'credentials' | 'oauth'>('all');
+  const [allUsers, setAllUsers] = useState<BackendUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
@@ -109,14 +97,10 @@ export default function AdminUsersPage() {
   useEffect(() => {
     const currentUser = session?.user as any;
     if (!currentUser) return;
-
-    // Initialize on first load
     if (initialRoleVersion.current === null) {
       initialRoleVersion.current = currentUser.roleVersion ?? 0;
       return;
     }
-
-    // Role version changed — either the user lost admin or the admin refreshed the list
     const currentVersion = currentUser.roleVersion ?? 0;
     if (initialRoleVersion.current > 0 && currentVersion > initialRoleVersion.current) {
       const role = (currentUser.role as string || '').replace('ROLE_', '').toUpperCase();
@@ -126,7 +110,8 @@ export default function AdminUsersPage() {
     }
   }, [session]);
 
-  const fetchBackendUsers = useCallback(async () => {
+  // Unified fetch — all users come from the backend DB, filtered by provider field
+  const fetchUsers = useCallback(async () => {
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -136,71 +121,30 @@ export default function AdminUsersPage() {
       });
       const res = await api.get<{ data: PageData<BackendUser> }>(`/admin/users?${params}`);
       const data = res.data?.data;
-      setBackendUsers(data?.content || []);
+      setAllUsers(data?.content || []);
       setTotalPages(data?.totalPages || 0);
       setTotalElements(data?.totalElements || 0);
     } catch {
-      toast.error('Lỗi tải danh sách users từ backend');
-    } finally {
-      setLoading(false);
-    }
-  }, [page, search]);
-
-  // Fetch NextAuth users directly via fetch — calls Next.js API (port 3000).
-  // Will return 401 for credentials users (who have no NextAuth session).
-  const fetchSocialUsers = useCallback(async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        page: String(page),
-        size: String(pageSize),
-        ...(search && { keyword: search }),
-      });
-      const res = await fetch(`/api/admin/users/nextauth?${params}`, {
-        credentials: 'include',
-      });
-
-      // 401 = credentials user has no NextAuth session — not an error
-      if (res.status === 401) {
-        setSocialUsers([]);
-        setTotalPages(0);
-        setTotalElements(0);
-        setLoading(false);
-        return;
-      }
-
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
-      const json = await res.json();
-      const data: PageData<NextAuthUser> = json?.data;
-      setSocialUsers(data?.content || []);
-      setTotalPages(data?.totalPages || 0);
-      setTotalElements(data?.totalElements || 0);
-    } catch (err) {
-      console.error('[AdminUsers] fetchSocialUsers error:', err);
-      toast.error('Lỗi tải danh sách social users');
+      toast.error('Lỗi tải danh sách users');
     } finally {
       setLoading(false);
     }
   }, [page, search]);
 
   useEffect(() => {
-    if (activeTab === 'backend') {
-      fetchBackendUsers();
-    } else {
-      fetchSocialUsers();
-    }
-  }, [activeTab, page, search, fetchBackendUsers, fetchSocialUsers]);
+    fetchUsers();
+  }, [fetchUsers]);
+
+  // Filter users by auth type in the UI (backend returns ALL users with provider field)
+  const filteredUsers = allUsers.filter((user: BackendUser) => {
+    if (filterMode === 'all') return true;
+    if (filterMode === 'oauth') return !!user.provider;
+    return !user.provider;
+  });
 
   const getRoles = (user: BackendUser): string[] => {
     if (!user.roles) return [];
-    if (Array.isArray(user.roles)) return user.roles.map((r: any) =>
-      typeof r === 'string' ? r.replace('ROLE_', '') : r.name?.replace('ROLE_', '') || ''
-    );
-    if (typeof user.roles === 'object' && 'name' in (user.roles as any)) {
-      return [(user.roles as any).name.replace('ROLE_', '')];
-    }
+    if (Array.isArray(user.roles)) return user.roles.map((r: string) => r.replace('ROLE_', ''));
     return [];
   };
 
@@ -215,7 +159,7 @@ export default function AdminUsersPage() {
   };
 
   const saveRoles = async (userId: number) => {
-    const userBeingEdited = backendUsers.find(u => u.id === userId);
+    const userBeingEdited = allUsers.find(u => u.id === userId);
     const currentUser = (session?.user as any);
     const isEditingSelf = currentUser && (
       currentUser.email === userBeingEdited?.email ||
@@ -227,7 +171,6 @@ export default function AdminUsersPage() {
       toast.success('Cập nhật roles thành công!');
       setEditingId(null);
 
-      // If editing own account, force re-login so NextAuth gets the new role
       if (isEditingSelf) {
         toast.info('Vai trò của bạn đã thay đổi. Đang đăng nhập lại...', { duration: 3000 });
         await signOut({ redirect: false });
@@ -237,7 +180,7 @@ export default function AdminUsersPage() {
         return;
       }
 
-      fetchBackendUsers();
+      fetchUsers();
     } catch {
       toast.error('Cập nhật thất bại');
     }
@@ -253,26 +196,13 @@ export default function AdminUsersPage() {
     try {
       await api.patch(`/admin/users/${user.id}/toggle-enabled`);
       toast.success(user.enabled ? 'Đã vô hiệu hóa' : 'Đã kích hoạt');
-      fetchBackendUsers();
+      fetchUsers();
     } catch {
       toast.error('Thao tác thất bại');
     }
   };
 
   const allRoles = ['ADMIN', 'USER', 'MODERATOR', 'EDITOR'];
-
-  const handleSearch = (value: string) => {
-    setSearch(value);
-    setPage(0);
-  };
-
-  const refreshCurrentTab = () => {
-    if (activeTab === 'backend') {
-      fetchBackendUsers();
-    } else {
-      fetchSocialUsers();
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -297,11 +227,11 @@ export default function AdminUsersPage() {
         <div>
           <h1 className="text-2xl font-heading font-bold text-text-primary">Quản lý Users</h1>
           <p className="text-text-secondary mt-1">
-            Quản lý tài khoản người dùng — bao gồm user đăng ký thường và đăng nhập qua mạng xã hội
+            Tất cả tài khoản — credentials và OAuth (Google/GitHub)
           </p>
         </div>
         <button
-          onClick={refreshCurrentTab}
+          onClick={fetchUsers}
           className="flex items-center gap-2 px-3 py-2 rounded-xl bg-darkcard border border-darkborder text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-all"
         >
           <RefreshCw className="w-4 h-4" />
@@ -309,40 +239,36 @@ export default function AdminUsersPage() {
         </button>
       </div>
 
-      {/* Tab switcher */}
-      <div className="flex gap-1 bg-darkcard border border-darkborder rounded-xl p-1 w-fit">
-        <button
-          onClick={() => { setActiveTab('backend'); setPage(0); setSearch(''); }}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            activeTab === 'backend'
-              ? 'bg-neon-violet text-white shadow-sm'
-              : 'text-text-muted hover:text-text-primary'
-          }`}
-        >
-          Đăng ký thường
-        </button>
-        <button
-          onClick={() => { setActiveTab('social'); setPage(0); setSearch(''); }}
-          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-            activeTab === 'social'
-              ? 'bg-neon-violet text-white shadow-sm'
-              : 'text-text-muted hover:text-text-primary'
-          }`}
-        >
-          Social Login
-        </button>
-      </div>
-
-      {/* Search */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-        <input
-          type="text"
-          placeholder="Tìm kiếm user..."
-          value={search}
-          onChange={(e) => handleSearch(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 bg-darkcard border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
-        />
+      {/* Filter + search row */}
+      <div className="flex items-center gap-3 flex-wrap">
+        <div className="flex gap-1 bg-darkcard border border-darkborder rounded-xl p-1">
+          {(['all', 'credentials', 'oauth'] as const).map((mode) => {
+            const label = mode === 'all' ? 'Tất cả' : mode === 'credentials' ? 'Tài khoản thường' : 'OAuth (Google/GitHub)';
+            return (
+              <button
+                key={mode}
+                onClick={() => { setFilterMode(mode); setPage(0); }}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  filterMode === mode
+                    ? 'bg-neon-violet text-white shadow-sm'
+                    : 'text-text-muted hover:text-text-primary'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
+          <input
+            type="text"
+            placeholder="Tìm kiếm user..."
+            value={search}
+            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
+            className="w-full pl-10 pr-4 py-2 bg-darkcard border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
+          />
+        </div>
       </div>
 
       {/* Table */}
@@ -352,15 +278,11 @@ export default function AdminUsersPage() {
             <thead>
               <tr className="border-b border-darkborder">
                 <th className="text-left px-5 py-4 text-xs font-medium text-text-muted uppercase tracking-wider">User</th>
-                {activeTab === 'social' && (
-                  <th className="text-left px-5 py-4 text-xs font-medium text-text-muted uppercase tracking-wider hidden md:table-cell">Provider</th>
-                )}
+                <th className="text-left px-5 py-4 text-xs font-medium text-text-muted uppercase tracking-wider hidden md:table-cell">Loại</th>
                 <th className="text-left px-5 py-4 text-xs font-medium text-text-muted uppercase tracking-wider hidden sm:table-cell">Roles</th>
                 <th className="text-left px-5 py-4 text-xs font-medium text-text-muted uppercase tracking-wider hidden md:table-cell">Trạng thái</th>
                 <th className="text-left px-5 py-4 text-xs font-medium text-text-muted uppercase tracking-wider hidden lg:table-cell">Ngày tạo</th>
-                {activeTab === 'backend' && (
-                  <th className="text-right px-5 py-4 text-xs font-medium text-text-muted uppercase tracking-wider">Thao tác</th>
-                )}
+                <th className="text-right px-5 py-4 text-xs font-medium text-text-muted uppercase tracking-wider">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-darkborder">
@@ -372,104 +294,85 @@ export default function AdminUsersPage() {
                     </td>
                   </tr>
                 ))
-              ) : (activeTab === 'backend' ? backendUsers : socialUsers).length === 0 ? (
+              ) : filteredUsers.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center py-12 text-text-muted">
                     <Users className="w-12 h-12 mx-auto mb-3 opacity-30" />
                     <p>Không có user nào</p>
-                    {activeTab === 'social' && (
-                      <p className="text-xs mt-1">Chưa có user đăng nhập qua mạng xã hội</p>
-                    )}
                   </td>
                 </tr>
               ) : (
-                (activeTab === 'backend' ? backendUsers : socialUsers).map((user: any) => (
+                filteredUsers.map((user: BackendUser) => (
                   <tr key={user.id} className="hover:bg-white/[0.02] transition-colors">
                     {/* User info */}
                     <td className="px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-9 h-9 rounded-full bg-gradient-to-br from-neon-indigo to-neon-violet flex items-center justify-center text-white text-sm font-medium flex-shrink-0 overflow-hidden">
-                          {user.image ? (
-                            <img src={user.image} alt="" className="w-full h-full object-cover" />
+                          {user.avatarUrl ? (
+                            <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
                           ) : (
-                            (user.username || user.name || user.email || 'U')?.charAt(0).toUpperCase()
+                            (user.username || user.email || 'U')?.charAt(0).toUpperCase()
                           )}
                         </div>
                         <div className="min-w-0">
-                          <p className="text-sm font-medium text-text-primary truncate">
-                            {user.username || user.name || user.email || '—'}
-                          </p>
+                          <p className="text-sm font-medium text-text-primary truncate">{user.username || '—'}</p>
                           <p className="text-xs text-text-muted truncate">{user.email || '—'}</p>
                         </div>
                       </div>
                     </td>
 
-                    {/* Provider badge (social tab) */}
-                    {activeTab === 'social' && (
-                      <td className="px-5 py-4 hidden md:table-cell">
-                        {(() => {
-                          const provider = user.provider || 'unknown';
-                          const style = PROVIDER_LABELS[provider] || { label: provider, color: 'bg-gray-500/15 text-gray-300' };
-                          return (
-                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${style.color}`}>
-                              {provider === 'google' && '🔴'}
-                              {provider === 'github' && '🐙'}
-                              {provider === 'facebook' && '📘'}
-                              {style.label}
-                            </span>
-                          );
-                        })()}
-                      </td>
-                    )}
+                    {/* Provider type badge */}
+                    <td className="px-5 py-4 hidden md:table-cell">
+                      {(() => {
+                        const provider = user.provider;
+                        const style = provider ? (PROVIDER_LABELS[provider] || { label: provider, color: 'bg-gray-500/15 text-gray-300' }) : PROVIDER_LABELS['credentials'];
+                        return (
+                          <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${style.color}`}>
+                            {provider === 'google' && '🔴'}
+                            {provider === 'github' && '🐙'}
+                            {provider === 'facebook' && '📘'}
+                            {style.label}
+                          </span>
+                        );
+                      })()}
+                    </td>
 
                     {/* Roles */}
                     <td className="px-5 py-4 hidden sm:table-cell">
-                      {activeTab === 'backend' ? (
-                        editingId === user.id ? (
-                          <div className="flex flex-wrap gap-1">
-                            {allRoles.map((role) => (
-                              <button
-                                key={role}
-                                onClick={() => toggleRole(role)}
-                                className={`px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
-                                  editRoles.includes(role)
-                                    ? 'bg-neon-violet/15 text-neon-violet border-neon-violet/30'
-                                    : 'bg-darkbg text-text-muted border-darkborder hover:border-neon-violet/20'
-                                }`}
-                              >
-                                {role}
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="flex flex-wrap gap-1">
-                            {getRoles(user).map((role: string) => (
-                              <RoleBadge key={role} role={role} />
-                            ))}
-                          </div>
-                        )
+                      {editingId === user.id ? (
+                        <div className="flex flex-wrap gap-1">
+                          {allRoles.map((role) => (
+                            <button
+                              key={role}
+                              onClick={() => toggleRole(role)}
+                              className={`px-2 py-0.5 rounded-full text-xs font-medium border transition-colors ${
+                                editRoles.includes(role)
+                                  ? 'bg-neon-violet/15 text-neon-violet border-neon-violet/30'
+                                  : 'bg-darkbg text-text-muted border-darkborder hover:border-neon-violet/20'
+                              }`}
+                            >
+                              {role}
+                            </button>
+                          ))}
+                        </div>
                       ) : (
                         <div className="flex flex-wrap gap-1">
-                          <RoleBadge role={user.role} />
+                          {getRoles(user).map((role: string) => (
+                            <RoleBadge key={role} role={role} />
+                          ))}
                         </div>
                       )}
                     </td>
 
                     {/* Status */}
                     <td className="px-5 py-4 hidden md:table-cell">
-                      {activeTab === 'backend' ? (
-                        user.enabled ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
-                            <CheckCircle className="w-3.5 h-3.5" /> Active
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-xs text-red-400">
-                            <XCircle className="w-3.5 h-3.5" /> Disabled
-                          </span>
-                        )
-                      ) : (
+                      {user.enabled ? (
                         <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
                           <CheckCircle className="w-3.5 h-3.5" /> Active
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 text-xs text-red-400">
+                          <XCircle className="w-3.5 h-3.5" /> Disabled
                         </span>
                       )}
                     </td>
@@ -480,9 +383,7 @@ export default function AdminUsersPage() {
                         {(() => {
                           try {
                             return new Date(user.createdAt).toLocaleDateString('vi-VN', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              year: 'numeric',
+                              day: '2-digit', month: '2-digit', year: 'numeric',
                             });
                           } catch {
                             return '—';
@@ -492,65 +393,43 @@ export default function AdminUsersPage() {
                     </td>
 
                     {/* Actions */}
-                    {activeTab === 'backend' && (
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
-                          {editingId === user.id ? (
-                            <>
-                              <button
-                                onClick={() => saveRoles(user.id)}
-                                className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors text-xs px-2 py-1 font-medium"
-                              >
-                                Lưu
+                    <td className="px-5 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {editingId === user.id ? (
+                          <>
+                            <button onClick={() => saveRoles(user.id)} className="p-1.5 rounded-lg bg-emerald-500/15 text-emerald-400 hover:bg-emerald-500/25 transition-colors text-xs px-2 py-1 font-medium">
+                              Lưu
+                            </button>
+                            <button onClick={cancelEdit} className="p-1.5 rounded-lg hover:bg-white/5 text-text-muted hover:text-text-primary transition-colors">
+                              <XCircle className="w-3.5 h-3.5" />
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            {isSuperAdmin ? (
+                              <button onClick={() => startEditRoles(user)} className="p-2 rounded-lg hover:bg-white/5 text-text-muted hover:text-neon-violet transition-colors" title="Phân quyền (chỉ cuong03dx)">
+                                ⚙️
                               </button>
-                              <button
-                                onClick={cancelEdit}
-                                className="p-1.5 rounded-lg hover:bg-white/5 text-text-muted hover:text-text-primary transition-colors"
-                              >
-                                <XCircle className="w-3.5 h-3.5" />
+                            ) : (
+                              <button disabled className="p-2 rounded-lg text-darkborder cursor-not-allowed opacity-30" title="Chỉ cuong03dx có quyền phân quyền">
+                                ⚙️
                               </button>
-                            </>
-                          ) : (
-                            <>
-                              {/* Edit Roles — only super-admin (cuong03dx) can change roles */}
-                              {isSuperAdmin && (
-                                <button
-                                  onClick={() => startEditRoles(user)}
-                                  className="p-2 rounded-lg hover:bg-white/5 text-text-muted hover:text-neon-violet transition-colors"
-                                  title="Phân quyền (chỉ cuong03dx)"
-                                >
-                                  ⚙️
-                                </button>
-                              )}
-                              {!isSuperAdmin && (
-                                <button
-                                  disabled
-                                  className="p-2 rounded-lg text-darkborder cursor-not-allowed opacity-30"
-                                  title="Chỉ cuong03dx có quyền phân quyền"
-                                >
-                                  ⚙️
-                                </button>
-                              )}
-                              <button
-                                onClick={() => toggleEnabled(user)}
-                                className={`p-2 rounded-lg transition-colors ${
-                                  user.enabled
-                                    ? 'hover:bg-red-500/10 text-text-muted hover:text-red-400'
-                                    : 'hover:bg-emerald-500/10 text-text-muted hover:text-emerald-400'
-                                }`}
-                                title={user.enabled ? 'Vô hiệu hóa' : 'Kích hoạt'}
-                              >
-                                {user.enabled ? (
-                                  <XCircle className="w-4 h-4" />
-                                ) : (
-                                  <CheckCircle className="w-4 h-4" />
-                                )}
-                              </button>
-                            </>
-                          )}
-                        </div>
-                      </td>
-                    )}
+                            )}
+                            <button
+                              onClick={() => toggleEnabled(user)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                user.enabled
+                                  ? 'hover:bg-red-500/10 text-text-muted hover:text-red-400'
+                                  : 'hover:bg-emerald-500/10 text-text-muted hover:text-emerald-400'
+                              }`}
+                              title={user.enabled ? 'Vô hiệu hóa' : 'Kích hoạt'}
+                            >
+                              {user.enabled ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}
@@ -565,19 +444,11 @@ export default function AdminUsersPage() {
               Tổng: {totalElements} user • Trang {page + 1} / {totalPages}
             </span>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
-                className="p-2 rounded-lg hover:bg-white/5 text-text-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
+              <button onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={page === 0} className="p-2 rounded-lg hover:bg-white/5 text-text-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                 <ChevronLeft className="w-4 h-4" />
               </button>
               <span className="text-sm text-text-primary px-2">{page + 1}</span>
-              <button
-                onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))}
-                disabled={page >= totalPages - 1}
-                className="p-2 rounded-lg hover:bg-white/5 text-text-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-              >
+              <button onClick={() => setPage((p) => Math.min(totalPages - 1, p + 1))} disabled={page >= totalPages - 1} className="p-2 rounded-lg hover:bg-white/5 text-text-muted disabled:opacity-30 disabled:cursor-not-allowed transition-colors">
                 <ChevronRight className="w-4 h-4" />
               </button>
             </div>

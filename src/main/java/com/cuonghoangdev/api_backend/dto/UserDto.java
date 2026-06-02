@@ -17,6 +17,9 @@ public class UserDto {
     private String primaryRole;
     private Set<String> roles;
     private LocalDateTime createdAt;
+    /** The OAuth provider used to sign in, or "credentials" for password accounts.
+        Used by the admin panel to distinguish social vs credentials users. */
+    private String provider;
     /** Monotonically increasing version — increments every time roles change.
         Used by NextAuth to detect stale sessions. */
     private Long roleVersion;
@@ -37,7 +40,7 @@ public class UserDto {
                 .findFirst()
                 .map(r -> r.getName())
                 .orElse("ROLE_USER"));
-        dto.setRoles(roleSet);
+        dto.setProvider(user.getProvider());
         dto.setCreatedAt(user.getCreatedAt());
         dto.setRoleVersion(user.getRoleVersion() != null ? user.getRoleVersion() : 0L);
         return dto;
@@ -106,6 +109,14 @@ public class UserDto {
 
     public void setRoles(Set<String> roles) {
         this.roles = roles;
+    }
+
+    public String getProvider() {
+        return provider;
+    }
+
+    public void setProvider(String provider) {
+        this.provider = provider;
     }
 
     public LocalDateTime getCreatedAt() {

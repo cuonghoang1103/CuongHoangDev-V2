@@ -39,7 +39,7 @@ public class AdminUserController {
     private UserService userService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<Page<User>>> getAllUsers(
+    public ResponseEntity<ApiResponse<Page<UserDto>>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
             @RequestParam(required = false) String keyword) {
@@ -53,14 +53,16 @@ public class AdminUserController {
             userPage = userRepository.findAll(pageable);
         }
 
-        return ResponseEntity.ok(ApiResponse.ok(userPage));
+        // Convert User entities to DTOs so roles serialize as strings and provider is included
+        Page<UserDto> dtoPage = userPage.map(UserDto::fromEntity);
+        return ResponseEntity.ok(ApiResponse.ok(dtoPage));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<User>> getUserById(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<UserDto>> getUserById(@PathVariable Long id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
-        return ResponseEntity.ok(ApiResponse.ok(user));
+        return ResponseEntity.ok(ApiResponse.ok(UserDto.fromEntity(user)));
     }
 
     @PostMapping
@@ -90,7 +92,7 @@ public class AdminUserController {
         user.setRoles(roles);
 
         User saved = userService.createUser(user);
-        return ResponseEntity.ok(ApiResponse.ok("Tao user thanh cong", saved));
+        return ResponseEntity.ok(ApiResponse.ok("Tao user thanh cong", UserDto.fromEntity(saved)));
     }
 
     @PutMapping("/{id}")
@@ -152,11 +154,11 @@ public class AdminUserController {
         }
 
         User saved = userService.updateUser(id, user);
-        return ResponseEntity.ok(ApiResponse.ok("Cap nhat user thanh cong", saved));
+        return ResponseEntity.ok(ApiResponse.ok("Cap nhat user thanh cong", UserDto.fromEntity(saved)));
     }
 
     @PutMapping("/{id}/roles")
-    public ResponseEntity<ApiResponse<User>> updateUserRoles(
+    public ResponseEntity<ApiResponse<UserDto>> updateUserRoles(
             @PathVariable Long id,
             @RequestBody Map<String, List<String>> body,
             @AuthenticationPrincipal UserPrincipal currentUser) {
@@ -192,7 +194,7 @@ public class AdminUserController {
         user.setRoles(newRoles);
         user.setRoleVersion((user.getRoleVersion() != null ? user.getRoleVersion() : 0L) + 1L);
         User saved = userRepository.save(user);
-        return ResponseEntity.ok(ApiResponse.ok("Cap nhat roles thanh cong", saved));
+        return ResponseEntity.ok(ApiResponse.ok("Cap nhat roles thanh cong", UserDto.fromEntity(saved)));
     }
 
     @PatchMapping("/{id}/toggle-enabled")
