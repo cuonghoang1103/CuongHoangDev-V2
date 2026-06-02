@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { toast } from 'sonner';
 import {
   Plus,
@@ -12,8 +12,10 @@ import {
   X,
   ExternalLink,
   GitBranch,
+  Upload,
 } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
+import { projectsApi } from '@/lib/api';
 import type { Project } from '@/types';
 
 const STATUS_OPTIONS = ['PLANNING', 'IN_PROGRESS', 'COMPLETED', 'MAINTENANCE'];
@@ -117,41 +119,62 @@ export default function AdminProjectsPage() {
     }
 
     const techs = form.technologies.filter((t) => t.trim());
-    setSaving(true);
 
-    await new Promise((r) => setTimeout(r, 500));
-
-    const projectData: Project = {
-      id: editingId || 0,
+    const projectPayload = {
       title: form.title,
       slug: slugify(form.title),
       description: form.description,
-      technologies: techs,
+      techStack: techs.join(', '),
       status: form.status,
-      projectUrl: form.projectUrl,
-      githubUrl: form.githubUrl,
-      thumbnailUrl: form.thumbnailUrl,
+      projectUrl: form.projectUrl || null,
+      githubUrl: form.githubUrl || null,
+      thumbnailUrl: form.thumbnailUrl || null,
       featured: form.featured,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
 
-    if (editingId) {
-      updateProject(editingId, projectData);
-      toast.success('Cập nhật dự án thành công!');
-    } else {
-      addProject(projectData);
-      toast.success('Tạo dự án thành công!');
-    }
+    setSaving(true);
 
-    setSaving(false);
-    closeForm();
+    try {
+      let saved: Project;
+
+      if (editingId) {
+        const res = await projectsApi.update(editingId, projectPayload);
+        saved = res.data?.data;
+        toast.success('Cập nhật dự án thành công!');
+      } else {
+        const res = await projectsApi.create(projectPayload);
+        saved = res.data?.data;
+        toast.success('Tạo dự án thành công!');
+      }
+
+      if (saved) {
+        // Sync to Zustand store: replace the local entry with the server response
+        if (editingId) {
+          updateProject(editingId, saved);
+        } else {
+          addProject(saved);
+        }
+      }
+
+      closeForm();
+    } catch (err: unknown) {
+      const msg = (err as any)?.response?.data?.message || 'Lưu dự án thất bại';
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const handleDelete = (id: number) => {
+  const handleDelete = async (id: number) => {
     if (!confirm('Xóa dự án này?')) return;
-    deleteProject(id);
-    toast.success('Đã xóa dự án');
+    try {
+      await projectsApi.delete(id);
+      deleteProject(id);
+      toast.success('Đã xóa dự án');
+    } catch (err: unknown) {
+      const msg = (err as any)?.response?.data?.message || 'Xóa dự án thất bại';
+      toast.error(msg);
+    }
   };
 
   return (

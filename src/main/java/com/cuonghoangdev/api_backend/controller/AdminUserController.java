@@ -208,6 +208,17 @@ public class AdminUserController {
                 user.getEnabled() ? "Da kich hoat tai khoan" : "Da vo hieu hoa tai khoan", null));
     }
 
+    @PatchMapping("/{id}/toggle-locked")
+    public ResponseEntity<ApiResponse<Void>> toggleLocked(@PathVariable Long id) {
+        User user = userRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
+        boolean current = Boolean.TRUE.equals(user.getAccountNonLocked());
+        user.setAccountNonLocked(!current);
+        userRepository.save(user);
+        return ResponseEntity.ok(ApiResponse.ok(
+                current ? "Da khoa tai khoan" : "Da mo khoa tai khoan", null));
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<ApiResponse<Void>> deleteUser(
             @PathVariable Long id,

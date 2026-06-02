@@ -61,11 +61,14 @@ export default function AdminDashboard() {
         setChatStats(chat);
 
         const totalViews = posts.reduce((acc: number, p: any) => acc + (p.viewCount || 0), 0);
+        const totalPostCount = postsRes.status === 'fulfilled'
+          ? postsRes.value.data?.data?.totalElements || posts.length
+          : posts.length;
 
         setStats([
           {
             label: 'Tổng bài viết',
-            value: chat.totalSessions || posts.length,
+            value: totalPostCount,
             change: '+12%',
             positive: true,
             icon: FileText,

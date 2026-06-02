@@ -350,7 +350,7 @@ export default function ChatModal({ onClose }: ChatModalProps) {
     } finally {
       setStreaming(false);
     }
-  }, [isStreaming, token, currentSessionId, addMessage, setStreaming, setRobotEmotion,
+  }, [isStreaming, currentSessionId, addMessage, setStreaming, setRobotEmotion,
       currentMessages, setSuggestedPrompts, setMessages, setCurrentSessionId, addSession,
       updateLastAssistantMessage, messages]);
 

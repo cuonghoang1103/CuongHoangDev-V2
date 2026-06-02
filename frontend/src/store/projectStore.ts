@@ -5,7 +5,7 @@ import { persist, createJSONStorage } from 'zustand/middleware';
 import type { Project } from '@/types';
 import { ssrSafeStorage } from './ssrSafeStorage';
 
-const SEED_PROJECTS: Project[] = [
+export const SEED_PROJECTS: Project[] = [
   {
     id: 1,
     title: 'CuongHoang Dev Portal',
@@ -190,6 +190,7 @@ const SEED_PROJECTS: Project[] = [
 interface ProjectState {
   projects: Project[];
   isLoaded: boolean;
+  setProjects: (projects: Project[]) => void;
   addProject: (project: Project) => void;
   updateProject: (id: number, project: Project) => void;
   deleteProject: (id: number) => void;
@@ -206,6 +207,10 @@ export const useProjectStore = create<ProjectState>()(
     (set, get) => ({
       projects: SEED_PROJECTS,
       isLoaded: false,
+
+      setProjects: (projects: Project[]) => {
+        set({ projects });
+      },
 
       addProject: (project: Project) => {
         set((state) => ({

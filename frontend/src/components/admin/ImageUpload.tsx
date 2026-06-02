@@ -56,7 +56,7 @@ export default function ImageUpload({
     }
 
     const data = await res.json();
-    return data?.data?.downloadUrl || null;
+    return data?.data?.url || null;
   }, [folder]);
 
   const processFile = useCallback(async (file: File) => {

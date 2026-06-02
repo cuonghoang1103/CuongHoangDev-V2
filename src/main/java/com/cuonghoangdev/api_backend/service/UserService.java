@@ -59,6 +59,12 @@ public class UserService {
             if (updated.getPassword() != null && !updated.getPassword().isBlank()) {
                 user.setPassword(passwordEncoder.encode(updated.getPassword()));
             }
+            if (updated.getEnabled() != null) {
+                user.setEnabled(updated.getEnabled());
+            }
+            if (updated.getAccountNonLocked() != null) {
+                user.setAccountNonLocked(updated.getAccountNonLocked());
+            }
             return userRepository.save(user);
         }).orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
     }

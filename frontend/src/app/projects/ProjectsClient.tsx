@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { Search, ExternalLink, Github, Calendar, Users, Code2, Plus } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
+import { projectsApi } from '@/lib/api';
 import type { Project } from '@/types';
 
 const STATUS_LABELS: Record<string, string> = {
@@ -43,11 +44,27 @@ function SkeletonGrid() {
 }
 
 export default function ProjectsClient() {
-  const { projects } = useProjectStore();
+  const { projects, setProjects } = useProjectStore();
   const [searchInput, setSearchInput] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+
+  // Fetch projects from backend on mount
+  useEffect(() => {
+    const loadProjects = async () => {
+      try {
+        const res = await projectsApi.getAll({ size: 100 });
+        const backendProjects: Project[] = res.data?.data?.content || res.data?.data || [];
+        if (backendProjects.length > 0) {
+          setProjects(backendProjects);
+        }
+      } catch {
+        // Silently fall back to seed data from store
+      }
+    };
+    loadProjects();
+  }, [setProjects]);
 
   const pageSize = 9;
 

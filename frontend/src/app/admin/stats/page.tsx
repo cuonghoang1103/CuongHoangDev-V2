@@ -75,7 +75,7 @@ export default function AdminStatsPage() {
     { label: 'Memory Usage', value: `${stats?.memoryUsedMB || 0}MB / ${stats?.memoryTotalMB || 0}MB`, icon: Cpu, percent: stats?.memoryPercent || 0 },
     { label: 'Disk Usage', value: 'N/A', icon: HardDrive, percent: 0 },
     { label: 'Uptime', value: stats?.uptimeFormatted || 'N/A', icon: Clock, percent: 0 },
-    { label: 'Active Sessions', value: stats?.activeSessions || 0, icon: Activity, percent: 0 },
+    { label: 'Tổng cuộc trò chuyện', value: stats?.totalSessions || 0, icon: Activity, percent: 0 },
   ];
 
   if (loading) {
@@ -111,7 +111,6 @@ export default function AdminStatsPage() {
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        {statCards.map((card, i) => null)}
         <div className="bg-darkcard border border-darkborder rounded-2xl p-5">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-neon-yellow to-neon-amber flex items-center justify-center mb-4">
             <Eye className="w-6 h-6 text-white" />

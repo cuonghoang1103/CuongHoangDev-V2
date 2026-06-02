@@ -128,7 +128,7 @@ public class ChatAnalyticsService {
 
         stats.put("totalSessions", chatSessionRepository.count());
         stats.put("totalMessages", chatMessageRepository.count());
-        stats.put("totalTokens", 0);
+        stats.put("totalTokens", chatAnalyticsRepository.sumTokens());
 
         LocalDate today = LocalDate.now();
         LocalDate weekAgo = today.minusDays(7);

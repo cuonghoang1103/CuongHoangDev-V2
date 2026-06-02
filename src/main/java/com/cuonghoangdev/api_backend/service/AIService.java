@@ -52,18 +52,14 @@ public class AIService {
 
     public AIService(
             @Value("${app.ai.gemini.api-key:}") String geminiApiKey,
-            @Value("${app.ai.chat.model:gemini-2.0-flash}") String chatModel,
-            @Value("${app.ai.embedding.model:gemini-embedding-2}") String embeddingModel,
-            @Value("${app.ai.embedding.dimensions:768}") int embeddingDimensions,
-            @Value("${app.ai.chat.max-tokens:2048}") int maxTokens,
-            @Value("${app.ai.chat.temperature:0.7}") float temperature,
+            AIConfigService aiConfigService,
             ObjectMapper objectMapper) {
         this.geminiApiKey = geminiApiKey;
-        this.chatModel = chatModel;
-        this.embeddingModel = embeddingModel;
-        this.embeddingDimensions = embeddingDimensions;
-        this.maxTokens = maxTokens;
-        this.temperature = temperature;
+        this.chatModel = aiConfigService.getValue("chat_model", "gemini-2.0-flash");
+        this.embeddingModel = aiConfigService.getValue("embedding_model", "gemini-embedding-2");
+        this.embeddingDimensions = aiConfigService.getIntValue("embedding_dimensions", 768);
+        this.maxTokens = aiConfigService.getIntValue("max_tokens", 2048);
+        this.temperature = aiConfigService.getFloatValue("temperature", 0.7f);
         this.objectMapper = objectMapper;
         this.geminiWebClient = WebClient.builder()
                 .baseUrl(GEMINI_BASE_URL)

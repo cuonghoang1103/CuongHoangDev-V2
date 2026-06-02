@@ -24,6 +24,7 @@ public class UserDto {
         Used by NextAuth to detect stale sessions. */
     private Long roleVersion;
     private boolean enabled;
+    private Boolean accountNonLocked;
 
     public static UserDto fromEntity(User user) {
         UserDto dto = new UserDto();
@@ -45,6 +46,7 @@ public class UserDto {
         dto.setCreatedAt(user.getCreatedAt());
         dto.setRoleVersion(user.getRoleVersion() != null ? user.getRoleVersion() : 0L);
         dto.setEnabled(user.getEnabled() != null ? user.getEnabled() : true);
+        dto.setAccountNonLocked(user.getAccountNonLocked());
         return dto;
     }
 
@@ -143,5 +145,13 @@ public class UserDto {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
+    }
+
+    public Boolean getAccountNonLocked() {
+        return accountNonLocked;
+    }
+
+    public void setAccountNonLocked(Boolean accountNonLocked) {
+        this.accountNonLocked = accountNonLocked;
     }
 }

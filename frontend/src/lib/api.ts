@@ -293,6 +293,14 @@ export const projectsApi = {
     api.get('/projects/featured', { params }),
 
   getBySlug: (slug: string) => api.get(`/projects/${slug}`),
+
+  create: (data: Record<string, unknown>) => api.post('/projects', data),
+
+  update: (id: number, data: Record<string, unknown>) => api.put(`/projects/${id}`, data),
+
+  delete: (id: number) => api.delete(`/projects/${id}`),
+
+  toggleFeatured: (id: number) => api.patch(`/projects/${id}/toggle-featured`),
 };
 
 // Contact API

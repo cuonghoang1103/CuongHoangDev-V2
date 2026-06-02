@@ -21,4 +21,7 @@ public interface ChatAnalyticsRepository extends JpaRepository<ChatAnalytics, Lo
 
     @Query("SELECT AVG(a.avgResponseTimeMs) FROM ChatAnalytics a WHERE a.date BETWEEN :startDate AND :endDate")
     Double getAverageResponseTime(LocalDate startDate, LocalDate endDate);
+
+    @Query("SELECT COALESCE(SUM(a.tokensUsed), 0) FROM ChatAnalytics a")
+    Long sumTokens();
 }

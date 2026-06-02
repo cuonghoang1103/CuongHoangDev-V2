@@ -41,6 +41,7 @@ public class AdminStatsController {
         stats.put("totalProjects", projectRepository.count());
         stats.put("totalSkills", skillRepository.count());
         stats.put("activeSessions", chatSessionRepository.count());
+        stats.put("totalSessions", chatSessionRepository.count());
         stats.put("totalMessages", chatMessageRepository.count());
 
         long totalViews = postRepository.findAll().stream()

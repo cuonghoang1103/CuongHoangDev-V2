@@ -16,6 +16,8 @@ import {
   XCircle,
   RefreshCw,
   AlertTriangle,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 
 interface BackendUser {
@@ -213,6 +215,17 @@ export default function AdminUsersPage() {
     }
   };
 
+  const toggleLocked = async (user: BackendUser) => {
+    try {
+      await api.patch(`/admin/users/${user.id}/toggle-locked`);
+      toast.success(user.accountNonLocked ? 'Đã khóa tài khoản' : 'Đã mở khóa tài khoản');
+      fetchUsers();
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || 'Thao tác thất bại';
+      toast.error(msg);
+    }
+  };
+
   const refreshOAuthSession = async () => {
     toast.info('Đang làm mới phiên...');
     await signOut({ redirect: false });
@@ -400,15 +413,22 @@ export default function AdminUsersPage() {
 
                     {/* Status */}
                     <td className="px-5 py-4 hidden md:table-cell">
-                      {user.enabled ? (
-                        <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
-                          <CheckCircle className="w-3.5 h-3.5" /> Active
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-xs text-red-400">
-                          <XCircle className="w-3.5 h-3.5" /> Disabled
-                        </span>
-                      )}
+                      <div className="flex flex-col gap-1">
+                        {user.enabled ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-emerald-400">
+                            <CheckCircle className="w-3.5 h-3.5" /> Active
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-red-400">
+                            <XCircle className="w-3.5 h-3.5" /> Disabled
+                          </span>
+                        )}
+                        {user.accountNonLocked === false && (
+                          <span className="inline-flex items-center gap-1 text-xs text-orange-400">
+                            <XCircle className="w-3.5 h-3.5" /> Locked
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Created at */}
@@ -459,6 +479,17 @@ export default function AdminUsersPage() {
                               title={user.enabled ? 'Vô hiệu hóa' : 'Kích hoạt'}
                             >
                               {user.enabled ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
+                            </button>
+                            <button
+                              onClick={() => toggleLocked(user)}
+                              className={`p-2 rounded-lg transition-colors ${
+                                user.accountNonLocked
+                                  ? 'hover:bg-orange-500/10 text-text-muted hover:text-orange-400'
+                                  : 'hover:bg-emerald-500/10 text-text-muted hover:text-emerald-400'
+                              }`}
+                              title={user.accountNonLocked ? 'Khóa tài khoản' : 'Mở khóa tài khoản'}
+                            >
+                              {user.accountNonLocked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
                             </button>
                           </>
                         )}

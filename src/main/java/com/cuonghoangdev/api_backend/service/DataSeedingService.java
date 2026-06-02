@@ -45,11 +45,11 @@ public class DataSeedingService {
 
             log.info("Kiem tra AI config...");
 
-            seedConfigIfNotExists(aiConfigRepository, "embedding_model", "text-embedding-3-small",
-                    "Model embedding: text-embedding-3-small hoac text-embedding-3-large");
+            seedConfigIfNotExists(aiConfigRepository, "embedding_model", "gemini-embedding-2",
+                    "Model embedding: gemini-embedding-2");
 
-            seedConfigIfNotExists(aiConfigRepository, "chat_model", "gpt-4o-mini",
-                    "Model chat: gpt-4o-mini, gpt-4o, gpt-4-turbo");
+            seedConfigIfNotExists(aiConfigRepository, "chat_model", "gemini-2.0-flash",
+                    "Model chat: gemini-2.0-flash, gemini-2.5-flash");
 
             seedConfigIfNotExists(aiConfigRepository, "max_tokens", "2048",
                     "So token toi da cho moi response");
@@ -59,6 +59,9 @@ public class DataSeedingService {
 
             seedConfigIfNotExists(aiConfigRepository, "chunk_size", "1000",
                     "Kich thuoc chunk khi chia nho document");
+
+            seedConfigIfNotExists(aiConfigRepository, "embedding_dimensions", "768",
+                    "So chieu cua embedding vector");
 
             seedConfigIfNotExists(aiConfigRepository, "chunk_overlap", "200",
                     "Do chong lan giua cac chunk");

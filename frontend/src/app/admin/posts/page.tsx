@@ -160,7 +160,7 @@ export default function AdminPostsPage() {
     try {
       setUploadingThumbnail(true);
       const res = await fileApi.upload(file, 'thumbnails');
-      const url = res.data?.data?.downloadUrl;
+      const url = res.data?.data?.url;
       if (url) {
         setForm((prev) => ({ ...prev, thumbnailUrl: url }));
         toast.success('Tải ảnh thành công');
@@ -188,7 +188,7 @@ export default function AdminPostsPage() {
       try {
         setUploadingContentImage(true);
         const res = await fileApi.upload(file, 'content');
-        const url = res.data?.data?.downloadUrl;
+        const url = res.data?.data?.url;
         if (url) {
           const mdImage = `\n![${file.name}](${url})\n`;
           setForm((prev) => ({ ...prev, content: prev.content + mdImage }));
