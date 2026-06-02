@@ -36,7 +36,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     const checkAuth = async () => {
-      // Read token from localStorage (set by login) OR from cookie (set by API route)
+      // Read token from localStorage (set by credentials login) OR from cookie (set by API route)
       const localToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const cookieToken = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] ?? '';
       const token = localToken || cookieToken;
@@ -59,7 +59,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           setCurrentUser({ name: user?.fullName || user?.username || 'Admin', email: user?.email || '' });
           setAuthChecked(true);
           return;
-        } catch { router.push('/login?redirect=' + pathname); return; }
+        } catch (err) {
+          console.warn('[admin-layout] Token validation failed, falling through to session check:', err);
+          // Don't redirect yet — fall through to session check below
+        }
       }
 
       // ── OAuth user (NextAuth): trust the session ──
@@ -73,7 +76,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         return;
       }
 
-      // No session, no token → redirect to login
+      // No session, no valid token → redirect to login
       router.push('/login?redirect=' + pathname);
     };
 

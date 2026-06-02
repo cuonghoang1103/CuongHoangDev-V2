@@ -8,10 +8,10 @@ import { Loader2 } from 'lucide-react';
 /**
  * OAuth callback page — NextAuth redirects here after OAuth sign-in.
  *
- * We wait for the session to be fully loaded before deciding where to
- * redirect. Once loaded, we check the role from the JWT token:
- * - ADMIN  → /admin
- * - others  → /
+ * After the NextAuth session is established, we:
+ * 1. Wait for the session to be fully loaded
+ * 2. Call /api/auth/oauth/token to set the backend_token cookie
+ * 3. Redirect to /admin or /
  */
 function OAuthCallbackContent() {
   const { data: session, status } = useSession();
@@ -25,12 +25,24 @@ function OAuthCallbackContent() {
       router.replace('/login');
       return;
     }
-    const role = (session.user.role as string || '').replace('ROLE_', '').toUpperCase();
-    if (role === 'ADMIN') {
-      router.replace('/admin');
-    } else {
-      router.replace(redirectParam || '/');
-    }
+
+    const setupAndRedirect = async () => {
+      try {
+        // Set backend_token cookie so all backend API calls work (products, music, etc.)
+        await fetch('/api/auth/oauth/token', { method: 'POST' });
+      } catch (err) {
+        console.error('[oauth-callback] Failed to set backend_token:', err);
+      }
+
+      const role = ((session.user.role as string) || '').replace('ROLE_', '').toUpperCase();
+      if (role === 'ADMIN') {
+        router.replace('/admin');
+      } else {
+        router.replace(redirectParam || '/');
+      }
+    };
+
+    setupAndRedirect();
   }, [session, status, router, redirectParam]);
 
   return (

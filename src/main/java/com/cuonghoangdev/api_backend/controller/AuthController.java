@@ -2,6 +2,7 @@ package com.cuonghoangdev.api_backend.controller;
 
 import com.cuonghoangdev.api_backend.dto.*;
 import com.cuonghoangdev.api_backend.entity.User;
+import com.cuonghoangdev.api_backend.entity.Role;
 import com.cuonghoangdev.api_backend.exception.BadRequestException;
 import com.cuonghoangdev.api_backend.security.UserPrincipal;
 import com.cuonghoangdev.api_backend.service.AuthService;
@@ -79,5 +80,24 @@ public class AuthController {
     public ResponseEntity<ApiResponse<UserDto>> oauthRegister(@Valid @RequestBody OAuthRegisterRequest request) {
         User user = authService.oauthRegister(request);
         return ResponseEntity.ok(ApiResponse.ok(UserDto.fromEntity(user)));
+    }
+
+    @PostMapping("/oauth/token")
+    @Operation(summary = "OAuth token", description = "Generate JWT token for an existing OAuth user by email — used to set backend_token cookie after NextAuth sign-in")
+    public ResponseEntity<ApiResponse<AuthResponse>> oauthToken(@Valid @RequestBody OAuthRegisterRequest request) {
+        User user = authService.oauthRegister(request);
+        String token = tokenProvider.generateTokenFromUsername(user.getUsername());
+        String role = user.getRoles().stream()
+                .findFirst()
+                .map(Role::getName)
+                .orElse("ROLE_USER");
+        AuthResponse response = new AuthResponse(
+                token,
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                role
+        );
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 }

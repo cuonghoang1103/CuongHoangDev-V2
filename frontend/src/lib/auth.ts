@@ -14,6 +14,9 @@ import type { NextAuthConfig } from "next-auth";
  *
  * OAuth users flow through NextAuth, which calls /api/v1/auth/oauth/register
  * on first sign-in to create/find the user in the backend DB.
+ * After the NextAuth session is established, the /oauth-callback page calls
+ * /api/auth/oauth/token to also set the backend_token cookie so all backend
+ * API calls (products, music, etc.) work for OAuth users too.
  */
 export const authConfig: NextAuthConfig = {
   session: { strategy: "jwt" },
