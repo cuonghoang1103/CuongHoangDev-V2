@@ -53,11 +53,14 @@ export const authConfig: NextAuthConfig = {
             }),
           });
 
+          const data = await res.json();
+          console.log("[nextauth] oauth/register response:", res.status, JSON.stringify(data));
+
           if (res.ok) {
-            const data = await res.json();
             token.id = String(data.data?.id ?? token.sub ?? "");
             token.role = normalizeRole(data.data?.primaryRole ?? "USER");
             token.username = data.data?.username ?? email?.split("@")[0] ?? "";
+            console.log("[nextauth] role set to:", token.role);
           } else {
             console.error("[nextauth] OAuth register failed:", res.status);
             token.id = token.sub ?? "";
