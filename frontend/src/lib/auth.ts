@@ -33,18 +33,16 @@ export const authConfig: NextAuthConfig = {
   ],
   callbacks: {
     async jwt({ token, account }) {
-      // Always re-fetch role from backend when we have an email.
-      // This ensures role updates (ADMIN_EMAILS changes, DB updates) take effect
-      // on next sign-in without waiting for token expiry.
-      // account != null  → fresh OAuth sign-in
-      // account == null  → existing session hydration or re-auth; email is in token
       const email = token.email as string | undefined;
-      const isOAuth = account?.provider !== "credentials";
+      // isOAuth: true when this is a social login (Google/GitHub).
+      // account is non-null on fresh OAuth sign-in, but can be null when
+      // the existing session is being refreshed/updated — still need role.
+      const isOAuth = !!account && account.provider !== "credentials";
 
       if (isOAuth && email) {
         const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
         const name = token.name as string | undefined;
-        const provider = account.provider;
+        const provider = account!.provider;
 
         try {
           const res = await fetch(`${BACKEND_URL}/api/v1/auth/oauth/register`, {

@@ -248,7 +248,7 @@ function LoginForm() {
 
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => signIn('google', { callbackUrl: redirect || '/' })}
+              onClick={() => signIn('google', { callbackUrl: '/oauth-callback' })}
               className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-darkborder bg-darkbg hover:bg-white/5 text-text-secondary hover:text-text-primary transition-all text-sm font-medium"
             >
               <svg className="w-5 h-5" viewBox="0 0 24 24">
@@ -260,7 +260,7 @@ function LoginForm() {
               Google
             </button>
             <button
-              onClick={() => signIn('github', { callbackUrl: redirect || '/' })}
+              onClick={() => signIn('github', { callbackUrl: '/oauth-callback' })}
               className="flex items-center justify-center gap-2 px-4 py-3 rounded-xl border border-darkborder bg-darkbg hover:bg-white/5 text-text-secondary hover:text-text-primary transition-all text-sm font-medium"
             >
               <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
