@@ -113,12 +113,12 @@ export default function Navbar() {
   };
 
   const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
-    } catch {}
-    try {
-      backendLogout();
-    } catch {}
+    setUserMenuOpen(false);
+    await Promise.allSettled([
+      fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }),
+      signOut({ redirect: false }),
+      Promise.resolve(backendLogout()),
+    ]);
     toast.success('Logged out successfully');
     router.push('/');
     router.refresh();
