@@ -99,6 +99,11 @@ public class AdminUserController {
             @Valid @RequestBody UpdateUserRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
+        // Only cuong03dx can edit other users' info and roles
+        if (!"cuong03dx".equalsIgnoreCase(currentUser.getUsername())) {
+            throw new BadRequestException("Chi cuong03dx moi co quyen chinh sua thong tin user khac");
+        }
+
         if (currentUser.getId().equals(id)) {
             throw new BadRequestException("Ban khong the sua chinh minh tai day — dung /profile");
         }
@@ -142,7 +147,8 @@ public class AdminUserController {
             Set<Role> roles = new HashSet<>();
             roles.add(newRole);
             user.setRoles(roles);
-            user.setRoleVersion((user.getRoleVersion() != null ? user.getRoleVersion() : 0L) + 1);
+            long currentVersion = user.getRoleVersion() != null ? user.getRoleVersion() : 0L;
+            user.setRoleVersion(currentVersion + 1L);
         }
 
         User saved = userService.updateUser(id, user);
@@ -152,7 +158,13 @@ public class AdminUserController {
     @PutMapping("/{id}/roles")
     public ResponseEntity<ApiResponse<User>> updateUserRoles(
             @PathVariable Long id,
-            @RequestBody Map<String, List<String>> body) {
+            @RequestBody Map<String, List<String>> body,
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+
+        // Only cuong03dx can change other users' roles
+        if (!"cuong03dx".equalsIgnoreCase(currentUser.getUsername())) {
+            throw new BadRequestException("Chi cuong03dx moi co quyen thay doi quyen cua user khac");
+        }
 
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found with id: " + id));
@@ -160,6 +172,11 @@ public class AdminUserController {
         List<String> roleNames = body.get("roles");
         if (roleNames == null || roleNames.isEmpty()) {
             throw new BadRequestException("Roles cannot be empty");
+        }
+
+        // cuong03dx cannot change their own role (prevent self-lockout)
+        if (currentUser.getId().equals(id)) {
+            throw new BadRequestException("Ban khong the thay doi quyen cua chinh minh");
         }
 
         Set<Role> newRoles = new HashSet<>();
@@ -173,7 +190,7 @@ public class AdminUserController {
         }
 
         user.setRoles(newRoles);
-        user.setRoleVersion((user.getRoleVersion() != null ? user.getRoleVersion() : 0L) + 1);
+        user.setRoleVersion((user.getRoleVersion() != null ? user.getRoleVersion() : 0L) + 1L);
         User saved = userRepository.save(user);
         return ResponseEntity.ok(ApiResponse.ok("Cap nhat roles thanh cong", saved));
     }
@@ -192,6 +209,11 @@ public class AdminUserController {
     public ResponseEntity<ApiResponse<Void>> deleteUser(
             @PathVariable Long id,
             @AuthenticationPrincipal UserPrincipal currentUser) {
+
+        // Only cuong03dx can delete users
+        if (!"cuong03dx".equalsIgnoreCase(currentUser.getUsername())) {
+            throw new BadRequestException("Chi cuong03dx moi co quyen xoa user");
+        }
 
         if (currentUser.getId().equals(id)) {
             throw new BadRequestException("Ban khong the xoa chinh minh");

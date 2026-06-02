@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useSession } from 'next-auth/react';
 import { signOut } from 'next-auth/react';
 import { useRouter } from 'next/navigation';
+import { useAuthStore } from '@/store/authStore';
 import {
   Users,
   Search,
@@ -15,6 +16,7 @@ import {
   XCircle,
   RefreshCw,
   AlertTriangle,
+  Shield,
 } from 'lucide-react';
 
 interface BackendUser {
@@ -88,8 +90,20 @@ export default function AdminUsersPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editRoles, setEditRoles] = useState<string[]>([]);
   const [selfRoleChanged, setSelfRoleChanged] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const initialRoleVersion = useRef<number | null>(null);
   const pageSize = 15;
+
+  // Detect super-admin (only cuong03dx can change roles)
+  useEffect(() => {
+    const currentUser = session?.user as any;
+    const backendUser = useAuthStore.getState().user;
+    const isSAdmin = currentUser?.username === 'cuong03dx' ||
+      backendUser?.username === 'cuong03dx' ||
+      (currentUser?.email || '').toLowerCase() === 'cuong03dx@gmail.com' ||
+      (backendUser?.email || '').toLowerCase() === 'cuong03dx@gmail.com';
+    setIsSuperAdmin(isSAdmin);
+  }, [session]);
 
   // Detect when the current user's role was changed by the admin (cuong03dx)
   useEffect(() => {
@@ -498,13 +512,25 @@ export default function AdminUsersPage() {
                             </>
                           ) : (
                             <>
-                              <button
-                                onClick={() => startEditRoles(user)}
-                                className="p-2 rounded-lg hover:bg-white/5 text-text-muted hover:text-neon-violet transition-colors"
-                                title="Phân quyền"
-                              >
-                                ⚙️
-                              </button>
+                              {/* Edit Roles — only super-admin (cuong03dx) can change roles */}
+                              {isSuperAdmin && (
+                                <button
+                                  onClick={() => startEditRoles(user)}
+                                  className="p-2 rounded-lg hover:bg-white/5 text-text-muted hover:text-neon-violet transition-colors"
+                                  title="Phân quyền (chỉ cuong03dx)"
+                                >
+                                  ⚙️
+                                </button>
+                              )}
+                              {!isSuperAdmin && (
+                                <button
+                                  disabled
+                                  className="p-2 rounded-lg text-darkborder cursor-not-allowed opacity-30"
+                                  title="Chỉ cuong03dx có quyền phân quyền"
+                                >
+                                  ⚙️
+                                </button>
+                              )}
                               <button
                                 onClick={() => toggleEnabled(user)}
                                 className={`p-2 rounded-lg transition-colors ${
