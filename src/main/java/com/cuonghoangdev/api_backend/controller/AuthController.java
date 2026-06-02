@@ -5,6 +5,7 @@ import com.cuonghoangdev.api_backend.entity.User;
 import com.cuonghoangdev.api_backend.entity.Role;
 import com.cuonghoangdev.api_backend.exception.BadRequestException;
 import com.cuonghoangdev.api_backend.security.UserPrincipal;
+import com.cuonghoangdev.api_backend.security.JwtTokenProvider;
 import com.cuonghoangdev.api_backend.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -22,6 +23,9 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private JwtTokenProvider tokenProvider;
 
     @PostMapping("/register")
     @Operation(summary = "Đăng ký tài khoản mới", description = "Tạo tài khoản người dùng mới với username, email và password")
