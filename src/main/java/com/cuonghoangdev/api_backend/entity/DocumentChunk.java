@@ -26,7 +26,7 @@ public class DocumentChunk {
     private String metadata;
 
     @org.hibernate.annotations.Type(value = VectorStringType.class)
-    @Column(name = "embedding", columnDefinition = "vector")
+    @Column(name = "embedding", columnDefinition = "TEXT")
     private String embedding;
 
     @Column(name = "chunk_index", nullable = false)
