@@ -35,25 +35,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [authChecked, setAuthChecked] = useState(false);
 
   useEffect(() => {
-    const getToken = () => {
-      const match = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/);
-      return match ? decodeURIComponent(match[1]) : '';
-    };
-
-    const token = getToken();
-
     const checkAuth = async () => {
-      // Credentials user: use backend_token + /api/v1/profile
-      if (token) {
+      const backendToken = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] || '';
+
+      // ── Credentials user: verify via backend token ──
+      if (backendToken) {
         try {
           const res = await fetch('/api/v1/profile', {
             credentials: 'include',
-            headers: { Authorization: `Bearer ${token}` },
+            headers: { Authorization: `Bearer ${backendToken}` },
           });
           if (!res.ok) throw new Error('Unauthorized');
           const data = await res.json();
           const user = data.data;
-          const roles = user?.roles || [];
+          const roles: string[] = user?.roles || [];
           const isAdmin = roles.some(
             (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
           );
@@ -64,33 +59,23 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         } catch { router.push('/login?redirect=' + pathname); return; }
       }
 
-      // OAuth user (NextAuth): use session-based profile endpoint.
-      // If backend is unreachable, fall back to session token data so the
-      // admin panel still works (middleware already verified the role).
-      try {
-        const res = await fetch('/api/v1/profile/session', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          const user = data.data;
-          const roles = user?.roles || [];
-          const isAdmin = roles.some(
-            (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
-          );
-          if (!isAdmin) { router.push('/'); return; }
-          setCurrentUser({ name: user?.fullName || user?.username || 'Admin', email: user?.email || '' });
-          setAuthChecked(true);
-          return;
-        }
-      } catch { /* backend unreachable — fall through to session-only */ }
+      // ── OAuth user (NextAuth): trust the session ──
+      // Middleware already verified role = ADMIN before rendering this layout.
+      // We just read the session data to display the user name.
+      if (session?.user) {
+        const name = session.user.name || session.user.username || 'Admin';
+        const email = session.user.email || '';
+        setCurrentUser({ name, email });
+        setAuthChecked(true);
+        return;
+      }
 
-      // Fallback: use NextAuth session token data directly.
-      // If we reached here, middleware already verified role = ADMIN.
-      setCurrentUser({ name: session?.user?.name || session?.user?.username || 'Admin', email: session?.user?.email || '' });
-      setAuthChecked(true);
+      // No session, no token → redirect to login
+      router.push('/login?redirect=' + pathname);
     };
 
     checkAuth();
-  }, [pathname, router]);
+  }, [pathname, router, session]);
 
   const handleLogout = async () => {
     try {

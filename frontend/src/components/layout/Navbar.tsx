@@ -98,26 +98,21 @@ export default function Navbar() {
     return () => window.removeEventListener('auth-updated', handler);
   }, []);
 
-  // Merge NextAuth session with backend auth
-  const isAuthenticated = mounted && (isBackendAuth || !!session);
-  // Backend user has roles; social login users (session.user) don't
-  const displayUser = mounted ? ((session?.user || backendUser) as any) : backendUser;
+  // ── Admin check ──────────────────────────────────────────────────────────
+  // For NextAuth (OAuth) users: trust the session role if present and non-default.
+  // For users already on /admin/* pages: middleware already verified ADMIN from the
+  // backend — the session role may be stale (useSession reads cached JWT) so we
+  // fall back to checking the pathname.
+  const isOnAdminPage = pathname.startsWith('/admin');
+  const sessionRole = (session?.user?.role as string) || '';
+  const sessionIsAdmin = sessionRole.replace('ROLE_', '').toUpperCase() === 'ADMIN';
   const isAdmin = mounted && (
     !!backendUser?.roles?.some(
       (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
     ) ||
-    (!!session?.user && (session.user.role as string || '').replace('ROLE_', '').toUpperCase() === 'ADMIN')
+    (sessionIsAdmin && !isOnAdminPage) ||
+    (isOnAdminPage && !!session)
   );
-
-  // DEBUG: remove after testing
-  if (mounted && session?.user) {
-    const role = (session.user.role as string || 'UNDEFINED');
-    if (role === 'UNDEFINED') {
-      console.warn('[Navbar] session.user.role is UNDEFINED — JWT callback not setting role!');
-    } else {
-      console.log('[Navbar] session.user.role:', role, '→ isAdmin:', isAdmin);
-    }
-  }
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20);

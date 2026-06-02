@@ -34,15 +34,12 @@ export const authConfig: NextAuthConfig = {
   callbacks: {
     async jwt({ token, account }) {
       const email = token.email as string | undefined;
-      // isOAuth: true when this is a social login (Google/GitHub).
-      // account is non-null on fresh OAuth sign-in, but can be null when
-      // the existing session is being refreshed/updated — still need role.
-      const isOAuth = !!account && account.provider !== "credentials";
 
-      if (isOAuth && email) {
+      // ── Fresh OAuth sign-in: account is provided ──
+      if (account && account.provider !== "credentials") {
         const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
         const name = token.name as string | undefined;
-        const provider = account!.provider;
+        const provider = account.provider;
 
         try {
           const res = await fetch(`${BACKEND_URL}/api/v1/auth/oauth/register`, {
@@ -50,7 +47,7 @@ export const authConfig: NextAuthConfig = {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               email,
-              fullName: name ?? email.split("@")[0],
+              fullName: name ?? email?.split("@")[0] ?? "",
               provider,
               providerId: token.sub ?? "",
             }),
@@ -60,22 +57,30 @@ export const authConfig: NextAuthConfig = {
             const data = await res.json();
             token.id = String(data.data?.id ?? token.sub ?? "");
             token.role = normalizeRole(data.data?.primaryRole ?? "USER");
-            token.username = data.data?.username ?? email.split("@")[0];
+            token.username = data.data?.username ?? email?.split("@")[0] ?? "";
           } else {
             console.error("[nextauth] OAuth register failed:", res.status);
             token.id = token.sub ?? "";
-            token.role = guessRoleFromEmail(email);
-            token.username = email.split("@")[0];
+            token.role = guessRoleFromEmail(email ?? "");
+            token.username = email?.split("@")[0] ?? "";
           }
         } catch (err) {
           console.error("[nextauth] OAuth backend unreachable:", err);
           token.id = token.sub ?? "";
           token.role = guessRoleFromEmail(email ?? "");
-          token.username = (email ?? "").split("@")[0];
+          token.username = email?.split("@")[0] ?? "";
         }
 
         token.isSocialUser = true;
         token.provider = provider;
+        return token;
+      }
+
+      // ── Session refresh / rehydration: account is null ──
+      // If role is already set from a previous call, keep it.
+      // Otherwise, try to set it via guessRoleFromEmail.
+      if (email && !token.role) {
+        token.role = guessRoleFromEmail(email);
       }
 
       return token;
