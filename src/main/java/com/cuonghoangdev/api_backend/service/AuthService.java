@@ -82,13 +82,15 @@ public class AuthService {
 
         String token = tokenProvider.generateToken(authentication);
 
-        return new AuthResponse(
+        AuthResponse authResponse = new AuthResponse(
                 token,
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
                 role
         );
+        authResponse.setRoleVersion(user.getRoleVersion() != null ? user.getRoleVersion() : 0L);
+        return authResponse;
     }
 
     @Transactional
@@ -187,31 +189,30 @@ public class AuthService {
     /**
      * Handles OAuth sign-in: finds existing user by email/provider, or creates a
      * new account. Returns the user so NextAuth can set role in JWT.
+     *
+     * IMPORTANT: Role upgrades (e.g. USER -> ADMIN) are ONLY done by the admin
+     * (cuong03dx) through the /admin/users/{id}/roles API. This method only
+     * assigns ADMIN at first registration if the email is in ADMIN_EMAILS.
+     * Existing users are returned as-is — their role is managed by the admin.
      */
     @Transactional
     public User oauthRegister(OAuthRegisterRequest request) {
-        Optional<User> byEmail = userRepository.findByEmail(request.getEmail());
-        if (byEmail.isPresent()) {
-            User existing = byEmail.get();
-            // Re-check ADMIN_EMAILS — upgrade role if this email is now an admin
-            if (isAdminEmail(request.getEmail()) && !hasRole(existing, "ROLE_ADMIN")) {
-                Role adminRole = roleRepository.findByName("ROLE_ADMIN")
-                        .orElseGet(() -> {
-                            Role r = new Role("ROLE_ADMIN");
-                            return roleRepository.save(r);
-                        });
-                existing.getRoles().add(adminRole);
-                return userRepository.save(existing);
-            }
-            return existing;
-        }
-
+        // First try by provider+providerId (most specific)
         Optional<User> byProvider = userRepository.findByProviderAndProviderId(
                 request.getProvider(), request.getProviderId());
         if (byProvider.isPresent()) {
             return byProvider.get();
         }
 
+        // Then try by email
+        Optional<User> byEmail = userRepository.findByEmail(request.getEmail());
+        if (byEmail.isPresent()) {
+            // Existing user — DO NOT upgrade role here.
+            // Role changes are ONLY done by the admin through /admin/users/{id}/roles.
+            return byEmail.get();
+        }
+
+        // ── New user: assign role at registration time ──
         User user = new User();
         user.setUsername(generateOAuthUsername(request.getEmail()));
         user.setPassword(passwordEncoder.encode(UUID.randomUUID().toString()));
@@ -225,6 +226,8 @@ public class AuthService {
         user.setCredentialsNonExpired(true);
 
         Set<Role> roles = new HashSet<>();
+
+        // ADMIN_EMAILS only affects brand-new registrations
         if (isAdminEmail(request.getEmail())) {
             Role adminRole = roleRepository.findByName("ROLE_ADMIN")
                     .orElseGet(() -> {
@@ -233,6 +236,7 @@ public class AuthService {
                     });
             roles.add(adminRole);
         }
+
         Role userRole = roleRepository.findByName("ROLE_USER")
                 .orElseGet(() -> {
                     Role r = new Role("ROLE_USER");

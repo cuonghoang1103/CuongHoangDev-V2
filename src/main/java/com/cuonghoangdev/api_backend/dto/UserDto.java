@@ -17,6 +17,9 @@ public class UserDto {
     private String primaryRole;
     private Set<String> roles;
     private LocalDateTime createdAt;
+    /** Monotonically increasing version — increments every time roles change.
+        Used by NextAuth to detect stale sessions. */
+    private Long roleVersion;
 
     public static UserDto fromEntity(User user) {
         UserDto dto = new UserDto();
@@ -34,7 +37,9 @@ public class UserDto {
                 .findFirst()
                 .map(r -> r.getName())
                 .orElse("ROLE_USER"));
+        dto.setRoles(roleSet);
         dto.setCreatedAt(user.getCreatedAt());
+        dto.setRoleVersion(user.getRoleVersion() != null ? user.getRoleVersion() : 0L);
         return dto;
     }
 
@@ -109,5 +114,13 @@ public class UserDto {
 
     public void setCreatedAt(LocalDateTime createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Long getRoleVersion() {
+        return roleVersion;
+    }
+
+    public void setRoleVersion(Long roleVersion) {
+        this.roleVersion = roleVersion;
     }
 }

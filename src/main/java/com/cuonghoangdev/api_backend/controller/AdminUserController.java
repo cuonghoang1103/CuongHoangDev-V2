@@ -142,6 +142,7 @@ public class AdminUserController {
             Set<Role> roles = new HashSet<>();
             roles.add(newRole);
             user.setRoles(roles);
+            user.setRoleVersion((user.getRoleVersion() != null ? user.getRoleVersion() : 0L) + 1);
         }
 
         User saved = userService.updateUser(id, user);
@@ -172,6 +173,7 @@ public class AdminUserController {
         }
 
         user.setRoles(newRoles);
+        user.setRoleVersion((user.getRoleVersion() != null ? user.getRoleVersion() : 0L) + 1);
         User saved = userRepository.save(user);
         return ResponseEntity.ok(ApiResponse.ok("Cap nhat roles thanh cong", saved));
     }

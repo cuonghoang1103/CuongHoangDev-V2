@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { api } from '@/lib/api';
 import { toast } from 'sonner';
+import { useSession } from 'next-auth/react';
+import { signOut } from 'next-auth/react';
+import { useRouter } from 'next/navigation';
 import {
   Users,
   Search,
@@ -11,6 +14,7 @@ import {
   CheckCircle,
   XCircle,
   RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
 
 interface BackendUser {
@@ -23,6 +27,7 @@ interface BackendUser {
   enabled: boolean;
   accountNonLocked: boolean;
   createdAt: string;
+  roleVersion?: number;
 }
 
 interface NextAuthUser {
@@ -36,6 +41,7 @@ interface NextAuthUser {
   provider: string;
   isSocialUser: boolean;
   accounts: Array<{ provider: string }>;
+  roleVersion?: number;
 }
 
 interface PageData<T> {
@@ -69,6 +75,8 @@ function RoleBadge({ role }: { role: string }) {
 }
 
 export default function AdminUsersPage() {
+  const { data: session } = useSession();
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<'backend' | 'social'>('backend');
   const [backendUsers, setBackendUsers] = useState<BackendUser[]>([]);
   const [socialUsers, setSocialUsers] = useState<NextAuthUser[]>([]);
@@ -79,7 +87,30 @@ export default function AdminUsersPage() {
   const [totalElements, setTotalElements] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [editRoles, setEditRoles] = useState<string[]>([]);
+  const [selfRoleChanged, setSelfRoleChanged] = useState(false);
+  const initialRoleVersion = useRef<number | null>(null);
   const pageSize = 15;
+
+  // Detect when the current user's role was changed by the admin (cuong03dx)
+  useEffect(() => {
+    const currentUser = session?.user as any;
+    if (!currentUser) return;
+
+    // Initialize on first load
+    if (initialRoleVersion.current === null) {
+      initialRoleVersion.current = currentUser.roleVersion ?? 0;
+      return;
+    }
+
+    // Role version changed — either the user lost admin or the admin refreshed the list
+    const currentVersion = currentUser.roleVersion ?? 0;
+    if (initialRoleVersion.current > 0 && currentVersion > initialRoleVersion.current) {
+      const role = (currentUser.role as string || '').replace('ROLE_', '').toUpperCase();
+      if (role !== 'ADMIN') {
+        setSelfRoleChanged(true);
+      }
+    }
+  }, [session]);
 
   const fetchBackendUsers = useCallback(async () => {
     try {
@@ -170,10 +201,28 @@ export default function AdminUsersPage() {
   };
 
   const saveRoles = async (userId: number) => {
+    const userBeingEdited = backendUsers.find(u => u.id === userId);
+    const currentUser = (session?.user as any);
+    const isEditingSelf = currentUser && (
+      currentUser.email === userBeingEdited?.email ||
+      String(currentUser.id) === String(userBeingEdited?.id)
+    );
+
     try {
       await api.put(`/admin/users/${userId}/roles`, { roles: editRoles });
       toast.success('Cập nhật roles thành công!');
       setEditingId(null);
+
+      // If editing own account, force re-login so NextAuth gets the new role
+      if (isEditingSelf) {
+        toast.info('Vai trò của bạn đã thay đổi. Đang đăng nhập lại...', { duration: 3000 });
+        await signOut({ redirect: false });
+        setTimeout(() => {
+          router.push('/login');
+        }, 1500);
+        return;
+      }
+
       fetchBackendUsers();
     } catch {
       toast.error('Cập nhật thất bại');
@@ -213,6 +262,23 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
+      {/* Self-role-changed warning */}
+      {selfRoleChanged && (
+        <div className="flex items-center gap-3 px-4 py-3 bg-red-500/10 border border-red-500/20 rounded-xl">
+          <AlertTriangle className="w-5 h-5 text-red-400 shrink-0" />
+          <div className="flex-1">
+            <p className="text-sm font-medium text-red-400">Quyền admin của bạn đã bị thu hồi</p>
+            <p className="text-xs text-red-300/70">Bạn sẽ không còn truy cập được trang admin sau khi thoát.</p>
+          </div>
+          <button
+            onClick={async () => { await signOut({ redirect: false }); router.push('/login'); }}
+            className="px-3 py-1.5 bg-red-500/20 hover:bg-red-500/30 text-red-400 text-xs font-medium rounded-lg transition-colors shrink-0"
+          >
+            Đăng xuất
+          </button>
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-heading font-bold text-text-primary">Quản lý Users</h1>

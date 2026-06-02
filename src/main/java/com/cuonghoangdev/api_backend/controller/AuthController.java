@@ -4,6 +4,8 @@ import com.cuonghoangdev.api_backend.dto.*;
 import com.cuonghoangdev.api_backend.entity.User;
 import com.cuonghoangdev.api_backend.entity.Role;
 import com.cuonghoangdev.api_backend.exception.BadRequestException;
+import com.cuonghoangdev.api_backend.exception.ResourceNotFoundException;
+import com.cuonghoangdev.api_backend.repository.UserRepository;
 import com.cuonghoangdev.api_backend.security.UserPrincipal;
 import com.cuonghoangdev.api_backend.security.JwtTokenProvider;
 import com.cuonghoangdev.api_backend.service.AuthService;
@@ -26,6 +28,9 @@ public class AuthController {
 
     @Autowired
     private JwtTokenProvider tokenProvider;
+
+    @Autowired
+    private UserRepository userRepository;
 
     @PostMapping("/register")
     @Operation(summary = "Đăng ký tài khoản mới", description = "Tạo tài khoản người dùng mới với username, email và password")
@@ -83,7 +88,9 @@ public class AuthController {
     @Operation(summary = "OAuth register/login", description = "Called by NextAuth during OAuth sign-in to create or find user in backend, returns role for JWT session")
     public ResponseEntity<ApiResponse<UserDto>> oauthRegister(@Valid @RequestBody OAuthRegisterRequest request) {
         User user = authService.oauthRegister(request);
-        return ResponseEntity.ok(ApiResponse.ok(UserDto.fromEntity(user)));
+        UserDto dto = UserDto.fromEntity(user);
+        dto.setRoleVersion(user.getRoleVersion() != null ? user.getRoleVersion() : 0L);
+        return ResponseEntity.ok(ApiResponse.ok(dto));
     }
 
     @PostMapping("/oauth/token")
@@ -102,6 +109,31 @@ public class AuthController {
                 user.getEmail(),
                 role
         );
+        response.setRoleVersion(user.getRoleVersion() != null ? user.getRoleVersion() : 0L);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    /**
+     * GET /api/v1/auth/role?email={email}&provider={provider}
+     *
+     * Returns the current role and roleVersion for an OAuth user.
+     * Called by NextAuth's JWT callback on every token refresh to detect
+     * role changes made by the admin (cuong03dx).
+     */
+    @GetMapping("/role")
+    @Operation(summary = "Get role by email", description = "Returns current role and roleVersion for an OAuth user — used by NextAuth to detect stale sessions")
+    public ResponseEntity<ApiResponse<AuthResponse>> getRoleByEmail(
+            @RequestParam String email,
+            @RequestParam(required = false) String provider) {
+        User user = userRepository.findByEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("User not found: " + email));
+        String role = user.getRoles().stream()
+                .findFirst()
+                .map(Role::getName)
+                .orElse("ROLE_USER");
+        AuthResponse response = new AuthResponse();
+        response.setRole(role);
+        response.setRoleVersion(user.getRoleVersion() != null ? user.getRoleVersion() : 0L);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 }

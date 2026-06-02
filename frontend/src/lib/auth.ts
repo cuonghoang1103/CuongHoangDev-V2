@@ -3,23 +3,26 @@ import GoogleProvider from "next-auth/providers/google";
 import GitHubProvider from "next-auth/providers/github";
 import type { NextAuthConfig } from "next-auth";
 
+const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
+
 /**
  * NextAuth config — used ONLY for OAuth providers (Google, GitHub).
  *
- * Credentials login bypasses NextAuth entirely. Instead, the user submits
- * credentials to /api/auth/login (a custom route), which:
- * 1. Calls Spring Boot backend to validate credentials
- * 2. Stores the JWT in a backend_token httpOnly cookie
- * 3. Frontend uses that cookie for all authenticated API calls
+ * The ONLY source of truth for user ROLES is the Spring Boot backend database.
+ * When the admin (cuong03dx) changes a user's role through /admin/users,
+ * NextAuth's JWT token refreshes from the backend on every token expiry
+ * (maxAge: 3600 = 1 hour), so role changes take effect within 1 hour.
  *
- * OAuth users flow through NextAuth, which calls /api/v1/auth/oauth/register
- * on first sign-in to create/find the user in the backend DB.
- * After the NextAuth session is established, the /oauth-callback page calls
- * /api/auth/oauth/token to also set the backend_token cookie so all backend
- * API calls (products, music, etc.) work for OAuth users too.
+ * For credentials users: NextAuth is NOT used. Backend auth is handled by
+ * /api/auth/login which sets a backend_token httpOnly cookie.
  */
 export const authConfig: NextAuthConfig = {
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    // Token expires in 1 hour — NextAuth calls the JWT callback again to refresh.
+    // This is when we re-fetch the role from the backend DB.
+    maxAge: 3600,
+  },
   pages: {
     signIn: "/login",
     error: "/login",
@@ -40,7 +43,6 @@ export const authConfig: NextAuthConfig = {
 
       // ── Fresh OAuth sign-in: account is provided ──
       if (account && account.provider !== "credentials") {
-        const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
         const name = token.name as string | undefined;
         const provider = account.provider;
 
@@ -63,18 +65,24 @@ export const authConfig: NextAuthConfig = {
             token.id = String(data.data?.id ?? token.sub ?? "");
             token.role = normalizeRole(data.data?.primaryRole ?? "USER");
             token.username = data.data?.username ?? email?.split("@")[0] ?? "";
-            console.log("[nextauth] role set to:", token.role);
+            token.backendRoleVersion = data.data?.roleVersion ?? 0;
+            token.backendRole = token.role; // snapshot of role at login time
+            console.log("[nextauth] role set to:", token.role, "version:", token.backendRoleVersion);
           } else {
             console.error("[nextauth] OAuth register failed:", res.status);
             token.id = token.sub ?? "";
-            token.role = guessRoleFromEmail(email ?? "");
+            token.role = "USER";
             token.username = email?.split("@")[0] ?? "";
+            token.backendRoleVersion = 0;
+            token.backendRole = "USER";
           }
         } catch (err) {
           console.error("[nextauth] OAuth backend unreachable:", err);
           token.id = token.sub ?? "";
-          token.role = guessRoleFromEmail(email ?? "");
+          token.role = "USER";
           token.username = email?.split("@")[0] ?? "";
+          token.backendRoleVersion = 0;
+          token.backendRole = "USER";
         }
 
         token.isSocialUser = true;
@@ -82,11 +90,36 @@ export const authConfig: NextAuthConfig = {
         return token;
       }
 
-      // ── Session refresh / rehydration: account is null ──
-      // If role is already set from a previous call, keep it.
-      // Otherwise, try to set it via guessRoleFromEmail.
-      if (email && !token.role) {
-        token.role = guessRoleFromEmail(email);
+      // ── Token refresh (account is null): ALWAYS re-fetch role from backend ──
+      // This is the KEY mechanism for role change propagation.
+      // Every hour when the JWT expires, we call the backend to get the ACTUAL role.
+      if (email && token.backendRoleVersion !== undefined) {
+        try {
+          const res = await fetch(
+            `${BACKEND_URL}/api/v1/auth/role?email=${encodeURIComponent(email)}`,
+            { cache: "no-store" }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const backendRole = normalizeRole(data.data?.role ?? "USER");
+            const backendVersion = data.data?.roleVersion ?? 0;
+
+            console.log(
+              `[nextauth] role refresh: stored_v=${token.backendRoleVersion}, backend_v=${backendVersion}, backend_role=${backendRole}`
+            );
+
+            // Role changed in the DB — update the JWT with new role
+            if (backendVersion > (token.backendRoleVersion as number)) {
+              console.log("[nextauth] role CHANGED — updating JWT. Old:", token.role, "→ New:", backendRole);
+              token.role = backendRole;
+            }
+
+            token.backendRoleVersion = backendVersion;
+            return token;
+          }
+        } catch (err) {
+          console.warn("[nextauth] role refresh failed, keeping current role:", err);
+        }
       }
 
       return token;
@@ -99,6 +132,8 @@ export const authConfig: NextAuthConfig = {
         session.user.username = (token.username as string | null) ?? null;
         session.user.isSocialUser = (token.isSocialUser as boolean) ?? true;
         session.user.provider = (token.provider as string | null) ?? null;
+        // Expose roleVersion so client components can detect if their role changed
+        (session.user as any).roleVersion = (token.backendRoleVersion as number) ?? 0;
       }
       return session;
     },
@@ -116,12 +151,4 @@ function normalizeRole(role: string | null | undefined): string {
   if (r === "MODERATOR" || r === "ROLE_MODERATOR") return "MODERATOR";
   if (r === "EDITOR" || r === "ROLE_EDITOR") return "EDITOR";
   return "USER";
-}
-
-function guessRoleFromEmail(email: string): string {
-  const adminEmails = (process.env.ADMIN_EMAILS ?? "")
-    .split(",")
-    .map((e) => e.trim().toLowerCase())
-    .filter(Boolean);
-  return adminEmails.includes(email.toLowerCase()) ? "ADMIN" : "USER";
 }

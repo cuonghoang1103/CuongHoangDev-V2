@@ -71,6 +71,13 @@ public class User {
     @Column(name = "provider_id", length = 255)
     private String providerId;
 
+    /**
+     * Monotonically increasing counter incremented every time the user's roles change.
+     * NextAuth uses this to detect stale sessions and refresh the role from the DB.
+     */
+    @Column(name = "role_version")
+    private Long roleVersion = 0L;
+
     public User() {
     }
 
@@ -207,5 +214,13 @@ public class User {
 
     public void setProviderId(String providerId) {
         this.providerId = providerId;
+    }
+
+    public Long getRoleVersion() {
+        return roleVersion;
+    }
+
+    public void setRoleVersion(Long roleVersion) {
+        this.roleVersion = roleVersion;
     }
 }

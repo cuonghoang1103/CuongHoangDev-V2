@@ -8,6 +8,10 @@ public class AuthResponse {
     private String username;
     private String email;
     private String role;
+    /** Only populated by GET /auth/role and POST /auth/oauth/register */
+    private Long roleVersion;
+
+    public AuthResponse() {}
 
     public AuthResponse(String token, Long userId, String username, String email, String role) {
         this.token = token;
@@ -63,5 +67,13 @@ public class AuthResponse {
 
     public void setRole(String role) {
         this.role = role;
+    }
+
+    public Long getRoleVersion() {
+        return roleVersion;
+    }
+
+    public void setRoleVersion(Long roleVersion) {
+        this.roleVersion = roleVersion;
     }
 }
