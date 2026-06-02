@@ -132,6 +132,8 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/projects/**").permitAll()
                     .requestMatchers("/api/v1/contact/**").permitAll()
                     .requestMatchers("/api/v1/files/**").permitAll()
+                    .requestMatchers("/api/v1/music/tracks").permitAll()
+                    .requestMatchers("/api/v1/music/admin/**").authenticated()
                     .requestMatchers("/api/v1/courses/featured").permitAll()
                     .requestMatchers("/api/v1/courses").permitAll()
                     .requestMatchers("/api/v1/courses/{slug}").permitAll()

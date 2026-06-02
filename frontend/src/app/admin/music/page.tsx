@@ -167,13 +167,15 @@ export default function AdminMusicPage() {
     try {
       if (editingId) {
         // Update existing — if new audio file uploaded, re-upload
+        let finalAudioUrl = audioUrl;
         if (audioFile) {
           const uploadRes = await uploadAudioFile(audioFile);
-          setAudioUrl(uploadRes.url);
+          finalAudioUrl = uploadRes.url;
         }
+        let finalCoverImage = coverImage;
         if (coverFile) {
           const coverRes = await fileApi.upload(coverFile, 'music-covers');
-          setCoverImage(coverRes.data?.data?.url || '');
+          finalCoverImage = coverRes.data?.data?.url || coverImage;
         }
 
         await apiFetch(`/admin/tracks/${editingId}`, {
@@ -181,8 +183,8 @@ export default function AdminMusicPage() {
           body: JSON.stringify({
             title: title.trim(),
             artist: artist.trim(),
-            audioUrl,
-            coverImage,
+            audioUrl: finalAudioUrl,
+            coverImage: finalCoverImage,
             durationSeconds,
           }),
         });
@@ -240,7 +242,14 @@ export default function AdminMusicPage() {
         body: formData,
       });
 
-      if (!res.ok) throw new Error('Upload failed');
+      if (!res.ok) {
+        let msg = `HTTP ${res.status}`;
+        try {
+          const errData = await res.clone().json();
+          msg = errData.message || errData.error || msg;
+        } catch {}
+        throw new Error(msg);
+      }
       const data = await res.json();
       return { url: data.data.url, publicId: data.data.publicId };
     } finally {
