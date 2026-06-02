@@ -242,14 +242,18 @@ export default function AdminMusicPage() {
         body: formData,
       });
 
+      // Read response regardless of status
+      let msg = '';
+      try {
+        const errData = await res.clone().json();
+        msg = errData.message || errData.error || '';
+      } catch {}
+
       if (!res.ok) {
-        let msg = `HTTP ${res.status}`;
-        try {
-          const errData = await res.clone().json();
-          msg = errData.message || errData.error || msg;
-        } catch {}
-        throw new Error(msg);
+        const detail = msg || `HTTP ${res.status}`;
+        throw new Error(`Upload that bai: ${detail}`);
       }
+
       const data = await res.json();
       return { url: data.data.url, publicId: data.data.publicId };
     } finally {

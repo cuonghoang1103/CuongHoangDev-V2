@@ -19,20 +19,38 @@ import java.util.UUID;
 public class CloudinaryFileStorageService {
 
     private final Cloudinary cloudinary;
+    private final String cloudName;
+    private final boolean configured;
 
     public CloudinaryFileStorageService(
             @Value("${cloudinary.cloud-name}") String cloudName,
             @Value("${cloudinary.api-key}") String apiKey,
             @Value("${cloudinary.api-secret}") String apiSecret) {
+        this.cloudName = cloudName;
+        this.configured = cloudName != null && !cloudName.isBlank()
+                && apiKey != null && !apiKey.isBlank()
+                && apiSecret != null && !apiSecret.isBlank();
+
         Map config = new HashMap();
-        config.put("cloud_name", cloudName);
-        config.put("api_key", apiKey);
-        config.put("api_secret", apiSecret);
+        config.put("cloud_name", cloudName != null ? cloudName : "");
+        config.put("api_key", apiKey != null ? apiKey : "");
+        config.put("api_secret", apiSecret != null ? apiSecret : "");
         config.put("secure", true);
         this.cloudinary = new Cloudinary(config);
     }
 
+    public boolean isConfigured() {
+        return configured;
+    }
+
+    public String getCloudName() {
+        return cloudName;
+    }
+
     public FileUploadResult upload(MultipartFile file, String folder) throws IOException {
+        if (!configured) {
+            throw new IOException("Cloudinary chua duoc cau hinh. Vui long kiem tra CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET");
+        }
         File tempFile = convertToFile(file);
         try {
             Map params = ObjectUtils.asMap(
@@ -56,6 +74,9 @@ public class CloudinaryFileStorageService {
     }
 
     public String uploadImage(MultipartFile file, String folder, int width, int height) throws IOException {
+        if (!configured) {
+            throw new IOException("Cloudinary chua duoc cau hinh");
+        }
         File tempFile = convertToFile(file);
         try {
             Map params = ObjectUtils.asMap(
