@@ -1,11 +1,11 @@
 package com.cuonghoangdev.api_backend.controller;
 
 import com.cuonghoangdev.api_backend.dto.ApiResponse;
-import com.cuonghoangdev.api_backend.dto.FileUploadResult;
 import com.cuonghoangdev.api_backend.entity.FileAttachment;
 import com.cuonghoangdev.api_backend.repository.FileAttachmentRepository;
 import com.cuonghoangdev.api_backend.security.UserPrincipal;
-import com.cuonghoangdev.api_backend.service.CloudinaryFileStorageService;
+import com.cuonghoangdev.api_backend.service.storage.CloudinaryStorageService;
+import com.cuonghoangdev.api_backend.service.storage.StorageResult;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -22,7 +22,7 @@ import java.util.Map;
 public class FileController {
 
     @Autowired
-    private CloudinaryFileStorageService cloudinaryService;
+    private CloudinaryStorageService cloudinaryService;
 
     @Autowired
     private FileAttachmentRepository fileAttachmentRepository;
@@ -34,10 +34,10 @@ public class FileController {
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
         try {
-            FileUploadResult result = cloudinaryService.upload(file, category);
+            StorageResult result = cloudinaryService.upload(file, category);
 
             FileAttachment attachment = new FileAttachment();
-            attachment.setOriginalName(result.getOriginalName());
+            attachment.setOriginalName(result.getOriginalFileName());
             attachment.setStoredName(result.getPublicId());
             attachment.setFilePath(result.getUrl());
             attachment.setContentType(result.getContentType());
@@ -52,7 +52,7 @@ public class FileController {
             Map<String, Object> response = new HashMap<>();
             response.put("url", result.getUrl());
             response.put("publicId", result.getPublicId());
-            response.put("originalName", result.getOriginalName());
+            response.put("originalName", result.getOriginalFileName());
             response.put("contentType", result.getContentType());
             response.put("fileSize", result.getFileSize());
             response.put("category", category);

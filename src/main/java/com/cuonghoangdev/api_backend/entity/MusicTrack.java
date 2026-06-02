@@ -22,10 +22,17 @@ public class MusicTrack {
     @Column(nullable = false, length = 255)
     private String artist;
 
-    @Column(name = "audio_url", nullable = false, length = 500)
+    /**
+     * Public URL of the audio file.
+     * Currently sourced from Supabase Storage (previously Cloudinary).
+     */
+    @Column(name = "audio_url", nullable = false, length = 700)
     private String audioUrl;
 
-    @Column(name = "cover_image", length = 500)
+    /**
+     * Cover image URL — stored in Cloudinary.
+     */
+    @Column(name = "cover_image", length = 700)
     private String coverImage;
 
     @Column(name = "duration_seconds")
@@ -34,11 +41,23 @@ public class MusicTrack {
     @Column(name = "file_size")
     private Long fileSize;
 
+    /**
+     * Cloudinary public ID for the audio file (if still using Cloudinary for audio).
+     * Kept for backward compatibility and cleanup.
+     */
     @Column(name = "public_id", length = 500)
     private String publicId;
 
-    @Column(name = "cloudinary_url", length = 500)
+    @Column(name = "cloudinary_url", length = 700)
     private String cloudinaryUrl;
+
+    /**
+     * Supabase Storage path for the audio file.
+     * Example: "tracks/abc123-def456.mp3"
+     * Used to delete files from Supabase when the track is deleted.
+     */
+    @Column(name = "supabase_path", length = 500)
+    private String supabasePath;
 
     @Column(nullable = false)
     private Boolean active = true;
@@ -53,6 +72,7 @@ public class MusicTrack {
 
     public MusicTrack() {}
 
+    // Getters & Setters
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
     public String getTitle() { return title; }
@@ -71,6 +91,8 @@ public class MusicTrack {
     public void setPublicId(String publicId) { this.publicId = publicId; }
     public String getCloudinaryUrl() { return cloudinaryUrl; }
     public void setCloudinaryUrl(String cloudinaryUrl) { this.cloudinaryUrl = cloudinaryUrl; }
+    public String getSupabasePath() { return supabasePath; }
+    public void setSupabasePath(String supabasePath) { this.supabasePath = supabasePath; }
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }
     public LocalDateTime getCreatedAt() { return createdAt; }

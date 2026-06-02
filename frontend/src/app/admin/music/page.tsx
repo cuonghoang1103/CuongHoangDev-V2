@@ -166,7 +166,7 @@ export default function AdminMusicPage() {
     setSaving(true);
     try {
       if (editingId) {
-        // Update existing — if new audio file uploaded, re-upload
+        // Update existing — if new audio file uploaded, re-upload to Supabase
         let finalAudioUrl = audioUrl;
         if (audioFile) {
           const uploadRes = await uploadAudioFile(audioFile);
@@ -177,7 +177,6 @@ export default function AdminMusicPage() {
           const coverRes = await fileApi.upload(coverFile, 'music-covers');
           finalCoverImage = coverRes.data?.data?.url || null;
         }
-        // Don't save blob: URLs (local preview that won't persist)
         if (finalCoverImage?.startsWith('blob:')) {
           finalCoverImage = null;
         }
@@ -188,22 +187,30 @@ export default function AdminMusicPage() {
             title: title.trim(),
             artist: artist.trim(),
             audioUrl: finalAudioUrl,
-            coverImage: finalCoverImage,
+            coverImageUrl: finalCoverImage,
             durationSeconds,
           }),
         });
         toast.success('Cap nhat thanh cong');
       } else {
-        // Create new — upload audio directly to Cloudinary, then create track
+        // Create new — upload audio to Supabase, cover to Cloudinary, then create track
         if (!audioFile) {
           toast.error('Vui long tai len file nhac');
           setSaving(false);
           return;
         }
+
+        // Upload audio to Supabase
         const uploadRes = await uploadAudioFile(audioFile);
-        const finalCover = coverFile
-          ? (await fileApi.upload(coverFile, 'music-covers'))?.data?.data?.url || null
-          : (coverImage && !coverImage.startsWith('blob:') ? coverImage : null);
+
+        // Upload cover to Cloudinary (if provided)
+        let finalCover: string | null = null;
+        if (coverFile) {
+          const coverRes = await fileApi.upload(coverFile, 'music-covers');
+          finalCover = coverRes.data?.data?.url || null;
+        } else if (coverImage && !coverImage.startsWith('blob:')) {
+          finalCover = coverImage;
+        }
 
         await apiFetch('/admin/tracks', {
           method: 'POST',
@@ -211,10 +218,8 @@ export default function AdminMusicPage() {
             title: title.trim(),
             artist: artist.trim(),
             audioUrl: uploadRes.url,
-            coverImage: finalCover,
+            coverImageUrl: finalCover,
             durationSeconds,
-            publicId: uploadRes.publicId,
-            fileSize: audioFile.size,
             active: true,
           }),
         });
@@ -231,52 +236,47 @@ export default function AdminMusicPage() {
     }
   };
 
-  // Upload directly to Cloudinary to bypass Vercel's 4.5MB body limit
-  // Returns { url, publicId } — does NOT create track record
-  const uploadAudioFile = async (file: File): Promise<{ url: string; publicId: string }> => {
+  // Upload audio directly to Supabase to bypass Vercel's 4.5MB body limit
+  // Audio goes: browser → Supabase (no Vercel in between)
+  // Returns { url, path } — does NOT create track record
+  const uploadAudioFile = async (file: File): Promise<{ url: string; path: string }> => {
     setUploading(true);
     try {
       const token = getToken();
 
-      // Step 1: Get signed upload params from backend
-      const signRes = await fetch(`${API}/admin/upload/sign`, {
+      // Step 1: Get upload URL from backend
+      const urlRes = await fetch(`${API}/admin/upload/supabase?fileName=${encodeURIComponent(file.name)}&contentType=${encodeURIComponent(file.type)}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!signRes.ok) {
-        const err = await signRes.json().catch(() => ({}));
-        throw new Error(err.message || `HTTP ${signRes.status}`);
+      if (!urlRes.ok) {
+        const err = await urlRes.json().catch(() => ({}));
+        throw new Error(err.message || `HTTP ${urlRes.status}`);
       }
 
-      const signData = await signRes.json();
-      if (!signData.data) {
-        throw new Error('Khong the lay upload signature');
+      const urlData = await urlRes.json();
+      if (!urlData.data) {
+        throw new Error('Khong the lay upload URL tu Supabase');
       }
 
-      const { cloudName, apiKey, timestamp, signature, folder, publicId } = signData.data;
+      const { uploadUrl, path } = urlData.data;
 
-      // Step 2: Upload directly to Cloudinary from browser (no Vercel proxy)
-      const uploadFormData = new FormData();
-      uploadFormData.append('file', file);
-      uploadFormData.append('api_key', apiKey);
-      uploadFormData.append('timestamp', String(timestamp));
-      uploadFormData.append('signature', signature);
-      uploadFormData.append('folder', folder);
-      uploadFormData.append('public_id', publicId);
-      uploadFormData.append('resource_type', 'auto');
-
-      const uploadRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`,
-        { method: 'POST', body: uploadFormData }
-      );
+      // Step 2: Upload directly to Supabase from browser (no Vercel proxy)
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type || 'audio/mpeg',
+        },
+        body: file,
+      });
 
       if (!uploadRes.ok) {
-        const errText = await uploadRes.text();
-        throw new Error(`Cloudinary upload failed: ${errText}`);
+        throw new Error(`Supabase upload failed: HTTP ${uploadRes.status}`);
       }
 
-      const uploadResult = await uploadRes.json();
-      return { url: uploadResult.secure_url, publicId };
+      // Step 3: Return the public URL
+      const publicUrl = urlData.data.publicUrl;
+      return { url: publicUrl, path };
     } catch (err: any) {
       throw new Error(err.message || 'Upload that bai');
     } finally {

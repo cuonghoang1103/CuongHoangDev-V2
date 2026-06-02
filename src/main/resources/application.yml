@@ -144,3 +144,10 @@ cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME:}
   api-key: ${CLOUDINARY_API_KEY:}
   api-secret: ${CLOUDINARY_API_SECRET:}
+
+# Supabase Storage — for audio files
+# Audio files go to Supabase to bypass Vercel's 4.5MB body limit
+supabase:
+  url: ${SUPABASE_URL:}
+  service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+  bucket: ${SUPABASE_BUCKET:music-tracks}
