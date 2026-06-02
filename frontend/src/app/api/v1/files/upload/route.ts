@@ -2,18 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
 
-/**
- * POST /api/v1/files/upload
- *
- * Proxy for file uploads — works for BOTH credentials and OAuth users.
- *
- * - Credentials: reads backend_token cookie (set by /api/auth/login)
- * - OAuth: reads the NextAuth session token (httpOnly) server-side and
- *   converts it to a backend JWT, then forwards to Spring Boot
- *
- * This avoids CORS issues and unifies auth for all upload flows.
- */
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
@@ -23,6 +13,15 @@ export async function POST(request: NextRequest) {
 
     if (!file) {
       return NextResponse.json({ success: false, message: "No file provided" }, { status: 400 });
+    }
+
+    // Reject files > 50MB at the proxy level to prevent Vercel 413
+    const MAX_SIZE = 50 * 1024 * 1024;
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json(
+        { success: false, message: `File too large. Max size is 50MB. Your file is ${(file.size / 1024 / 1024).toFixed(1)}MB.` },
+        { status: 413 }
+      );
     }
 
     // Read backend_token cookie (credentials users)
