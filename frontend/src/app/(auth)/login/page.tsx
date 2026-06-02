@@ -90,16 +90,23 @@ function LoginForm() {
                 },
               }));
             }
+          } else {
+            console.warn('[login] Profile fetch failed:', profileRes.status, '- falling back to login response role');
           }
-        } catch {}
+        } catch (e) {
+          console.warn('[login] Profile fetch threw:', e, '- falling back to login response role');
+        }
 
         // Determine redirect destination:
         // - Admin role  → /admin
         // - Normal user  → redirect param or /
-        const roles: string[] = profileData?.data?.roles ?? [];
+        // FALLBACK: use the role from the login response body if profile fetch failed.
+        // This ensures the admin user is always redirected correctly even on profile errors.
+        const roles: string[] = profileData?.data?.roles ??
+          (role ? [{ name: role }] : []);
         const isAdmin = roles.some(
-          (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
-        );
+          (r: any) => ((typeof r === 'string' ? r : r.name) || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+        ) || (role || '').replace('ROLE_', '').toUpperCase() === 'ADMIN';
         let dest = '/';
         if (isAdmin) {
           dest = '/admin';

@@ -9,9 +9,8 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
  * NextAuth config — used ONLY for OAuth providers (Google, GitHub).
  *
  * The ONLY source of truth for user ROLES is the Spring Boot backend database.
- * When the admin (cuong03dx) changes a user's role through /admin/users,
- * NextAuth's JWT token refreshes from the backend on every token expiry
- * (maxAge: 3600 = 1 hour), so role changes take effect within 1 hour.
+ * On EVERY JWT callback (sign-in AND token refresh), we call the backend to get
+ * the FRESH role. No role is ever trusted from a cached NextAuth JWT.
  *
  * For credentials users: NextAuth is NOT used. Backend auth is handled by
  * /api/auth/login which sets a backend_token httpOnly cookie.
@@ -19,8 +18,6 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
 export const authConfig: NextAuthConfig = {
   session: {
     strategy: "jwt",
-    // Token expires in 1 hour — NextAuth calls the JWT callback again to refresh.
-    // This is when we re-fetch the role from the backend DB.
     maxAge: 3600,
   },
   pages: {
@@ -38,88 +35,60 @@ export const authConfig: NextAuthConfig = {
     }),
   ],
   callbacks: {
-    async jwt({ token, account }) {
+    /**
+     * jwt() is called on EVERY sign-in AND on every token refresh.
+     * We ALWAYS fetch the role from the backend DB — never trust the cached token role.
+     */
+    async jwt({ token, account, trigger }) {
       const email = token.email as string | undefined;
+      if (!email) return token;
 
-      // ── Fresh OAuth sign-in: account is provided ──
-      if (account && account.provider !== "credentials") {
-        const name = token.name as string | undefined;
-        const provider = account.provider;
+      try {
+        let endpoint: string;
+        let options: RequestInit = { cache: "no-store" };
 
-        try {
-          const res = await fetch(`${BACKEND_URL}/api/v1/auth/oauth/register`, {
+        if (account && account.provider !== "credentials") {
+          // Fresh OAuth sign-in: create/find user in backend and get role
+          endpoint = `${BACKEND_URL}/api/v1/auth/oauth/register`;
+          options = {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               email,
-              fullName: name ?? email?.split("@")[0] ?? "",
-              provider,
+              fullName: (token.name as string) ?? email.split("@")[0],
+              provider: account.provider,
               providerId: token.sub ?? "",
             }),
-          });
-
-          const data = await res.json();
-          console.log("[nextauth] oauth/register response:", res.status, JSON.stringify(data));
-
-          if (res.ok) {
-            token.id = String(data.data?.id ?? token.sub ?? "");
-            token.role = normalizeRole(data.data?.primaryRole ?? "USER");
-            token.username = data.data?.username ?? email?.split("@")[0] ?? "";
-            token.backendRoleVersion = data.data?.roleVersion ?? 0;
-            token.backendRole = token.role; // snapshot of role at login time
-            console.log("[nextauth] role set to:", token.role, "version:", token.backendRoleVersion);
-          } else {
-            console.error("[nextauth] OAuth register failed:", res.status);
-            token.id = token.sub ?? "";
-            token.role = "USER";
-            token.username = email?.split("@")[0] ?? "";
-            token.backendRoleVersion = 0;
-            token.backendRole = "USER";
-          }
-        } catch (err) {
-          console.error("[nextauth] OAuth backend unreachable:", err);
-          token.id = token.sub ?? "";
-          token.role = "USER";
-          token.username = email?.split("@")[0] ?? "";
-          token.backendRoleVersion = 0;
-          token.backendRole = "USER";
+            cache: "no-store",
+          };
+        } else {
+          // Token refresh (account == null): query role by email
+          endpoint = `${BACKEND_URL}/api/v1/auth/role?email=${encodeURIComponent(email)}`;
         }
 
-        token.isSocialUser = true;
-        token.provider = provider;
-        return token;
+        const res = await fetch(endpoint, options);
+        if (!res.ok) {
+          console.warn(`[nextauth] backend returned ${res.status}, keeping current token`);
+          return token;
+        }
+
+        const data = await res.json();
+        const freshRole = normalizeRole(data.data?.primaryRole ?? data.data?.role ?? "USER");
+        const freshVersion: number = data.data?.roleVersion ?? 0;
+
+        console.log(`[nextauth] ${account ? "signIn" : "refresh"} → role=${freshRole}, version=${freshVersion}`);
+
+        token.id = String(data.data?.id ?? token.id ?? token.sub ?? "");
+        token.role = freshRole;
+        token.username = (data.data?.username as string) ?? (token.username as string) ?? email.split("@")[0];
+        token.backendRoleVersion = freshVersion;
+      } catch (err) {
+        console.error("[nextauth] backend unreachable:", err);
       }
 
-      // ── Token refresh (account is null): ALWAYS re-fetch role from backend ──
-      // This is the KEY mechanism for role change propagation.
-      // Every hour when the JWT expires, we call the backend to get the ACTUAL role.
-      if (email && token.backendRoleVersion !== undefined) {
-        try {
-          const res = await fetch(
-            `${BACKEND_URL}/api/v1/auth/role?email=${encodeURIComponent(email)}`,
-            { cache: "no-store" }
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const backendRole = normalizeRole(data.data?.role ?? "USER");
-            const backendVersion = data.data?.roleVersion ?? 0;
-
-            console.log(
-              `[nextauth] role refresh: stored_v=${token.backendRoleVersion}, backend_v=${backendVersion}, backend_role=${backendRole}`
-            );
-
-            // Role changed in the DB — update the JWT with new role
-            if (backendVersion > (token.backendRoleVersion as number)) {
-              console.log("[nextauth] role CHANGED — updating JWT. Old:", token.role, "→ New:", backendRole);
-              token.role = backendRole;
-            }
-
-            token.backendRoleVersion = backendVersion;
-            return token;
-          }
-        } catch (err) {
-          console.warn("[nextauth] role refresh failed, keeping current role:", err);
-        }
+      if (account && account.provider !== "credentials") {
+        token.isSocialUser = true;
+        token.provider = account.provider;
       }
 
       return token;
@@ -132,7 +101,7 @@ export const authConfig: NextAuthConfig = {
         session.user.username = (token.username as string | null) ?? null;
         session.user.isSocialUser = (token.isSocialUser as boolean) ?? true;
         session.user.provider = (token.provider as string | null) ?? null;
-        // Expose roleVersion so client components can detect if their role changed
+        // Expose roleVersion so client components can detect role changes
         (session.user as any).roleVersion = (token.backendRoleVersion as number) ?? 0;
       }
       return session;
