@@ -41,7 +41,7 @@ export default function ImageUpload({
     formData.append('category', folder);
 
     const token = getBackendToken();
-    const res = await fetch('/files/upload', {
+    const res = await fetch('/api/v1/files/upload', {
       method: 'POST',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),

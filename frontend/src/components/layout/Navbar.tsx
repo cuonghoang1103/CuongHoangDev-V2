@@ -103,14 +103,15 @@ export default function Navbar() {
   const displayUser = mounted ? ((session?.user || backendUser) as any) : backendUser;
 
   // ── Admin check ──────────────────────────────────────────────────────────
-  // Backend credentials users: check real roles from Zustand store.
-  // OAuth users: if session exists (middleware already verified ADMIN on server),
-  // always show admin menu — client-side useSession() may have stale role.
+  const sessionRole = ((session?.user as any)?.role as string | null) ?? null;
+  const isOAuthAdmin = sessionRole
+    ? sessionRole.replace('ROLE_', '').toUpperCase() === 'ADMIN'
+    : false;
   const isAdmin = mounted && (
     !!backendUser?.roles?.some(
       (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
     ) ||
-    !!session
+    isOAuthAdmin
   );
 
   useEffect(() => {

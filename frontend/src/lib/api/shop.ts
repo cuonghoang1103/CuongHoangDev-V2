@@ -2,16 +2,20 @@
 
 import type { ApiResponse, PageResponse } from '@/types';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082/api/v1';
+const API_BASE = '/api/v1';
+
+function getToken(): string {
+  if (typeof window === 'undefined') return '';
+  // Credentials: token stored as 'token' in localStorage (set by login)
+  // OAuth: token stored as 'auth_token' in localStorage (set by setAuth)
+  return localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
+}
 
 async function request<T>(
   path: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const token =
-    typeof window !== 'undefined'
-      ? localStorage.getItem('auth_token')
-      : null;
+  const token = getToken();
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
