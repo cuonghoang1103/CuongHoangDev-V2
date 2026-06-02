@@ -35,16 +35,21 @@ export default function MusicAudioController() {
     if (audioRef.current) return;
 
     const audio = new Audio();
-    audio.setAttribute('crossOrigin', 'anonymous');
+    // Required for Cloudinary CORS audio streaming
+    audio.crossOrigin = 'anonymous';
     audio.preload = 'auto';
 
     const handleTimeUpdate = () => setCurrentTime(audio.currentTime);
     const handleLoadedMetadata = () => setDuration(audio.duration);
     const handleEnded = () => next();
+    const handleError = () => {
+      console.warn('[MusicAudioController] Audio load error for:', audio.src);
+    };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
     audio.addEventListener('ended', handleEnded);
+    audio.addEventListener('error', handleError);
 
     audioRef.current = audio;
 
@@ -52,6 +57,7 @@ export default function MusicAudioController() {
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
       audio.removeEventListener('ended', handleEnded);
+      audio.removeEventListener('error', handleError);
       audio.pause();
       audio.src = '';
       audioRef.current = null;
@@ -79,7 +85,9 @@ export default function MusicAudioController() {
 
     // Sync play/pause state
     if (isPlaying) {
-      audio.play().catch(() => {});
+      audio.play().catch(() => {
+        // Autoplay blocked — browser requires user gesture first
+      });
     } else {
       audio.pause();
     }

@@ -8,7 +8,8 @@ import ToasterProvider from '@/components/providers/ToasterProvider'
 import MusicAudioController from '@/components/music/MusicAudioController'
 import LocaleWrapper from '@/components/providers/LocaleWrapper'
 
-// GlobalMusicPlayer reads from localStorage - never runs on the server.
+// GlobalMusicPlayer reads from localStorage — never runs on the server.
+// NOTE: It is hidden on /music via CSS so CinematicPlayer takes over.
 const GlobalMusicPlayer = dynamic(
   () => import('@/components/music/GlobalMusicPlayer'),
   { ssr: false }

@@ -66,13 +66,15 @@ export default function MusicPage() {
     return () => clearInterval(interval);
   }, []);
 
-  // Load tracks
+  // Load tracks from backend on mount (only if store is empty)
+  // Tracks from localStorage (persisted) take priority over backend data
   useEffect(() => {
     if (!isHydrated || initialized) return;
 
     const init = async () => {
       const backendTracks = await fetchBackendTracks();
-      if (tracks.length === 0) {
+      // Only set from backend if store is empty (first load, no localStorage data)
+      if (tracks.length === 0 && backendTracks.length > 0) {
         setTracks(backendTracks);
       }
       setInitialized(true);

@@ -103,7 +103,7 @@ export default function CinematicPlaylist({ isNight = true }: CinematicPlaylistP
               Chill Coding Vibes
             </h2>
             <p className="text-xs mt-1" style={{ color: neonColors.textMuted }}>
-              {tracks.length} tracks &bull; {formatTotalDuration(totalDuration)}
+              with Cuong Hoang &bull; {tracks.length} tracks &bull; {formatTotalDuration(totalDuration)}
             </p>
           </div>
         </div>

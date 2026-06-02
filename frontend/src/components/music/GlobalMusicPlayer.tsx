@@ -224,6 +224,10 @@ export default function GlobalMusicPlayer() {
   const [hidden, setHidden] = useState(false);
   const { currentTrack, tracks, isPlaying } = useMusicStore();
 
+  // Hide when on /music page — CinematicPlayer takes over there
+  const isMusicPage = typeof window !== 'undefined' && window.location.pathname === '/music';
+  if (isMusicPage) return null;
+
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
