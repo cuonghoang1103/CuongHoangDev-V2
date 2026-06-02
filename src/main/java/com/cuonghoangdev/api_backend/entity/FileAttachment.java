@@ -35,6 +35,10 @@ public class FileAttachment {
     @Column(name = "file_category")
     private String fileCategory;
 
+    /** Cloudinary public ID — required for programmatic deletion */
+    @Column(name = "public_id", length = 500)
+    private String publicId;
+
     public FileAttachment() {
         this.uploadedAt = LocalDateTime.now();
     }
@@ -109,5 +113,13 @@ public class FileAttachment {
 
     public void setFileCategory(String fileCategory) {
         this.fileCategory = fileCategory;
+    }
+
+    public String getPublicId() {
+        return publicId;
+    }
+
+    public void setPublicId(String publicId) {
+        this.publicId = publicId;
     }
 }

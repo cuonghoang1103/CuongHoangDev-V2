@@ -5,11 +5,13 @@ import {
   Plus, Search, Trash2, X, Loader2,
   Edit, Star, Flame, Sparkles, CheckCircle2,
   ShoppingBag, ChevronLeft, ChevronRight,
+  Upload,
 } from 'lucide-react';
 import Image from 'next/image';
 import { toast } from 'sonner';
 import { useProductStore } from '@/store/productStore';
 import { adminCreateProduct, adminUpdateProduct, adminDeleteProduct, mapProductFromBackend } from '@/lib/api/shop';
+import { fileApi } from '@/lib/api';
 import type { Product, ProductCategory } from '@/types';
 import ImageUpload from '@/components/admin/ImageUpload';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -33,6 +35,7 @@ const emptyProduct = {
   isFeatured: false,
   soldCount: 0,
   tags: [] as string[],
+  fileUrl: '',
 };
 
 function formatPrice(price: number): string {
@@ -69,6 +72,7 @@ export default function AdminShopPage() {
   const [featureInput, setFeatureInput] = useState('');
   const [tagInput, setTagInput] = useState('');
   const [saving, setSaving] = useState(false);
+  const [uploadingFile, setUploadingFile] = useState(false);
 
   // Wait for hydration
   useEffect(() => {
@@ -127,6 +131,7 @@ export default function AdminShopPage() {
       isFeatured: product.isFeatured ?? false,
       soldCount: product.soldCount ?? 0,
       tags: product.tags || [],
+      fileUrl: (product as any).fileUrl || '',
     });
     setFeatureInput('');
     setTagInput('');
@@ -170,6 +175,7 @@ export default function AdminShopPage() {
           shortDescription: productForm.description,
           stockQuantity: productForm.stock,
           featured: productForm.isFeatured,
+          fileUrl: productForm.fileUrl || null,
         });
         toast.success(t('admin.shop.updateSuccess'));
         updateProduct(editingId, { ...productForm, id: editingId, slug });
@@ -184,6 +190,7 @@ export default function AdminShopPage() {
           stockQuantity: productForm.stock,
           featured: productForm.isFeatured,
           active: true,
+          fileUrl: productForm.fileUrl || null,
         });
         toast.success(t('admin.shop.createSuccess'));
         const created = mapProductFromBackend(res.data);
@@ -228,6 +235,35 @@ export default function AdminShopPage() {
 
   const removeTag = (i: number) => {
     setProductForm((f) => ({ ...f, tags: f.tags.filter((_, idx) => idx !== i) }));
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 100 * 1024 * 1024) {
+      toast.error('File tối đa 100MB');
+      return;
+    }
+    setUploadingFile(true);
+    try {
+      const res = await fileApi.upload(file, 'products');
+      const url = res.data?.data?.url;
+      if (url) {
+        setProductForm((f) => ({ ...f, fileUrl: url }));
+        toast.success('Tải file thành công');
+      } else {
+        toast.error('Tải file thất bại');
+      }
+    } catch {
+      toast.error('Tải file thất bại');
+    } finally {
+      setUploadingFile(false);
+      e.target.value = '';
+    }
+  };
+
+  const clearFileUrl = () => {
+    setProductForm((f) => ({ ...f, fileUrl: '' }));
   };
 
   return (
@@ -540,6 +576,49 @@ export default function AdminShopPage() {
                   value={productForm.thumbnail}
                   onChange={(url) => setProductForm((f) => ({ ...f, thumbnail: url }))}
                 />
+              </div>
+
+              {/* Digital File Upload */}
+              <div>
+                <label className="block text-xs font-medium text-text-muted mb-1.5">File sản phẩm số (tải về)</label>
+                {productForm.fileUrl ? (
+                  <div className="flex items-center gap-3 p-3 bg-darkbg border border-darkborder rounded-xl">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-text-primary truncate">{productForm.fileUrl.split('/').pop()?.split('?')[0]}</p>
+                      <p className="text-xs text-neon-emerald">Đã tải lên</p>
+                    </div>
+                    <button
+                      onClick={clearFileUrl}
+                      className="px-3 py-1.5 rounded-lg bg-red-500/10 text-red-400 text-xs hover:bg-red-500/20 transition-colors"
+                    >
+                      Xóa file
+                    </button>
+                  </div>
+                ) : (
+                  <label className="flex items-center gap-3 p-4 border-2 border-dashed border-darkborder rounded-xl cursor-pointer hover:border-neon-violet/40 transition-colors">
+                    <input
+                      type="file"
+                      accept=".zip,.rar,.pdf,.doc,.docx,.exe,.dmg,.pkg"
+                      onChange={handleFileUpload}
+                      disabled={uploadingFile}
+                      className="hidden"
+                    />
+                    {uploadingFile ? (
+                      <>
+                        <Loader2 className="w-5 h-5 text-neon-violet animate-spin" />
+                        <span className="text-sm text-text-muted">Đang tải...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="w-5 h-5 text-text-muted" />
+                        <div>
+                          <p className="text-sm text-text-primary">Tải lên file sản phẩm</p>
+                          <p className="text-xs text-text-muted">ZIP, PDF, DOC, EXE, DMG — tối đa 100MB</p>
+                        </div>
+                      </>
+                    )}
+                  </label>
+                )}
               </div>
 
               {/* Description */}

@@ -1,7 +1,9 @@
 package com.cuonghoangdev.api_backend.controller;
 
 import com.cuonghoangdev.api_backend.dto.ApiResponse;
-import com.cuonghoangdev.api_backend.dto.FileUploadResponse;
+import com.cuonghoangdev.api_backend.dto.FileUploadResult;
+import com.cuonghoangdev.api_backend.entity.FileAttachment;
+import com.cuonghoangdev.api_backend.repository.FileAttachmentRepository;
 import com.cuonghoangdev.api_backend.security.UserPrincipal;
 import com.cuonghoangdev.api_backend.service.CloudinaryFileStorageService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +24,9 @@ public class FileController {
     @Autowired
     private CloudinaryFileStorageService cloudinaryService;
 
+    @Autowired
+    private FileAttachmentRepository fileAttachmentRepository;
+
     @PostMapping("/upload")
     public ResponseEntity<ApiResponse<Map<String, Object>>> uploadFile(
             @RequestParam("file") MultipartFile file,
@@ -29,14 +34,29 @@ public class FileController {
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
         try {
-            String cloudUrl = cloudinaryService.upload(file, category);
+            FileUploadResult result = cloudinaryService.upload(file, category);
+
+            FileAttachment attachment = new FileAttachment();
+            attachment.setOriginalName(result.getOriginalName());
+            attachment.setStoredName(result.getPublicId());
+            attachment.setFilePath(result.getUrl());
+            attachment.setContentType(result.getContentType());
+            attachment.setFileSize(result.getFileSize());
+            attachment.setFileCategory(category);
+            attachment.setPublicId(result.getPublicId());
+            if (currentUser != null) {
+                attachment.setUploadedBy(currentUser.getId());
+            }
+            fileAttachmentRepository.save(attachment);
 
             Map<String, Object> response = new HashMap<>();
-            response.put("url", cloudUrl);
-            response.put("originalName", file.getOriginalFilename());
-            response.put("contentType", file.getContentType());
-            response.put("fileSize", file.getSize());
+            response.put("url", result.getUrl());
+            response.put("publicId", result.getPublicId());
+            response.put("originalName", result.getOriginalName());
+            response.put("contentType", result.getContentType());
+            response.put("fileSize", result.getFileSize());
             response.put("category", category);
+            response.put("attachmentId", attachment.getId());
 
             return ResponseEntity.ok(ApiResponse.ok("Upload thanh cong", response));
         } catch (IOException e) {
@@ -52,6 +72,8 @@ public class FileController {
 
         try {
             cloudinaryService.delete(publicId);
+            fileAttachmentRepository.findByPublicId(publicId)
+                    .ifPresent(fileAttachmentRepository::delete);
             return ResponseEntity.ok(ApiResponse.<Void>ok("Xoa file thanh cong", null));
         } catch (IOException e) {
             return ResponseEntity.internalServerError()

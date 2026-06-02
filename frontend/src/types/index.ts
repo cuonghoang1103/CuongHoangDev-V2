@@ -388,6 +388,8 @@ export interface Product {
   soldCount?: number;
   createdAt?: string;
   tags?: string[];
+  /** URL of the downloadable digital file (e.g. ebook, software zip) */
+  fileUrl?: string;
 }
 
 // Unified cart item — works for both Shop products and Academy courses

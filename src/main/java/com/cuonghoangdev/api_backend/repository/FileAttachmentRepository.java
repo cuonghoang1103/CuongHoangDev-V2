@@ -15,4 +15,6 @@ public interface FileAttachmentRepository extends JpaRepository<FileAttachment, 
     List<FileAttachment> findByFileCategory(String category);
 
     Optional<FileAttachment> findByStoredName(String storedName);
+
+    Optional<FileAttachment> findByPublicId(String publicId);
 }

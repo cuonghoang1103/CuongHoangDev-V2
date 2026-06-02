@@ -3,6 +3,7 @@ package com.cuonghoangdev.api_backend.service;
 import com.cloudinary.Cloudinary;
 import com.cloudinary.Transformation;
 import com.cloudinary.utils.ObjectUtils;
+import com.cuonghoangdev.api_backend.dto.FileUploadResult;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,7 +32,7 @@ public class CloudinaryFileStorageService {
         this.cloudinary = new Cloudinary(config);
     }
 
-    public String upload(MultipartFile file, String folder) throws IOException {
+    public FileUploadResult upload(MultipartFile file, String folder) throws IOException {
         File tempFile = convertToFile(file);
         try {
             Map params = ObjectUtils.asMap(
@@ -40,7 +41,15 @@ public class CloudinaryFileStorageService {
                     "public_id", generatePublicId(file.getOriginalFilename())
             );
             Map result = cloudinary.uploader().upload(tempFile, params);
-            return (String) result.get("secure_url");
+            String url = (String) result.get("secure_url");
+            String publicId = (String) result.get("public_id");
+            return new FileUploadResult(
+                    url,
+                    publicId,
+                    file.getOriginalFilename(),
+                    file.getContentType(),
+                    file.getSize()
+            );
         } finally {
             tempFile.delete();
         }
@@ -94,3 +103,4 @@ public class CloudinaryFileStorageService {
         return filename.substring(filename.lastIndexOf('.'));
     }
 }
+
