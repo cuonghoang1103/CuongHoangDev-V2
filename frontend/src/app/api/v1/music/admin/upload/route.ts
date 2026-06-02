@@ -2,8 +2,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
 
+// Use Node.js runtime (not Edge) so we can handle large file uploads.
+// Edge Runtime has a 4.5MB body limit that causes 413 on audio files.
+export const runtime = 'nodejs';
+
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 120;
 
 export async function POST(request: NextRequest) {
   try {
@@ -18,11 +22,11 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "No file provided" }, { status: 400 });
     }
 
-    // Reject files > 50MB at the proxy level to prevent Vercel 413
-    const MAX_SIZE = 50 * 1024 * 1024;
+    // Reject files > 100MB at the proxy level
+    const MAX_SIZE = 100 * 1024 * 1024;
     if (file.size > MAX_SIZE) {
       return NextResponse.json(
-        { success: false, message: `File too large. Max 50MB. Your file is ${(file.size / 1024 / 1024).toFixed(1)}MB.` },
+        { success: false, message: `File too large. Max 100MB. Your file is ${(file.size / 1024 / 1024).toFixed(1)}MB.` },
         { status: 413 }
       );
     }
