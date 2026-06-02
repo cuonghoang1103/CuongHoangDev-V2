@@ -54,16 +54,16 @@ public class AuthService {
 
     public AuthResponse login(LoginRequest request) {
         User user = userRepository.findByUsername(request.getUsername())
-                .orElseThrow(() -> new BadRequestException("User not found"));
+                .orElseThrow(() -> new BadRequestException("Tài khoản không tồn tại"));
 
         if (!Boolean.TRUE.equals(user.getEnabled())) {
-            throw new BadRequestException("Account is disabled");
+            throw new BadRequestException("Tài khoản đã bị vô hiệu hóa");
         }
         if (!Boolean.TRUE.equals(user.getAccountNonLocked())) {
-            throw new BadRequestException("Account is locked");
+            throw new BadRequestException("Tài khoản đã bị khóa");
         }
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
-            throw new BadRequestException("Bad credentials");
+            throw new BadRequestException("Sai tài khoản hoặc mật khẩu");
         }
 
         UserPrincipal userPrincipal = new UserPrincipal(user);

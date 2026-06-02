@@ -47,12 +47,12 @@ public class AuthController {
             return ResponseEntity.ok(ApiResponse.ok("Đăng nhập thành công", authResponse));
         } catch (BadRequestException ex) {
             return new ResponseEntity<>(
-                    ApiResponse.error("Bad credentials"),
+                    ApiResponse.error(ex.getMessage()),
                     HttpStatus.BAD_REQUEST
             );
         } catch (Exception ex) {
             return new ResponseEntity<>(
-                    ApiResponse.error("Bad credentials"),
+                    ApiResponse.error(ex.getMessage()),
                     HttpStatus.BAD_REQUEST
             );
         }
