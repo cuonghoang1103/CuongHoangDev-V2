@@ -7,6 +7,7 @@ public class MusicTrackDto {
     private String title;
     private String artist;
     private String audioUrl;
+    private String supabasePath;
     private String coverImage;
     private Integer durationSeconds;
     private Long fileSize;
@@ -21,6 +22,7 @@ public class MusicTrackDto {
         dto.setTitle(t.getTitle());
         dto.setArtist(t.getArtist());
         dto.setAudioUrl(t.getAudioUrl());
+        dto.setSupabasePath(t.getSupabasePath());
         dto.setCoverImage(t.getCoverImage());
         dto.setDurationSeconds(t.getDurationSeconds());
         dto.setFileSize(t.getFileSize());
@@ -39,6 +41,8 @@ public class MusicTrackDto {
     public void setArtist(String artist) { this.artist = artist; }
     public String getAudioUrl() { return audioUrl; }
     public void setAudioUrl(String audioUrl) { this.audioUrl = audioUrl; }
+    public String getSupabasePath() { return supabasePath; }
+    public void setSupabasePath(String supabasePath) { this.supabasePath = supabasePath; }
     public String getCoverImage() { return coverImage; }
     public void setCoverImage(String coverImage) { this.coverImage = coverImage; }
     public Integer getDurationSeconds() { return durationSeconds; }
