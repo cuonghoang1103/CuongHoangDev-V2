@@ -249,18 +249,17 @@ export default function AdminMusicPage() {
         throw new Error('Khong co token xac thuc');
       }
 
-      // Server-side upload: backend receives the file and streams it to Supabase.
-      // No signed URLs, no CORS, no connection-refused issues.
-      console.log('[MusicUpload] Uploading file to backend (server-side to Supabase)...');
-      const formData = new FormData();
-      formData.append('file', file);
+      // RAW BINARY upload — sends the file as raw bytes with PUT.
+      // No multipart/form-data, no Content-Type restrictions.
+      // Backend reads request.getInputStream() directly.
+      console.log('[MusicUpload] Uploading file as raw binary to backend...');
 
-      const res = await fetch(`${API}/admin/upload/audio`, {
-        method: 'POST',
+      const res = await fetch(`${API}/admin/upload/audio/raw?filename=${encodeURIComponent(file.name)}`, {
+        method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
         },
-        body: formData,
+        body: file,
       });
 
       const data = await res.json().catch(() => ({}));

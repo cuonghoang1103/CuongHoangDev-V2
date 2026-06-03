@@ -442,6 +442,82 @@ public class MusicController {
     }
 
     /**
+     * RAW BINARY upload — receives the entire request body as bytes.
+     *
+     * This endpoint accepts a PUT with the raw audio bytes and no Content-Type
+     * restrictions. No multipart parsing, no MultipartResolver, no MultipartConfig.
+     * The backend reads the body directly as bytes and uploads to Supabase.
+     *
+     * Frontend sends:
+     *   PUT /api/v1/music/admin/upload/audio/raw?filename=mytrack.mp3
+     *   Authorization: Bearer <token>
+     *   Body: raw binary audio bytes
+     */
+    @PutMapping("/admin/upload/audio/raw")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> uploadAudioRaw(HttpServletRequest request) {
+        String filename = request.getParameter("filename");
+        if (filename == null || filename.isBlank()) {
+            filename = "track.mp3";
+        }
+        log.info("[MusicController] /admin/upload/audio/raw called — filename: {}", filename);
+
+        if (!supabaseService.isConfigured()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Supabase Storage is not configured."
+            ));
+        }
+
+        try {
+            byte[] bytes = request.getInputStream().readAllBytes();
+            log.info("[MusicController] Received {} bytes", bytes.length);
+
+            if (bytes.length == 0) {
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "message", "Empty request body — no file data received."
+                ));
+            }
+
+            String contentType = request.getContentType();
+            String ext = getExtension(filename);
+
+            MultipartFile springFile = new org.springframework.mock.web.MockMultipartFile(
+                    "file", filename, contentType != null ? contentType : "audio/mpeg", bytes);
+
+            String path = "tracks/" + UUID.randomUUID() + ext;
+            log.info("[MusicController] Uploading {} bytes to Supabase as {}", bytes.length, path);
+
+            var result = supabaseService.upload(springFile, "tracks", path);
+
+            log.info("[MusicController] Upload success — {}", result.getUrl());
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", Map.of(
+                            "path", result.getPublicId(),
+                            "audioUrl", result.getUrl(),
+                            "originalName", result.getOriginalFileName(),
+                            "fileSize", result.getFileSize()
+                    )
+            ));
+        } catch (IOException e) {
+            log.error("[MusicController] Raw upload failed", e);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Upload failed: " + e.getMessage()
+            ));
+        } catch (Exception e) {
+            log.error("[MusicController] Unexpected error in raw upload", e);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Unexpected error: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
      * Convert a Jakarta Servlet Part to a Spring MultipartFile.
      * This lets us reuse the existing SupabaseStorageService without modification.
      */
