@@ -3,11 +3,9 @@ import { NextRequest, NextResponse } from "next/server";
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
 
 // Use Node.js runtime (not Edge) so we can handle large file uploads.
-// Edge Runtime has a 4.5MB body limit that causes 413 on large images.
 export const runtime = 'nodejs';
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
 
 export async function POST(request: NextRequest) {
   try {
