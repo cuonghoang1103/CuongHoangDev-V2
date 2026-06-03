@@ -4,8 +4,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
+import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
+import org.springframework.web.client.HttpServerErrorException;
+import org.springframework.web.client.ResourceAccessException;
+import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -49,28 +53,87 @@ public class SupabaseStorageService implements StorageService {
             @Value("${supabase.anon-key:}") String anonKey,
             @Value("${supabase.bucket:music-tracks}") String bucketName
     ) {
-        this.supabaseUrl = supabaseUrl;
+        this.supabaseUrl = normalizeUrl(supabaseUrl);
         this.serviceRoleKey = serviceRoleKey;
         this.anonKey = anonKey;
         this.bucketName = bucketName;
-        this.restTemplate = new RestTemplate();
+        this.restTemplate = buildRestTemplate();
 
-        this.configured = supabaseUrl != null && !supabaseUrl.isBlank()
-                && serviceRoleKey != null && !serviceRoleKey.isBlank();
+        // Validate configuration at startup
+        this.configured = validateConfiguration();
 
         if (!this.configured) {
-            log.warn("Supabase Storage is NOT configured. Audio uploads will fail. " +
-                    "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.");
+            log.error("============================================================");
+            log.error("  SUPABASE STORAGE IS NOT CONFIGURED!");
+            log.error("  Upload will FAIL. Please set these environment variables:");
+            log.error("    - SUPABASE_URL          (e.g. https://your-project.supabase.co)");
+            log.error("    - SUPABASE_ANON_KEY     (from Project Settings > API)");
+            log.error("    - SUPABASE_SERVICE_ROLE_KEY (from Project Settings > API)");
+            log.error("============================================================");
         } else {
-            log.info("[Supabase] Configured for bucket '{}' at {}", bucketName, supabaseUrl);
+            log.info("[Supabase] Initialized — bucket='{}', url='{}', anonKey set={}, serviceRoleKey set={}",
+                    bucketName, supabaseUrl,
+                    anonKey != null && !anonKey.isBlank(),
+                    serviceRoleKey != null && !serviceRoleKey.isBlank());
         }
+    }
+
+    /**
+     * Normalize URL: remove trailing slashes and whitespace.
+     */
+    private String normalizeUrl(String url) {
+        if (url == null) return null;
+        String trimmed = url.trim();
+        return trimmed.endsWith("/") ? trimmed.substring(0, trimmed.length() - 1) : trimmed;
+    }
+
+    /**
+     * Validate configuration at startup — logs exactly what is missing.
+     */
+    private boolean validateConfiguration() {
+        if (supabaseUrl == null || supabaseUrl.isBlank()) {
+            log.error("[Supabase] SUPABASE_URL is NOT set or is blank");
+            return false;
+        }
+        if (!supabaseUrl.startsWith("https://")) {
+            log.warn("[Supabase] SUPABASE_URL should start with https:// (got: {})", supabaseUrl);
+        }
+        if (supabaseUrl.contains("your-project") || supabaseUrl.contains("example")) {
+            log.error("[Supabase] SUPABASE_URL appears to be a placeholder: {}", supabaseUrl);
+            return false;
+        }
+        if (serviceRoleKey == null || serviceRoleKey.isBlank()) {
+            log.error("[Supabase] SUPABASE_SERVICE_ROLE_KEY is NOT set");
+            return false;
+        }
+        // service role key must be a valid JWT format (starts with eyJ)
+        if (!serviceRoleKey.trim().startsWith("eyJ")) {
+            log.warn("[Supabase] SUPABASE_SERVICE_ROLE_KEY doesn't look like a valid JWT (should start with 'eyJ...')");
+        }
+        if (anonKey == null || anonKey.isBlank()) {
+            log.warn("[Supabase] SUPABASE_ANON_KEY is NOT set — using service role key for apikey header");
+        } else if (!anonKey.trim().startsWith("sb_")) {
+            log.warn("[Supabase] SUPABASE_ANON_KEY doesn't look right (should start with 'sb_...')");
+        }
+        return true;
+    }
+
+    /**
+     * Build a RestTemplate with connection and read timeouts.
+     */
+    private RestTemplate buildRestTemplate() {
+        SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
+        factory.setConnectTimeout(15_000);  // 15 seconds to establish connection
+        factory.setReadTimeout(30_000);     // 30 seconds to read response
+        RestTemplate template = new RestTemplate(factory);
+        return template;
     }
 
     @Override
     public StorageResult upload(MultipartFile file, String folder, String fileName) throws IOException {
         if (!configured) {
             throw new IOException("Supabase Storage is not configured. " +
-                    "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY environment variables.");
+                    "Set SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY.");
         }
 
         if (file == null || file.isEmpty()) {
@@ -104,11 +167,13 @@ public class SupabaseStorageService implements StorageService {
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.parseMediaType(
                     contentType != null ? contentType : "audio/mpeg"));
+            // Server-side upload requires service role key (bypasses RLS)
             headers.set("Authorization", "Bearer " + serviceRoleKey);
 
             HttpEntity<File> request = new HttpEntity<>(tempFile, headers);
 
-            // Supabase Storage API: PUT /storage/v1/object/{bucket}/{path}
+            log.info("[Supabase] PUT to: {}", uploadUrl);
+
             ResponseEntity<Void> response = restTemplate.exchange(
                     uploadUrl,
                     HttpMethod.PUT,
@@ -119,8 +184,7 @@ public class SupabaseStorageService implements StorageService {
             if (response.getStatusCode().is2xxSuccessful()) {
                 String publicUrl = buildPublicUrl(path);
 
-                log.info("[Supabase] Upload success: {} ({} bytes, {}s) -> {}",
-                        originalName, size, size / 1024 / 1024 + "MB", publicUrl);
+                log.info("[Supabase] Upload success: {} -> {}", path, publicUrl);
 
                 return new StorageResult(
                         publicUrl,
@@ -136,8 +200,15 @@ public class SupabaseStorageService implements StorageService {
 
         } catch (HttpClientErrorException e) {
             String body = e.getResponseBodyAsString();
-            log.error("[Supabase] Upload failed [{}]: {}", e.getStatusCode(), body);
+            log.error("[Supabase] Upload HTTP error [{}]: {}", e.getStatusCode(), body);
             throw new IOException("Supabase upload failed [" + e.getStatusCode() + "]: " + body);
+        } catch (ResourceAccessException e) {
+            log.error("[Supabase] Upload connection error: {} — Cause: {}", e.getMessage(), e.getCause());
+            throw new IOException("Cannot reach Supabase: " + e.getMessage() +
+                    ". Check SUPABASE_URL is correct and Supabase is accessible.");
+        } catch (RestClientException e) {
+            log.error("[Supabase] Upload unexpected error: {}", e.getMessage());
+            throw new IOException("Supabase upload error: " + e.getMessage());
         } finally {
             if (tempFile != null && tempFile.exists()) {
                 Files.deleteIfExists(tempFile.toPath());
@@ -175,6 +246,9 @@ public class SupabaseStorageService implements StorageService {
             }
             log.error("[Supabase] Delete failed for {}: {}", publicId, e.getMessage());
             return false;
+        } catch (ResourceAccessException e) {
+            log.error("[Supabase] Delete connection error for {}: {}", publicId, e.getMessage());
+            return false;
         }
     }
 
@@ -204,27 +278,39 @@ public class SupabaseStorageService implements StorageService {
      */
     public String createSignedUploadUrl(String path, int expiresInSeconds) throws IOException {
         if (!configured) {
-            throw new IOException("Supabase Storage is not configured");
+            throw new IOException("Supabase Storage is not configured. " +
+                    "Set SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY.");
         }
 
-        // Supabase Storage API: POST /storage/v1/object/upload/sign/{bucket}/{path}
-        // Headers: apikey=anon_key, Authorization=Bearer anon_key (NOT service role key)
+        if (path == null || path.isBlank()) {
+            throw new IOException("Storage path cannot be empty");
+        }
+
+        // Determine effective apikey — prefer anon key, fall back to service role key
         String effectiveApikey = (anonKey != null && !anonKey.isBlank()) ? anonKey : serviceRoleKey;
+        if (effectiveApikey == null || effectiveApikey.isBlank()) {
+            throw new IOException("No Supabase key available — SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are both unset");
+        }
+
+        // Use anon key for the /upload/sign endpoint headers
+        // (this endpoint requires anon-level auth, not service role)
         String signUrl = supabaseUrl + "/storage/v1/object/upload/sign/" + bucketName + "/" + path;
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        // Supabase requires both apikey and Authorization to match and use the anon key
         headers.set("apikey", effectiveApikey);
         headers.set("Authorization", "Bearer " + effectiveApikey);
 
         String requestBody = String.format("{\"expiresIn\": %d}", expiresInSeconds);
         HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
-        try {
-            log.info("[Supabase] Creating signed upload URL for path: {}, expires: {}s", path, expiresInSeconds);
-            log.info("[Supabase] Using apikey: {}...", effectiveApikey.substring(0, Math.min(10, effectiveApikey.length())));
+        log.info("[Supabase] POST /upload/sign — bucket='{}', path='{}', expires={}s",
+                bucketName, path, expiresInSeconds);
+        log.info("[Supabase] Headers — apikey: '{}...', auth: Bearer '{}...'",
+                effectiveApikey.substring(0, Math.min(10, effectiveApikey.length())),
+                effectiveApikey.substring(0, Math.min(10, effectiveApikey.length())));
 
+        try {
             ResponseEntity<Map> response = restTemplate.exchange(
                     signUrl,
                     HttpMethod.POST,
@@ -232,7 +318,8 @@ public class SupabaseStorageService implements StorageService {
                     Map.class
             );
 
-            log.info("[Supabase] Sign response status: {}, body: {}", response.getStatusCode(), response.getBody());
+            log.info("[Supabase] Sign response: HTTP {} — body: {}",
+                    response.getStatusCode(), response.getBody());
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 String signedPath = (String) response.getBody().get("url");
@@ -242,31 +329,47 @@ public class SupabaseStorageService implements StorageService {
                     throw new IOException("Supabase returned null signed URL path. Body: " + response.getBody());
                 }
 
-                // Build base URL: signedPath may be absolute or relative
+                // Build base URL: signedPath from Supabase may be absolute or relative
                 String baseUrl = signedPath.startsWith("http") ? signedPath : supabaseUrl + signedPath;
 
-                // Append query params: apikey (URL-encoded) AND token (critical for HMAC validation)
+                // Append query params — both apikey AND token are REQUIRED
                 String separator = baseUrl.contains("?") ? "&" : "?";
 
-                // apikey MUST be URL-encoded — anon keys contain _ and -
+                // apikey: URL-encode to handle special chars (_ -) in anon keys
                 String encodedApikey = URLEncoder.encode(effectiveApikey, StandardCharsets.UTF_8);
                 String uploadUrl = baseUrl + separator + "apikey=" + encodedApikey;
 
-                // token is the HMAC signature from Supabase — REQUIRED for the upload to be valid
+                // token: HMAC signature from Supabase — without this, PUT will be rejected
                 if (token != null && !token.isBlank()) {
                     String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
                     uploadUrl += "&token=" + encodedToken;
                 }
 
-                log.info("[Supabase] Final signed upload URL: {}", uploadUrl);
+                log.info("[Supabase] Signed URL ready — final URL has {} chars", uploadUrl.length());
                 return uploadUrl;
             } else {
-                throw new IOException("Failed to create signed upload URL: HTTP " + response.getStatusCode() + ", body: " + response.getBody());
+                throw new IOException("Failed to create signed URL: HTTP " + response.getStatusCode() +
+                        ", body: " + response.getBody());
             }
         } catch (HttpClientErrorException e) {
             String bodyStr = e.getResponseBodyAsString();
-            log.error("[Supabase] Signed URL creation failed [{}]: {}", e.getStatusCode(), bodyStr);
-            throw new IOException("Supabase API error [" + e.getStatusCode() + "]: " + bodyStr);
+            log.error("[Supabase] Sign HTTP error [{}]: {}", e.getStatusCode(), bodyStr);
+            throw new IOException("Supabase sign endpoint [" + e.getStatusCode() + "]: " + bodyStr);
+        } catch (HttpServerErrorException e) {
+            String bodyStr = e.getResponseBodyAsString();
+            log.error("[Supabase] Sign server error [{}]: {}", e.getStatusCode(), bodyStr);
+            throw new IOException("Supabase server error [" + e.getStatusCode() + "]: " + bodyStr);
+        } catch (ResourceAccessException e) {
+            // This is the I/O error the user is seeing — connection failure
+            log.error("[Supabase] Sign CONNECTION FAILED: {}", e.getMessage());
+            log.error("[Supabase] Likely causes: 1) Wrong SUPABASE_URL, 2) Network blocked, 3) Supabase is down");
+            log.error("[Supabase] SUPABASE_URL used: {}", supabaseUrl);
+            throw new IOException("Cannot connect to Supabase at '" + supabaseUrl +
+                    "': " + e.getMessage() +
+                    ". Verify SUPABASE_URL is correct and Supabase is accessible from this server.");
+        } catch (RestClientException e) {
+            log.error("[Supabase] Sign unexpected error: {}", e.getMessage());
+            throw new IOException("Supabase sign error: " + e.getMessage());
         }
     }
 
@@ -284,6 +387,6 @@ public class SupabaseStorageService implements StorageService {
         if (filename == null || filename.lastIndexOf('.') == -1) {
             return ".mp3";
         }
-        return filename.substring(filename.lastIndexOf('.'));
+        return filename.substring(filename.lastIndexOf('.')).toLowerCase();
     }
 }
