@@ -51,16 +51,42 @@ public class MusicTrackService {
 
     @Transactional
     public MusicTrackDto createTrack(MusicTrack track) {
-        log.info("[MusicTrackService] createTrack called — title='{}', audioUrl='{}', supabasePath='{}', coverImage='{}'",
-                track.getTitle(), track.getAudioUrl(), track.getSupabasePath(), track.getCoverImage());
+        log.info("[MusicTrackService] ===== createTrack ENTRY =====");
+        log.info("[MusicTrackService] track.title        = {}", track.getTitle());
+        log.info("[MusicTrackService] track.artist       = {}", track.getArtist());
+        log.info("[MusicTrackService] track.audioUrl     = {}", track.getAudioUrl());
+        log.info("[MusicTrackService] track.supabasePath  = {}", track.getSupabasePath());
+        log.info("[MusicTrackService] track.coverImage   = {}", track.getCoverImage());
+        log.info("[MusicTrackService] track.durationSecs = {}", track.getDurationSeconds());
+        log.info("[MusicTrackService] track.fileSize     = {}", track.getFileSize());
+        log.info("[MusicTrackService] track.publicId     = {}", track.getPublicId());
+        log.info("[MusicTrackService] track.cloudinaryUrl= {}", track.getCloudinaryUrl());
+        log.info("[MusicTrackService] track.active       = {}", track.getActive());
+        log.info("[MusicTrackService] track.toString()   = {}", track);
 
-        MusicTrack saved = musicTrackRepository.save(track);
-        log.info("[MusicTrackService] Saved track — id={}, title='{}', audioUrl='{}'",
-                saved.getId(), saved.getTitle(), saved.getAudioUrl());
+        try {
+            MusicTrack saved = musicTrackRepository.save(track);
+            log.info("[MusicTrackService] ===== save() SUCCESS =====");
+            log.info("[MusicTrackService]   saved.id         = {}", saved.getId());
+            log.info("[MusicTrackService]   saved.title      = {}", saved.getTitle());
+            log.info("[MusicTrackService]   saved.artist     = {}", saved.getArtist());
+            log.info("[MusicTrackService]   saved.audioUrl   = {}", saved.getAudioUrl());
+            log.info("[MusicTrackService]   saved.supabasePath = {}", saved.getSupabasePath());
+            log.info("[MusicTrackService]   saved.coverImage = {}", saved.getCoverImage());
+            log.info("[MusicTrackService]   saved.active     = {}", saved.getActive());
 
-        MusicTrackDto dto = MusicTrackDto.fromEntity(saved);
-        log.info("[MusicTrackService] Returning DTO — id={}, audioUrl='{}'", dto.getId(), dto.getAudioUrl());
-        return dto;
+            MusicTrackDto dto = MusicTrackDto.fromEntity(saved);
+            log.info("[MusicTrackService] ===== DTO created ===== id={}, audioUrl={}", dto.getId(), dto.getAudioUrl());
+            return dto;
+
+        } catch (Exception e) {
+            log.error("[MusicTrackService] ===== save() FAILED =====", e);
+            log.error("[MusicTrackService]   Exception class : {}", e.getClass().getName());
+            log.error("[MusicTrackService]   Exception message: {}", e.getMessage());
+            log.error("[MusicTrackService]   Exception cause  : {}", e.getCause());
+            log.error("[MusicTrackService]   Failed track state: {}", track);
+            throw e;
+        }
     }
 
     @Transactional

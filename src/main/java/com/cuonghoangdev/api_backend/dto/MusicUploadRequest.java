@@ -44,4 +44,17 @@ public class MusicUploadRequest {
     public void setSupabasePath(String supabasePath) { this.supabasePath = supabasePath; }
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }
+
+    @Override
+    public String toString() {
+        return "MusicUploadRequest{" +
+                "title='" + title + '\'' +
+                ", artist='" + artist + '\'' +
+                ", durationSeconds=" + durationSeconds +
+                ", coverImageUrl='" + coverImageUrl + '\'' +
+                ", audioUrl='" + audioUrl + '\'' +
+                ", supabasePath='" + supabasePath + '\'' +
+                ", active=" + active +
+                '}';
+    }
 }

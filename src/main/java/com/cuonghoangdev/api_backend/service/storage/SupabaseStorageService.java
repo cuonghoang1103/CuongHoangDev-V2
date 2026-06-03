@@ -211,9 +211,14 @@ public class SupabaseStorageService implements StorageService {
             if (response.getStatusCode().is2xxSuccessful()) {
                 String publicUrl = buildPublicUrl(path);
 
-                log.info("[Supabase] Upload success: {} -> {}", path, publicUrl);
+                log.info("[Supabase] ===== Upload SUCCESS =====");
+                log.info("[Supabase]   path      = {}", path);
+                log.info("[Supabase]   publicUrl = {}", publicUrl);
+                log.info("[Supabase]   originalName = {}", originalName);
+                log.info("[Supabase]   contentType = {}", contentType);
+                log.info("[Supabase]   size      = {} bytes", size);
 
-                return new StorageResult(
+                StorageResult result = new StorageResult(
                         publicUrl,
                         path,
                         originalName,
@@ -221,6 +226,9 @@ public class SupabaseStorageService implements StorageService {
                         size,
                         StorageType.SUPABASE
                 );
+
+                log.info("[Supabase]   StorageResult = {}", result);
+                return result;
             } else {
                 throw new IOException("Upload failed: HTTP " + response.getStatusCode());
             }

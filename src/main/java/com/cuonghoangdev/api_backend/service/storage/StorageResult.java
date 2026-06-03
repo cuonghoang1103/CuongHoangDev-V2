@@ -63,4 +63,16 @@ public class StorageResult {
     public StorageService.StorageType getStorageType() {
         return storageType;
     }
+
+    @Override
+    public String toString() {
+        return "StorageResult{" +
+                "url='" + url + '\'' +
+                ", publicId='" + publicId + '\'' +
+                ", originalFileName='" + originalFileName + '\'' +
+                ", contentType='" + contentType + '\'' +
+                ", fileSize=" + fileSize +
+                ", storageType=" + storageType +
+                '}';
+    }
 }

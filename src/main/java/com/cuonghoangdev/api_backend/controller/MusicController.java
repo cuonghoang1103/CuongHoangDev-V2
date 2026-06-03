@@ -105,39 +105,47 @@ public class MusicController {
     )
     @PostMapping("/admin/tracks")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> createTrack(@RequestBody MusicUploadRequest request) {
-        log.info("[MusicController] createTrack RAW REQUEST: title='{}', artist='{}', audioUrl='{}', supabasePath='{}', coverImageUrl='{}', durationSeconds={}, active={}",
-                request.getTitle(), request.getArtist(), request.getAudioUrl(),
-                request.getSupabasePath(), request.getCoverImageUrl(), request.getDurationSeconds(), request.getActive());
-        log.info("[MusicController] request object class: {}", request.getClass().getName());
-        log.info("[MusicController] request object: {}", request);
+    public ResponseEntity<?> createTrack(
+            @RequestBody MusicUploadRequest request,
+            @RequestHeader(value = "Content-Type", required = false) String contentTypeHeader,
+            HttpServletRequest httpRequest) {
+
+        log.info("======================================================");
+        log.info("[MusicController] ===== createTrack ENTRY POINT =====");
+        log.info("[MusicController] HTTP Content-Type header: '{}'", contentTypeHeader);
+        log.info("[MusicController] Raw @RequestBody MusicUploadRequest: {}", request);
+        log.info("[MusicController]   request.title           = {}", request.getTitle());
+        log.info("[MusicController]   request.artist         = {}", request.getArtist());
+        log.info("[MusicController]   request.audioUrl       = {}", request.getAudioUrl());
+        log.info("[MusicController]   request.supabasePath   = {}", request.getSupabasePath());
+        log.info("[MusicController]   request.coverImageUrl = {}", request.getCoverImageUrl());
+        log.info("[MusicController]   request.durationSeconds = {}", request.getDurationSeconds());
+        log.info("[MusicController]   request.active       = {}", request.getActive());
 
         try {
             MusicTrack track = new MusicTrack();
-            String title = request.getTitle();
-            String artist = request.getArtist();
-            String audioUrl = request.getAudioUrl();
-            String supabasePath = request.getSupabasePath();
-            String coverImageUrl = request.getCoverImageUrl();
-            Integer durationSeconds = request.getDurationSeconds();
-            Boolean active = request.getActive();
+            track.setTitle(request.getTitle() != null ? request.getTitle() : "Untitled");
+            track.setArtist(request.getArtist() != null ? request.getArtist() : "Unknown Artist");
+            track.setDurationSeconds(request.getDurationSeconds());
+            track.setCoverImage(request.getCoverImageUrl());
+            track.setAudioUrl(request.getAudioUrl());
+            track.setSupabasePath(request.getSupabasePath());
+            track.setActive(request.getActive() != null ? request.getActive() : true);
 
-            log.info("[MusicController] Extracted values — title='{}', artist='{}', audioUrl='{}', supabasePath='{}', coverImageUrl='{}', durationSeconds={}, active={}",
-                    title, artist, audioUrl, supabasePath, coverImageUrl, durationSeconds, active);
-
-            track.setTitle(title != null ? title : "Untitled");
-            track.setArtist(artist != null ? artist : "Unknown Artist");
-            track.setDurationSeconds(durationSeconds);
-            track.setCoverImage(coverImageUrl);
-            track.setAudioUrl(audioUrl);
-            track.setSupabasePath(supabasePath);
-            track.setActive(active != null ? active : true);
-
-            log.info("[MusicController] Track entity fields — title='{}', audioUrl='{}', supabasePath='{}', coverImage='{}'",
-                    track.getTitle(), track.getAudioUrl(), track.getSupabasePath(), track.getCoverImage());
+            log.info("[MusicController] ===== MusicTrack entity BEFORE service call =====");
+            log.info("[MusicController]   track.title        = {}", track.getTitle());
+            log.info("[MusicController]   track.artist       = {}", track.getArtist());
+            log.info("[MusicController]   track.audioUrl     = {}", track.getAudioUrl());
+            log.info("[MusicController]   track.supabasePath  = {}", track.getSupabasePath());
+            log.info("[MusicController]   track.coverImage   = {}", track.getCoverImage());
+            log.info("[MusicController]   track.durationSecs = {}", track.getDurationSeconds());
+            log.info("[MusicController]   track.active       = {}", track.getActive());
+            log.info("[MusicController]   track.toString()    = {}", track);
 
             MusicTrackDto created = musicTrackService.createTrack(track);
-            log.info("[MusicController] createTrack SUCCESS — id={}, audioUrl={}", created.getId(), created.getAudioUrl());
+            log.info("[MusicController] ===== createTrack SUCCESS ===== id={}, audioUrl={}", created.getId(), created.getAudioUrl());
+            log.info("======================================================");
+
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "data", Map.of(
@@ -147,7 +155,11 @@ public class MusicController {
                     )
             ));
         } catch (Exception e) {
-            log.error("[MusicController] Failed to create track", e);
+            log.error("[MusicController] ===== createTrack FAILED =====", e);
+            log.error("[MusicController] Exception class : {}", e.getClass().getName());
+            log.error("[MusicController] Exception message: {}", e.getMessage());
+            log.error("[MusicController] Exception cause  : {}", e.getCause());
+            log.error("[MusicController] ==============================================");
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "message", "Failed to create track: " + e.getMessage()
@@ -508,14 +520,18 @@ public class MusicController {
                     "file", filename, contentType != null ? contentType : "audio/mpeg", bytes);
 
             String path = "tracks/" + UUID.randomUUID() + ext;
-            log.info("[MusicController] Uploading {} bytes to Supabase as {}", bytes.length, path);
+            log.info("[MusicController] Creating Supabase path: {}", path);
+            log.info("[MusicController] Calling supabaseService.upload() with contentType={}", contentType != null ? contentType : "audio/mpeg");
 
             var result = supabaseService.upload(springFile, "tracks", path);
 
-            log.info("[MusicController] Upload success — {}", result.getUrl());
-
-            log.info("[MusicController] Returning raw upload response — path='{}', audioUrl='{}', originalName='{}', fileSize={}",
-                    result.getPublicId(), result.getUrl(), result.getOriginalFileName(), result.getFileSize());
+            log.info("[MusicController] ===== Supabase upload SUCCESS =====");
+            log.info("[MusicController]   result.publicId        = {}", result.getPublicId());
+            log.info("[MusicController]   result.url             = {}", result.getUrl());
+            log.info("[MusicController]   result.originalFileName = {}", result.getOriginalFileName());
+            log.info("[MusicController]   result.fileSize       = {}", result.getFileSize());
+            log.info("[MusicController]   result.message        = {}", result.getMessage());
+            log.info("[MusicController]   result.fullResponse    = {}", result);
 
             return ResponseEntity.ok(Map.of(
                     "success", true,
@@ -527,13 +543,13 @@ public class MusicController {
                     )
             ));
         } catch (IOException e) {
-            log.error("[MusicController] Raw upload failed", e);
+            log.error("[MusicController] ===== Supabase upload FAILED (IOException) =====", e);
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "message", "Upload failed: " + e.getMessage()
             ));
         } catch (Exception e) {
-            log.error("[MusicController] Unexpected error in raw upload", e);
+            log.error("[MusicController] ===== Supabase upload FAILED (Exception) =====", e);
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "message", "Unexpected error: " + e.getMessage()

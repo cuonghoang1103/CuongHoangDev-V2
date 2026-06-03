@@ -99,4 +99,21 @@ public class MusicTrack {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    @Override
+    public String toString() {
+        return "MusicTrack{" +
+                "id=" + id +
+                ", title='" + title + '\'' +
+                ", artist='" + artist + '\'' +
+                ", audioUrl='" + audioUrl + '\'' +
+                ", coverImage='" + coverImage + '\'' +
+                ", durationSeconds=" + durationSeconds +
+                ", fileSize=" + fileSize +
+                ", publicId='" + publicId + '\'' +
+                ", cloudinaryUrl='" + cloudinaryUrl + '\'' +
+                ", supabasePath='" + supabasePath + '\'' +
+                ", active=" + active +
+                '}';
+    }
 }
