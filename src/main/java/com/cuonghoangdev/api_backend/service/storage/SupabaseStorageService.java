@@ -189,7 +189,8 @@ public class SupabaseStorageService implements StorageService {
             // Server-side upload requires service role key (bypasses RLS)
             headers.set("Authorization", "Bearer " + serviceRoleKey);
 
-            HttpEntity<File> request = new HttpEntity<>(tempFile, headers);
+            HttpEntity<byte[]> request = new HttpEntity<>(
+                    Files.readAllBytes(tempFile.toPath()), headers);
 
             log.info("[Supabase] PUT to: {}", uploadUrl);
 
