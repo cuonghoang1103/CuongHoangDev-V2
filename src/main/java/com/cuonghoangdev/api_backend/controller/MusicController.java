@@ -131,13 +131,24 @@ public class MusicController {
             track.setSupabasePath(request.getSupabasePath());
             track.setActive(request.getActive() != null ? request.getActive() : true);
 
+            // ─── Validation: at least one of audioUrl / supabasePath must be present ───
+            String audioUrl = request.getAudioUrl();
+            String supabasePath = request.getSupabasePath();
+            if ((audioUrl == null || audioUrl.isBlank()) && (supabasePath == null || supabasePath.isBlank())) {
+                log.error("[MusicController] VALIDATION FAILED: both audioUrl AND supabasePath are null/blank — rejecting request");
+                return ResponseEntity.badRequest().body(Map.of(
+                        "success", false,
+                        "message", "Validation failed: audioUrl and supabasePath are both missing. At least one is required."
+                ));
+            }
+            log.info("[MusicController] Validation passed — audioUrl='{}', supabasePath='{}'", audioUrl, supabasePath);
+
             // Fallback: if audioUrl is null/blank but supabasePath is provided,
             // build the public URL from the path using the same logic as SupabaseStorageService
-            String audioUrl = request.getAudioUrl();
-            if ((audioUrl == null || audioUrl.isBlank()) && request.getSupabasePath() != null && !request.getSupabasePath().isBlank()) {
-                audioUrl = supabaseService.buildPublicUrl(request.getSupabasePath());
+            if ((audioUrl == null || audioUrl.isBlank()) && supabasePath != null && !supabasePath.isBlank()) {
+                audioUrl = supabaseService.buildPublicUrl(supabasePath);
                 log.info("[MusicController] audioUrl is null/blank — built fallback from supabasePath '{}' -> '{}'",
-                        request.getSupabasePath(), audioUrl);
+                        supabasePath, audioUrl);
             }
             track.setAudioUrl(audioUrl);
 
