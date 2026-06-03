@@ -319,23 +319,21 @@ public class SupabaseStorageService implements StorageService {
             throw new IOException("No Supabase key available — SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are both unset");
         }
 
-        // Use anon key for the /upload/sign endpoint headers
+        // Use anon key for the /upload/sign endpoint
         // (this endpoint requires anon-level auth, not service role)
         String signUrl = supabaseUrl + "/storage/v1/object/upload/sign/" + bucketName + "/" + path;
 
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
+        // REQUIRED: apikey header (not Authorization) for the sign endpoint
         headers.set("apikey", effectiveApikey);
-        headers.set("Authorization", "Bearer " + effectiveApikey);
+        // Must NOT set Content-Type here — Supabase Storage v1 rejects it for /upload/sign
+        // Must NOT set Authorization header — it causes 400 "invalid_mime_type application/json"
 
         String requestBody = String.format("{\"expiresIn\": %d}", expiresInSeconds);
         HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
         log.info("[Supabase] POST /upload/sign — bucket='{}', path='{}', expires={}s",
                 bucketName, path, expiresInSeconds);
-        log.info("[Supabase] Headers — apikey: '{}...', auth: Bearer '{}...'",
-                effectiveApikey.substring(0, Math.min(10, effectiveApikey.length())),
-                effectiveApikey.substring(0, Math.min(10, effectiveApikey.length())));
 
         try {
             ResponseEntity<Map> response = restTemplate.exchange(
