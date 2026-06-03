@@ -2,6 +2,8 @@ package com.cuonghoangdev.api_backend.config;
 
 import com.cuonghoangdev.api_backend.security.CustomUserDetailsService;
 import com.cuonghoangdev.api_backend.security.JwtAuthenticationFilter;
+import com.cuonghoangdev.api_backend.security.JsonAccessDeniedHandler;
+import com.cuonghoangdev.api_backend.security.JsonAuthenticationEntryPoint;
 import com.cuonghoangdev.api_backend.security.OAuth2SuccessHandler;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -41,6 +43,12 @@ public class SecurityConfig {
 
     @Autowired
     private OAuth2SuccessHandler oAuth2AuthenticationSuccessHandler;
+
+    @Autowired
+    private JsonAuthenticationEntryPoint jsonAuthenticationEntryPoint;
+
+    @Autowired
+    private JsonAccessDeniedHandler jsonAccessDeniedHandler;
 
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -154,6 +162,10 @@ public class SecurityConfig {
                     .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
                     .requestMatchers("/", "/health", "/error").permitAll()
                     .anyRequest().authenticated()
+            )
+            .exceptionHandling(exceptions -> exceptions
+                    .authenticationEntryPoint(jsonAuthenticationEntryPoint)
+                    .accessDeniedHandler(jsonAccessDeniedHandler)
             )
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

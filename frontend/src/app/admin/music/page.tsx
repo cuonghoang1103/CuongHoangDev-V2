@@ -276,25 +276,29 @@ export default function AdminMusicPage() {
       console.log('[MusicUpload] Vercel route response status:', res.status);
       console.log('[MusicUpload] Vercel route raw text:', rawText);
 
-      let data: any = {};
-      try { data = JSON.parse(rawText); } catch { data = { raw: rawText }; }
+      let data: Record<string, unknown> = {};
+      try { data = JSON.parse(rawText) as Record<string, unknown>; } catch { /* not JSON */ }
 
-      if (!res.ok || data.success === false) {
-        throw new Error(data.message || `Upload that bai: HTTP ${res.status}`);
+      // Backend returns { success: true, data: {...} } on success
+      // or { success: false, message: "..." } on error (or HTML on crash)
+      const isSuccess = res.ok && data.success === true;
+      if (!isSuccess) {
+        const msg = (data.message as string) || `Lỗi HTTP ${res.status}`;
+        throw new Error(msg);
       }
 
       // Response shape: { success: true, data: { track, audioUrl, coverUrl, supabasePath } }
-      const result = data.data || {};
-      const audioUrl = result.audioUrl;
-      const supabasePath = result.supabasePath || result.path;
-      const fileSize = result.fileSize;
+      const result = (data.data || {}) as Record<string, unknown>;
+      const audioUrl = result.audioUrl as string | undefined;
+      const supabasePath = (result.supabasePath || result.path) as string | undefined;
+      const fileSize = result.fileSize as number | undefined;
 
       if (!audioUrl) {
         throw new Error('Backend tra ve khong co audioUrl: ' + JSON.stringify(data));
       }
 
       console.log('[MusicUpload] SUCCESS — audioUrl:', audioUrl, '| supabasePath:', supabasePath);
-      return { audioUrl, supabasePath, fileSize };
+      return { audioUrl: audioUrl as string, supabasePath: supabasePath as string, fileSize };
     } catch (err: any) {
       console.error('[MusicUpload] uploadViaVercel error:', err);
       throw new Error(err.message || 'Upload that bai');
