@@ -168,10 +168,17 @@ public class SupabaseStorageService implements StorageService {
         }
 
         String ext = getExtension(originalName);
-        String baseName = fileName != null
-                ? fileName.replaceAll("[^a-zA-Z0-9._-]", "_")
-                : UUID.randomUUID().toString();
-        String path = buildPath(folder, baseName + ext);
+        String baseName;
+        if (fileName != null) {
+            baseName = fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
+            // Avoid double extension: only append ext if fileName doesn't already have one
+            if (!baseName.toLowerCase().endsWith(ext.toLowerCase())) {
+                baseName += ext;
+            }
+        } else {
+            baseName = UUID.randomUUID().toString() + ext;
+        }
+        String path = buildPath(folder, baseName);
 
         log.info("[Supabase] Uploading audio: {} ({} bytes, type={}) -> {}",
                 originalName, size, contentType, path);
