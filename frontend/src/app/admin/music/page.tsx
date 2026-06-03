@@ -163,86 +163,59 @@ export default function AdminMusicPage() {
       return;
     }
 
-    if (!audioFile && !audioUrl) {
+    if (!editingId && !audioFile) {
       toast.error('Vui long tai len file nhac');
       return;
     }
 
     setSaving(true);
     try {
+      // Step 1: upload audio (if provided) via /api/admin/music/upload
+      // This is a server-to-server flow: Vercel Node → Backend → Supabase.
+      // No Vercel 4.5MB body limit, no CORS issues, no signed URL expiry.
+      let audioTrackData: { audioUrl: string; supabasePath: string; fileSize?: number } | null = null;
+      if (audioFile) {
+        audioTrackData = await uploadViaVercel(audioFile);
+        if (!audioTrackData?.audioUrl) {
+          toast.error('Upload nhac that bai');
+          return;
+        }
+      }
+
+      // Step 2: upload cover image (if provided) via existing fileApi
+      let finalCover: string | null = null;
+      if (coverFile) {
+        const coverRes = await fileApi.upload(coverFile, 'music-covers');
+        finalCover = coverRes.data?.data?.url || null;
+      } else if (coverImage && !coverImage.startsWith('blob:')) {
+        finalCover = coverImage;
+      }
+
+      // Step 3: persist metadata
       if (editingId) {
-        // Update existing
-        let finalAudioUrl = audioUrl;
-        let finalSupabasePath: string | null = null;
-        if (audioFile) {
-          const uploadResult = await uploadViaProxy(audioFile);
-          finalAudioUrl = uploadResult.audioUrl || uploadResult.supabasePath || audioUrl;
-          finalSupabasePath = uploadResult.supabasePath;
+        // UPDATE
+        const body: any = {
+          title: title.trim(),
+          artist: artist.trim(),
+          durationSeconds,
+        };
+        if (audioTrackData?.audioUrl) {
+          body.audioUrl = audioTrackData.audioUrl;
+          body.supabasePath = audioTrackData.supabasePath;
         }
-        let finalCoverImage = coverImage;
-        if (coverFile) {
-          const coverRes = await fileApi.upload(coverFile, 'music-covers');
-          finalCoverImage = (coverRes.data?.data?.url as string | undefined) || '';
-        }
-        if (finalCoverImage.startsWith('blob:')) {
-          finalCoverImage = '';
-        }
+        if (finalCover) body.coverImageUrl = finalCover;
 
         await apiFetch(`/admin/tracks/${editingId}`, {
           method: 'PUT',
-          body: JSON.stringify({
-            title: title.trim(),
-            artist: artist.trim(),
-            audioUrl: finalAudioUrl,
-            supabasePath: finalSupabasePath || undefined,
-            coverImageUrl: finalCoverImage || undefined,
-            durationSeconds,
-          }),
+          body: JSON.stringify(body),
         });
         toast.success('Cap nhat thanh cong');
       } else {
-        // Create new — upload audio through backend proxy → Supabase
-        if (!audioFile) {
-          toast.error('Vui long tai len file nhac');
-          setSaving(false);
+        // CREATE — backend already saved the track; just need a confirmation here
+        if (!audioTrackData) {
+          toast.error('Khong co audio de tao track');
           return;
         }
-
-        // Upload audio via backend (backend forwards to Supabase)
-        const uploadResult = await uploadViaProxy(audioFile);
-        const audioUrl = uploadResult.audioUrl || uploadResult.supabasePath || null;
-        const supabasePath = uploadResult.supabasePath || null;
-
-        if (!audioUrl && !supabasePath) {
-          toast.error('Upload nhac that bai: khong nhan duoc audioUrl hoac supabasePath tu backend');
-          setSaving(false);
-          return;
-        }
-
-        // Upload cover to Cloudinary (if provided)
-        let finalCover: string | null = null;
-        if (coverFile) {
-          const coverRes = await fileApi.upload(coverFile, 'music-covers');
-          finalCover = coverRes.data?.data?.url || null;
-        } else if (coverImage && !coverImage.startsWith('blob:')) {
-          finalCover = coverImage;
-        }
-
-        const requestBody = {
-          title: title.trim(),
-          artist: artist.trim(),
-          audioUrl: audioUrl || undefined,
-          supabasePath: supabasePath || undefined,
-          coverImageUrl: finalCover,
-          durationSeconds,
-          active: true,
-        };
-        console.log('[MusicUpload] Sending createTrack request:', JSON.stringify(requestBody, null, 2));
-
-        await apiFetch('/admin/tracks', {
-          method: 'POST',
-          body: JSON.stringify(requestBody),
-        });
         toast.success('Tao track thanh cong');
       }
 
@@ -250,67 +223,82 @@ export default function AdminMusicPage() {
       resetForm();
       fetchTracks();
     } catch (err: any) {
+      console.error('[MusicUpload] handleSave error:', err);
       toast.error(err.message || 'Luu that bai');
     } finally {
       setSaving(false);
     }
   };
 
-  const uploadViaProxy = async (file: File): Promise<{ audioUrl: string | null; supabasePath: string | null }> => {
+  /**
+   * Upload audio via Vercel Node API route → Backend → Supabase.
+   * Returns {audioUrl, supabasePath, fileSize} or throws on error.
+   */
+  const uploadViaVercel = async (
+    file: File
+  ): Promise<{ audioUrl: string; supabasePath: string; fileSize?: number }> => {
     setUploading(true);
-
     try {
       const token = getToken();
-      if (!token) {
-        throw new Error('Khong co token xac thuc');
-      }
+      if (!token) throw new Error('Khong co token xac thuc');
 
-      const uploadUrl = `${API}/admin/upload/audio/raw?filename=${encodeURIComponent(file.name)}`;
-      console.log('[MusicUpload] PUT to:', uploadUrl);
-      console.log('[MusicUpload] Token length:', token.length);
+      console.log('[MusicUpload] Uploading via Vercel route /api/admin/music/upload');
+      console.log('[MusicUpload] File:', file.name, file.size, 'bytes');
 
-      const res = await fetch(uploadUrl, {
-        method: 'PUT',
+      const formData = new FormData();
+      formData.append('audio', file);
+      formData.append('title', title.trim());
+      formData.append('artist', artist.trim());
+      formData.append('durationSeconds', String(durationSeconds));
+
+      const res = await fetch('/api/admin/music/upload', {
+        method: 'POST',
         headers: {
           Authorization: `Bearer ${token}`,
         },
-        body: file,
+        body: formData,
       });
 
-      console.log('[MusicUpload] Response status:', res.status, res.statusText);
-
-      // Read response as text first to see raw content
       const rawText = await res.text();
-      console.log('[MusicUpload] Raw response text:', rawText);
+      console.log('[MusicUpload] Vercel route response status:', res.status);
+      console.log('[MusicUpload] Vercel route raw text:', rawText);
 
       let data: any = {};
       try { data = JSON.parse(rawText); } catch { data = { raw: rawText }; }
 
-      if (!res.ok || !data.success) {
-        console.error('[MusicUpload] Server-side upload failed:', data);
+      if (!res.ok || data.success === false) {
         throw new Error(data.message || `Upload that bai: HTTP ${res.status}`);
       }
 
-      console.log('[MusicUpload] Server-side upload SUCCESS:', JSON.stringify(data.data, null, 2));
+      // Response shape: { success: true, data: { track, audioUrl, coverUrl, supabasePath } }
+      const result = data.data || {};
+      const audioUrl = result.audioUrl;
+      const supabasePath = result.supabasePath || result.path;
+      const fileSize = result.fileSize;
 
-      // Extract from multiple possible field names
-      const audioUrl = data.data?.audioUrl ?? data.data?.url ?? data.data?.path ?? data.data?.fileUrl ?? null;
-      const supabasePath = data.data?.supabasePath ?? data.data?.path ?? data.data?.publicId ?? null;
-
-      console.log('[MusicUpload] Final extraction — audioUrl:', audioUrl, '| supabasePath:', supabasePath);
-
-      if (!audioUrl && !supabasePath) {
-        console.error('[MusicUpload] WARNING: Both audioUrl and supabasePath are null after extraction!');
-        console.error('[MusicUpload] Full data.data keys:', data.data ? Object.keys(data.data) : 'null');
+      if (!audioUrl) {
+        throw new Error('Backend tra ve khong co audioUrl: ' + JSON.stringify(data));
       }
 
-      return { audioUrl, supabasePath };
-
+      console.log('[MusicUpload] SUCCESS — audioUrl:', audioUrl, '| supabasePath:', supabasePath);
+      return { audioUrl, supabasePath, fileSize };
     } catch (err: any) {
-      console.error('[MusicUpload] Error:', err);
+      console.error('[MusicUpload] uploadViaVercel error:', err);
       throw new Error(err.message || 'Upload that bai');
     } finally {
       setUploading(false);
+    }
+  };
+
+  // Legacy function kept for any other callers; redirects to new flow
+  const uploadViaProxy = async (
+    file: File
+  ): Promise<{ audioUrl: string | null; supabasePath: string | null }> => {
+    try {
+      const r = await uploadViaVercel(file);
+      return { audioUrl: r.audioUrl, supabasePath: r.supabasePath };
+    } catch {
+      return { audioUrl: null, supabasePath: null };
     }
   };
 
