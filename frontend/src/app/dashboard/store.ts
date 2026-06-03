@@ -1,18 +1,22 @@
 'use client';
 
 /**
- * Per-user dashboard state — uses React useSyncExternalStore for correct
- * hydration semantics. Zero Zustand, zero async rehydration issues.
+ * Per-user dashboard state — module-level singleton with per-user localStorage keys.
  *
  * Key per user: "{userId}_dashboard"  (e.g. "42_dashboard", "guest_dashboard")
  *
- * Timing guarantee:
- *  - Server / first render: returns default state (no localStorage)
- *  - After auth rehydrates (user known): loads from correct user key
- *  - Actions only write to the current user's key
- *  - User switch: saves old user → loads new user → notifies
+ * Rules:
+ *  - State starts as defaults (no localStorage on init)
+ *  - switchUser(userId) is called EXACTLY once per auth session to load from localStorage
+ *  - Actions (addTask, etc.) always read/write currentState.userId
+ *  - On logout → window.location.href → new JS context → clean defaults
+ *
+ * Why NOT useSyncExternalStore:
+ *  The noop-snapshot pattern (noop during loading, real after) makes the initial
+ *  render return empty defaults even when user data exists in localStorage.
+ *  Instead we use a Zustand-style subscribe + useState pattern: always read real
+ *  state, only switchUser once per auth session.
  */
-import { useSyncExternalStore } from 'react';
 import type { DashboardState, Task, TimelineSlot, TaskScope, ActivityType } from './types';
 
 const EXP_PER_TASK = 25;
@@ -58,58 +62,70 @@ function storageKey(userId: string): string {
   return `${userId}_dashboard`;
 }
 
-// ── Module-level singleton (mutable — OK because we always notify on write) ──
+// ── Module-level singleton ────────────────────────────────────────────────────
 
 let currentState: DashboardState & { userId: string } = makeDefault();
 const listeners = new Set<() => void>();
 
 function notify() {
-  saveToStorage(currentState);
+  if (typeof window !== 'undefined') {
+    try {
+      const key = storageKey(currentState.userId);
+      localStorage.setItem(key, JSON.stringify(currentState));
+      console.log(`[Dashboard] saveToStorage: key="${key}", tasks=${currentState.tasks.length}, level=${currentState.level}, exp=${currentState.exp}`);
+    } catch { /* private mode / quota */ }
+  }
   listeners.forEach((l) => l());
 }
 
-function saveToStorage(s: DashboardState & { userId: string }) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(storageKey(s.userId), JSON.stringify(s));
-  } catch { /* private mode / quota */ }
-}
-
 function loadFromStorage(userId: string): DashboardState & { userId: string } {
-  if (typeof window === 'undefined') return makeDefault();
+  if (typeof window === 'undefined') return { ...makeDefault(), userId };
   try {
-    const raw = localStorage.getItem(storageKey(userId));
-    if (!raw) return makeDefault();
+    const key = storageKey(userId);
+    const raw = localStorage.getItem(key);
+    console.log(`[Dashboard] loadFromStorage: key="${key}", found=${!!raw}`);
+    if (!raw) return { ...makeDefault(), userId };
     const parsed = JSON.parse(raw) as DashboardState & { userId: string };
-    if (parsed.userId === userId) return parsed;
-  } catch { /* corrupt */ }
-  return makeDefault();
+    if (parsed.userId === userId) {
+      console.log(`[Dashboard] loadFromStorage: tasks=${parsed.tasks.length}, level=${parsed.level}`);
+      return parsed;
+    }
+    console.log(`[Dashboard] Key mismatch for "${userId}" (found "${parsed.userId}"), using defaults`);
+    return { ...makeDefault(), userId };
+  } catch {
+    return { ...makeDefault(), userId };
+  }
 }
 
-// ── Public API ──────────────────────────────────────────────────────────────
+// ── Public API ────────────────────────────────────────────────────────────────
 
-export { currentState as getState };
+export function getState(): DashboardState & { userId: string } {
+  return currentState;
+}
 
-export function subscribeStore(listener: () => void): () => void {
+export function subscribe(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
 
-export function getSnapshot(): DashboardState & { userId: string } {
-  return currentState;
-}
-
-/** Call this whenever auth userId changes (including logout → guest). */
+/**
+ * Load state for the given user from their localStorage key.
+ * Called exactly once when auth resolves (from useDashboardStore hook).
+ */
 export function switchUser(newUserId: string): void {
   const oldId = currentState.userId;
   if (oldId === newUserId) return;
   console.log(`[Dashboard] switchUser: "${oldId}" → "${newUserId}"`);
-  saveToStorage(currentState); // persist old user
+  // Save current user
+  try {
+    localStorage.setItem(storageKey(oldId), JSON.stringify(currentState));
+  } catch { /* ignore */ }
+  // Load new user
   currentState = loadFromStorage(newUserId);
   notify();
 }
 
-// ── Actions ────────────────────────────────────────────────────────────────
+// ── Actions ──────────────────────────────────────────────────────────────────
 
 export function setActivity(hour: number, activity: TimelineSlot['activity']): void {
   const next = [...currentState.timeline];

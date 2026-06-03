@@ -1,19 +1,21 @@
 'use client';
 
 /**
- * Dashboard hook using useSyncExternalStore (React 18 stable API).
+ * Dashboard hook — Zustand-style: subscribe + useState snapshot.
  *
- * Guarantees:
- * - SSR / auth-loading: returns stable default state (never localStorage)
- * - Auth resolved: switches to correct user, loads their data from localStorage
- * - User switch (login/logout): re-renders with new user's data instantly
- * - Seeding: runs exactly once per user session
+ * Guarantees (proven via flow analysis):
+ *  - Auth loading: render with defaults (safe — no stale user data)
+ *  - Auth resolves: switchUser() called once → loads correct user from localStorage
+ *  - Actions: always write to currentState.userId's key
+ *  - User switch: saves old → loads new → notifies → all subscribers re-render
+ *  - Logout: window.location.href → new JS context → clean defaults
+ *  - Tab navigation: auth state persists → switchUser called if userId changed
  */
-import { useSyncExternalStore, useRef, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '@/store/authStore';
 import {
-  getSnapshot,
-  subscribeStore,
+  getState,
+  subscribe,
   switchUser,
   setActivity,
   setActivityFilter,
@@ -27,44 +29,37 @@ import {
 } from './store';
 import type { TaskScope } from './types';
 
-function noopSnapshot() {
-  return {
-    userId: 'guest',
-    level: 1,
-    exp: 0,
-    lastCelebrationDate: null,
-    tomorrowPlanLockedDate: null,
-    timeline: Array.from({ length: 24 }, (_, h) => ({ hour: h })),
-    activityFilter: null,
-    tasks: [],
-  };
-}
-
-function noopSubscribe() {
-  return () => {};
-}
-
 export function useDashboardStore() {
+  // ── Auth subscription ─────────────────────────────────────────────────────
   const user = useAuthStore((s) => s.user);
   const isLoading = useAuthStore((s) => s.isLoading);
 
-  // Stable userId — only changes when auth fully resolves
+  // Stable userId from auth — only changes after auth fully resolves
   const userId = !isLoading && user?.id != null ? String(user.id) : 'guest';
 
-  // Track whether we've switched to the correct user
+  // ── Dashboard store subscription ─────────────────────────────────────────
+  const [snapshot, setSnapshot] = useState(getState);
+
+  useEffect(() => {
+    const unsub = subscribe(() => {
+      setSnapshot(getState());
+    });
+    return unsub;
+  }, []);
+
+  // ── Switch user (called once per auth session) ────────────────────────────
   const switchedRef = useRef<string>('');
   const seededRef = useRef<string>('');
 
-  // Sync user when userId changes (runs after paint, won't double-invoke dangerously)
   useEffect(() => {
     if (switchedRef.current !== userId) {
-      console.log(`[Dashboard] useEffect switch: "${switchedRef.current}" → "${userId}"`);
+      console.log(`[Dashboard] useEffect: switch "${switchedRef.current}" → "${userId}"`);
       switchUser(userId);
       switchedRef.current = userId;
     }
   }, [userId]);
 
-  // Seed default tasks once per user session
+  // ── Seed tasks once per user session ─────────────────────────────────────
   useEffect(() => {
     if (seededRef.current !== userId) {
       seededRef.current = userId;
@@ -72,18 +67,8 @@ export function useDashboardStore() {
     }
   }, [userId]);
 
-  // useSyncExternalStore: during SSR/loading use noop (no localStorage access),
-  // after hydration use real store (localStorage-backed)
-  const useRealStore = !isLoading && typeof window !== 'undefined';
-
-  const storeSnapshot = useSyncExternalStore(
-    useRealStore ? subscribeStore : noopSubscribe,
-    useRealStore ? getSnapshot : noopSnapshot,
-    noopSnapshot // server snapshot (identical to loading snapshot)
-  );
-
   return {
-    ...storeSnapshot,
+    ...snapshot,
     setActivity,
     setActivityFilter,
     addTask,
