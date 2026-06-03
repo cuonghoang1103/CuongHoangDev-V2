@@ -14,7 +14,6 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
  */
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
-export const maxDuration = 600; // 10 minutes for large audio files
 
 export async function POST(request: NextRequest) {
     const start = Date.now();
