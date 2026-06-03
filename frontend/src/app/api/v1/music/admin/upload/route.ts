@@ -8,7 +8,7 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
 // the Vercel 4.5MB browser limit does NOT apply.
 export const runtime = 'nodejs';
 export const dynamic = "force-dynamic";
-export const maxDuration = 180; // 3 minutes for large file uploads
+export const maxDuration = 600; // 10 minutes for large audio files
 
 export async function POST(request: NextRequest) {
   try {
