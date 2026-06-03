@@ -171,6 +171,7 @@ public class MusicController {
                     "data", Map.of(
                             "track", created,
                             "audioUrl", created.getAudioUrl(),
+                            "supabasePath", created.getSupabasePath(),
                             "coverUrl", created.getCoverImage()
                     )
             ));
@@ -540,8 +541,7 @@ public class MusicController {
                     "file", filename, contentType != null ? contentType : "audio/mpeg", bytes);
 
             String path = "tracks/" + UUID.randomUUID() + ext;
-            log.info("[MusicController] Creating Supabase path: {}", path);
-            log.info("[MusicController] Calling supabaseService.upload() with contentType={}", contentType != null ? contentType : "audio/mpeg");
+            log.info("[MusicController] Calling supabaseService.upload() — path='{}', size={} bytes", path, bytes.length);
 
             var result = supabaseService.upload(springFile, "tracks", path);
 
@@ -549,16 +549,16 @@ public class MusicController {
             log.info("[MusicController]   result.publicId        = {}", result.getPublicId());
             log.info("[MusicController]   result.url             = {}", result.getUrl());
             log.info("[MusicController]   result.originalFileName = {}", result.getOriginalFileName());
-            log.info("[MusicController]   result.fileSize       = {}", result.getFileSize());
+            log.info("[MusicController]   result.fileSize       = {} bytes", result.getFileSize());
             log.info("[MusicController]   result.contentType    = {}", result.getContentType());
             log.info("[MusicController]   result.storageType    = {}", result.getStorageType());
-            log.info("[MusicController]   result.fullResult     = {}", result);
 
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "data", Map.of(
                             "path", result.getPublicId(),
                             "audioUrl", result.getUrl(),
+                            "supabasePath", result.getPublicId(),
                             "originalName", result.getOriginalFileName(),
                             "fileSize", result.getFileSize()
                     )

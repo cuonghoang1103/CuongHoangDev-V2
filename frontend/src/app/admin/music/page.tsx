@@ -173,16 +173,19 @@ export default function AdminMusicPage() {
       if (editingId) {
         // Update existing
         let finalAudioUrl = audioUrl;
+        let finalSupabasePath: string | null = null;
         if (audioFile) {
-          finalAudioUrl = await uploadViaProxy(audioFile);
+          const uploadResult = await uploadViaProxy(audioFile);
+          finalAudioUrl = uploadResult.audioUrl || uploadResult.supabasePath || audioUrl;
+          finalSupabasePath = uploadResult.supabasePath;
         }
         let finalCoverImage = coverImage;
         if (coverFile) {
           const coverRes = await fileApi.upload(coverFile, 'music-covers');
-          finalCoverImage = coverRes.data?.data?.url || null;
+          finalCoverImage = (coverRes.data?.data?.url as string | undefined) || '';
         }
-        if (finalCoverImage?.startsWith('blob:')) {
-          finalCoverImage = null;
+        if (finalCoverImage.startsWith('blob:')) {
+          finalCoverImage = '';
         }
 
         await apiFetch(`/admin/tracks/${editingId}`, {
@@ -191,7 +194,8 @@ export default function AdminMusicPage() {
             title: title.trim(),
             artist: artist.trim(),
             audioUrl: finalAudioUrl,
-            coverImageUrl: finalCoverImage,
+            supabasePath: finalSupabasePath || undefined,
+            coverImageUrl: finalCoverImage || undefined,
             durationSeconds,
           }),
         });
@@ -205,7 +209,16 @@ export default function AdminMusicPage() {
         }
 
         // Upload audio via backend (backend forwards to Supabase)
-        const audioUrl = await uploadViaProxy(audioFile);
+        const uploadResult = await uploadViaProxy(audioFile);
+        // Fallback: use supabasePath to build URL if audioUrl is missing
+        const audioUrl = uploadResult.audioUrl || uploadResult.supabasePath || null;
+        const supabasePath = uploadResult.supabasePath || null;
+
+        if (!audioUrl && !supabasePath) {
+          toast.error('Upload nhac that bai: khong nhan duoc audioUrl hoac supabasePath tu backend');
+          setSaving(false);
+          return;
+        }
 
         // Upload cover to Cloudinary (if provided)
         let finalCover: string | null = null;
@@ -221,7 +234,8 @@ export default function AdminMusicPage() {
           body: JSON.stringify({
             title: title.trim(),
             artist: artist.trim(),
-            audioUrl,
+            audioUrl: audioUrl || undefined,
+            supabasePath: supabasePath || undefined,
             coverImageUrl: finalCover,
             durationSeconds,
             active: true,
@@ -240,7 +254,7 @@ export default function AdminMusicPage() {
     }
   };
 
-  const uploadViaProxy = async (file: File): Promise<string> => {
+  const uploadViaProxy = async (file: File): Promise<{ audioUrl: string | null; supabasePath: string | null }> => {
     setUploading(true);
 
     try {
@@ -249,9 +263,6 @@ export default function AdminMusicPage() {
         throw new Error('Khong co token xac thuc');
       }
 
-      // RAW BINARY upload — sends the file as raw bytes with PUT.
-      // No multipart/form-data, no Content-Type restrictions.
-      // Backend reads request.getInputStream() directly.
       console.log('[MusicUpload] Uploading file as raw binary to backend...');
 
       const res = await fetch(`${API}/admin/upload/audio/raw?filename=${encodeURIComponent(file.name)}`, {
@@ -270,7 +281,10 @@ export default function AdminMusicPage() {
       }
 
       console.log('[MusicUpload] Server-side upload success:', data.data);
-      return data.data.audioUrl;
+      const audioUrl = data.data?.audioUrl ?? data.data?.url ?? null;
+      const supabasePath = data.data?.supabasePath ?? data.data?.path ?? null;
+      console.log('[MusicUpload] Extracted — audioUrl:', audioUrl, 'supabasePath:', supabasePath);
+      return { audioUrl, supabasePath };
 
     } catch (err: any) {
       console.error('[MusicUpload] Error:', err);
