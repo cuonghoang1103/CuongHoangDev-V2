@@ -355,7 +355,20 @@ public class SupabaseStorageService implements StorageService {
                 }
 
                 // Build base URL: signedPath from Supabase may be absolute or relative
-                String baseUrl = signedPath.startsWith("http") ? signedPath : supabaseUrl + signedPath;
+                // Supabase v1 returns "/object/upload/sign/..." but the full API endpoint
+                // requires "/storage/v1/object/upload/sign/..." — normalize it here
+                String signedPathToUse = signedPath;
+                if (!signedPathToUse.startsWith("http")) {
+                    // Supabase returns relative paths without /storage/v1 prefix
+                    if (signedPathToUse.startsWith("/object")) {
+                        signedPathToUse = "/storage/v1" + signedPathToUse;
+                    }
+                    signedPathToUse = supabaseUrl + signedPathToUse;
+                } else if (signedPathToUse.contains(".supabase.co/object/") && !signedPathToUse.contains("/storage/v1/")) {
+                    // Absolute URL but missing /storage/v1 segment — fix it
+                    signedPathToUse = signedPathToUse.replace("/object/", "/storage/v1/object/");
+                }
+                String baseUrl = signedPathToUse;
 
                 // Append query params — both apikey AND token are REQUIRED
                 String separator = baseUrl.contains("?") ? "&" : "?";
