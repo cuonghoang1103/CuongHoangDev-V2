@@ -214,6 +214,11 @@ public class SupabaseStorageService implements StorageService {
         HttpEntity<String> request = new HttpEntity<>(body, headers);
 
         try {
+            log.info("[Supabase] Creating signed URL - URL: {}, path: {}, expires: {}s", signUrl, path, expiresInSeconds);
+            log.info("[Supabase] Headers - apikey: {}, auth: Bearer {}", 
+                    serviceRoleKey.substring(0, Math.min(10, serviceRoleKey.length())) + "...",
+                    serviceRoleKey.substring(0, Math.min(10, serviceRoleKey.length())) + "...");
+
             ResponseEntity<Map> response = restTemplate.exchange(
                     signUrl,
                     HttpMethod.POST,
@@ -221,22 +226,28 @@ public class SupabaseStorageService implements StorageService {
                     Map.class
             );
 
+            log.info("[Supabase] Signed URL response status: {}", response.getStatusCode());
+            log.info("[Supabase] Signed URL response body: {}", response.getBody());
+
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                // Response: { "url": "/storage/v1/object/upload/sign/..." }
+                // Response may contain: { "url": "...", "token": "..." }
                 String signedPath = (String) response.getBody().get("url");
+                String token = (String) response.getBody().get("token");
                 if (signedPath == null) {
-                    throw new IOException("Supabase returned null signed URL path");
+                    throw new IOException("Supabase returned null signed URL path. Full response: " + response.getBody());
                 }
-                // The signed URL already contains the full path from root
-                String fullUrl = supabaseUrl + signedPath;
+                // The signed URL may already contain the full path or be relative
+                String fullUrl = signedPath.startsWith("http") ? signedPath : supabaseUrl + signedPath;
                 log.info("[Supabase] Created signed upload URL: {}", fullUrl);
+                log.info("[Supabase] Token: {}", token != null ? token.substring(0, Math.min(20, token.length())) + "..." : "null");
                 return fullUrl;
             } else {
-                throw new IOException("Failed to create signed upload URL: HTTP " + response.getStatusCode());
+                throw new IOException("Failed to create signed upload URL: HTTP " + response.getStatusCode() + ", body: " + response.getBody());
             }
         } catch (HttpClientErrorException e) {
             String bodyStr = e.getResponseBodyAsString();
             log.error("[Supabase] Signed URL creation failed [{}]: {}", e.getStatusCode(), bodyStr);
+            log.error("[Supabase] Full error response headers: {}", e.getResponseHeaders());
             throw new IOException("Supabase API error [" + e.getStatusCode() + "]: " + bodyStr);
         }
     }
