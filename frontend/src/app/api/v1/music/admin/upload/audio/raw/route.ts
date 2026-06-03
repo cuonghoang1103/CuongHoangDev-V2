@@ -68,7 +68,8 @@ export async function PUT(request: NextRequest) {
         });
 
         const data = await response.json().catch(() => ({ message: "Failed to parse response" }));
-        console.log(`[music/upload/audio/raw] Backend response: HTTP ${response.status}`, data);
+        console.log(`[music/upload/audio/raw] Backend response: HTTP ${response.status}`, JSON.stringify(data, null, 2));
+        console.log(`[music/upload/audio/raw] FULL backend response:`, data);
 
         return NextResponse.json(data, { status: response.status });
     } catch (err) {

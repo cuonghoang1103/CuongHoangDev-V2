@@ -210,7 +210,6 @@ export default function AdminMusicPage() {
 
         // Upload audio via backend (backend forwards to Supabase)
         const uploadResult = await uploadViaProxy(audioFile);
-        // Fallback: use supabasePath to build URL if audioUrl is missing
         const audioUrl = uploadResult.audioUrl || uploadResult.supabasePath || null;
         const supabasePath = uploadResult.supabasePath || null;
 
@@ -229,17 +228,20 @@ export default function AdminMusicPage() {
           finalCover = coverImage;
         }
 
+        const requestBody = {
+          title: title.trim(),
+          artist: artist.trim(),
+          audioUrl: audioUrl || undefined,
+          supabasePath: supabasePath || undefined,
+          coverImageUrl: finalCover,
+          durationSeconds,
+          active: true,
+        };
+        console.log('[MusicUpload] Sending createTrack request:', JSON.stringify(requestBody, null, 2));
+
         await apiFetch('/admin/tracks', {
           method: 'POST',
-          body: JSON.stringify({
-            title: title.trim(),
-            artist: artist.trim(),
-            audioUrl: audioUrl || undefined,
-            supabasePath: supabasePath || undefined,
-            coverImageUrl: finalCover,
-            durationSeconds,
-            active: true,
-          }),
+          body: JSON.stringify(requestBody),
         });
         toast.success('Tao track thanh cong');
       }
@@ -263,9 +265,11 @@ export default function AdminMusicPage() {
         throw new Error('Khong co token xac thuc');
       }
 
-      console.log('[MusicUpload] Uploading file as raw binary to backend...');
+      const uploadUrl = `${API}/admin/upload/audio/raw?filename=${encodeURIComponent(file.name)}`;
+      console.log('[MusicUpload] PUT to:', uploadUrl);
+      console.log('[MusicUpload] Token length:', token.length);
 
-      const res = await fetch(`${API}/admin/upload/audio/raw?filename=${encodeURIComponent(file.name)}`, {
+      const res = await fetch(uploadUrl, {
         method: 'PUT',
         headers: {
           Authorization: `Bearer ${token}`,
@@ -273,17 +277,33 @@ export default function AdminMusicPage() {
         body: file,
       });
 
-      const data = await res.json().catch(() => ({}));
+      console.log('[MusicUpload] Response status:', res.status, res.statusText);
+
+      // Read response as text first to see raw content
+      const rawText = await res.text();
+      console.log('[MusicUpload] Raw response text:', rawText);
+
+      let data: any = {};
+      try { data = JSON.parse(rawText); } catch { data = { raw: rawText }; }
 
       if (!res.ok || !data.success) {
         console.error('[MusicUpload] Server-side upload failed:', data);
         throw new Error(data.message || `Upload that bai: HTTP ${res.status}`);
       }
 
-      console.log('[MusicUpload] Server-side upload success:', data.data);
-      const audioUrl = data.data?.audioUrl ?? data.data?.url ?? null;
-      const supabasePath = data.data?.supabasePath ?? data.data?.path ?? null;
-      console.log('[MusicUpload] Extracted — audioUrl:', audioUrl, 'supabasePath:', supabasePath);
+      console.log('[MusicUpload] Server-side upload SUCCESS:', JSON.stringify(data.data, null, 2));
+
+      // Extract from multiple possible field names
+      const audioUrl = data.data?.audioUrl ?? data.data?.url ?? data.data?.path ?? data.data?.fileUrl ?? null;
+      const supabasePath = data.data?.supabasePath ?? data.data?.path ?? data.data?.publicId ?? null;
+
+      console.log('[MusicUpload] Final extraction — audioUrl:', audioUrl, '| supabasePath:', supabasePath);
+
+      if (!audioUrl && !supabasePath) {
+        console.error('[MusicUpload] WARNING: Both audioUrl and supabasePath are null after extraction!');
+        console.error('[MusicUpload] Full data.data keys:', data.data ? Object.keys(data.data) : 'null');
+      }
+
       return { audioUrl, supabasePath };
 
     } catch (err: any) {
