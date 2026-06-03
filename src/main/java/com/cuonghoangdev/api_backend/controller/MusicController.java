@@ -363,10 +363,22 @@ public class MusicController {
     @PostMapping(value = "/admin/upload/audio", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> uploadAudioServerSide(
-            @RequestParam("file") MultipartFile file
+            @RequestParam(value = "file", required = false) MultipartFile file
     ) {
-        log.info("[MusicController] /admin/upload/audio called — file: {}, size: {}",
-                file.getOriginalFilename(), file.getSize());
+        log.info("[MusicController] /admin/upload/audio called");
+
+        // Defensive: check if file is present
+        if (file == null || file.isEmpty()) {
+            log.error("[MusicController] No file received — MultipartFile is null or empty. " +
+                    "Check that the request Content-Type is multipart/form-data and the form field name is 'file'.");
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "No file received. Make sure you are uploading a valid audio file and the request is sent as multipart/form-data."
+            ));
+        }
+
+        log.info("[MusicController] File received — name: '{}', size: {} bytes, contentType: '{}'",
+                file.getOriginalFilename(), file.getSize(), file.getContentType());
 
         if (!supabaseService.isConfigured()) {
             return ResponseEntity.badRequest().body(Map.of(
@@ -382,8 +394,6 @@ public class MusicController {
 
             log.info("[MusicController] Streaming file to Supabase: {} -> {}", originalName, path);
 
-            // Backend streams file directly to Supabase using service role key
-            // No signed URLs, no CORS, no browser-side auth required
             var result = supabaseService.upload(file, "tracks", path);
 
             log.info("[MusicController] Upload success — publicUrl: {}", result.getUrl());
@@ -402,6 +412,12 @@ public class MusicController {
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "message", "Upload failed: " + e.getMessage()
+            ));
+        } catch (Exception e) {
+            log.error("[MusicController] Unexpected error during upload", e);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Unexpected error: " + e.getMessage()
             ));
         }
     }

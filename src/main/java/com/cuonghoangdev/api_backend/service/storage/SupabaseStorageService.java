@@ -148,6 +148,25 @@ public class SupabaseStorageService implements StorageService {
 
         String originalName = file.getOriginalFilename();
         String contentType = file.getContentType();
+
+        // ContentType may be null/blank when browser doesn't send it (especially for audio files).
+        // Try to derive from file extension as fallback.
+        if (contentType == null || contentType.trim().isEmpty()) {
+            String ext = getExtension(originalName).toLowerCase();
+            contentType = switch (ext) {
+                case ".mp3"  -> "audio/mpeg";
+                case ".wav"  -> "audio/wav";
+                case ".ogg"  -> "audio/ogg";
+                case ".m4a"  -> "audio/mp4";
+                case ".aac"  -> "audio/aac";
+                case ".flac" -> "audio/flac";
+                case ".wma"  -> "audio/x-ms-wma";
+                case ".aiff" -> "audio/aiff";
+                default      -> "audio/mpeg"; // safe default for music files
+            };
+            log.info("[Supabase] ContentType was null/empty, derived from extension '{}' -> '{}'", ext, contentType);
+        }
+
         String ext = getExtension(originalName);
         String baseName = fileName != null
                 ? fileName.replaceAll("[^a-zA-Z0-9._-]", "_")
