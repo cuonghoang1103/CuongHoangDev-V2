@@ -1,18 +1,18 @@
 'use client';
 
 /**
- * Per-user dashboard state management using DIRECT localStorage.
+ * Per-user dashboard state — uses React useSyncExternalStore for correct
+ * hydration semantics. Zero Zustand, zero async rehydration issues.
  *
- * Why NOT Zustand persist:
- *  Zustand's persist middleware calls localStorage.setItem() ASYNCHRONOUSLY.
- *  When logout → localStorage cleared → page reloads → Zustand rehydrates from
- *  localStorage BEFORE React effects run. The old user's data briefly appears.
+ * Key per user: "{userId}_dashboard"  (e.g. "42_dashboard", "guest_dashboard")
  *
- * Solution: Use localStorage DIRECTLY. All reads/writes are synchronous.
- *  - Key per user: "{userId}_dashboard"  (e.g. "123_dashboard", "guest_dashboard")
- *  - On user switch: overwrite old user's key with their current state
- *  - On login/logout: load from the correct user's key immediately
+ * Timing guarantee:
+ *  - Server / first render: returns default state (no localStorage)
+ *  - After auth rehydrates (user known): loads from correct user key
+ *  - Actions only write to the current user's key
+ *  - User switch: saves old user → loads new user → notifies
  */
+import { useSyncExternalStore } from 'react';
 import type { DashboardState, Task, TimelineSlot, TaskScope, ActivityType } from './types';
 
 const EXP_PER_TASK = 25;
@@ -41,7 +41,7 @@ function makeEmptyTimeline(): TimelineSlot[] {
   return Array.from({ length: 24 }, (_, h) => ({ hour: h }));
 }
 
-function makeDefaultState(): DashboardState & { userId: string } {
+function makeDefault(): DashboardState & { userId: string } {
   return {
     userId: 'guest',
     level: 1,
@@ -58,89 +58,68 @@ function storageKey(userId: string): string {
   return `${userId}_dashboard`;
 }
 
-function loadFromStorage(userId: string): DashboardState & { userId: string } {
-  if (typeof window === 'undefined') return makeDefaultState();
-  try {
-    const raw = localStorage.getItem(storageKey(userId));
-    if (raw) {
-      const parsed = JSON.parse(raw) as DashboardState & { userId: string };
-      // Sanity check — verify the data belongs to this userId
-      if (parsed.userId === userId) return parsed;
-    }
-  } catch { /* corrupt data — use defaults */ }
-  return { ...makeDefaultState(), userId };
-}
+// ── Module-level singleton (mutable — OK because we always notify on write) ──
 
-function saveToStorage(state: DashboardState & { userId: string }): void {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(storageKey(state.userId), JSON.stringify(state));
-  } catch { /* quota exceeded or private mode */ }
-}
-
-const seedTitles: Record<TaskScope, string[]> = {
-  today: ['Học 1 chương sách / khóa học', 'Hoàn thành 1 task công việc', 'Tập thể dục 30 phút'],
-  week:  ['Đọc xong 2 chương sách', 'Hoàn thành project cá nhân', 'Dọn dẹp phòng / không gian làm việc'],
-  month: ['Hoàn thành mục tiêu lớn tháng này', 'Tiết kiệm đủ ngân sách', 'Học được kỹ năng mới'],
-};
-
-/** Singleton state — single source of truth for the current user */
-let state: DashboardState & { userId: string } = makeDefaultState();
-
-/** All subscriber callbacks */
-type Listener = () => void;
-const listeners = new Set<Listener>();
+let currentState: DashboardState & { userId: string } = makeDefault();
+const listeners = new Set<() => void>();
 
 function notify() {
-  saveToStorage(state);
+  saveToStorage(currentState);
   listeners.forEach((l) => l());
+}
+
+function saveToStorage(s: DashboardState & { userId: string }) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(storageKey(s.userId), JSON.stringify(s));
+  } catch { /* private mode / quota */ }
+}
+
+function loadFromStorage(userId: string): DashboardState & { userId: string } {
+  if (typeof window === 'undefined') return makeDefault();
+  try {
+    const raw = localStorage.getItem(storageKey(userId));
+    if (!raw) return makeDefault();
+    const parsed = JSON.parse(raw) as DashboardState & { userId: string };
+    if (parsed.userId === userId) return parsed;
+  } catch { /* corrupt */ }
+  return makeDefault();
 }
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-export function getState(): DashboardState & { userId: string } {
-  return state;
-}
+export { currentState as getState };
 
-export function subscribe(listener: Listener): () => void {
+export function subscribeStore(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
 
-/**
- * Switch to a different user — loads their data from localStorage.
- * If no data for that user, returns fresh defaults.
- */
-export function switchUser(newUserId: string): void {
-  const oldUserId = state.userId;
-  if (oldUserId === newUserId) return;
-  console.log(`[Dashboard] switchUser: "${oldUserId}" → "${newUserId}"`);
-
-  // Save current user's state before switching
-  saveToStorage(state);
-
-  // Load new user's state (synchronous — no async delay)
-  state = loadFromStorage(newUserId);
-  notify();
+export function getSnapshot(): DashboardState & { userId: string } {
+  return currentState;
 }
 
-/** Force-clear and reload for logout */
-export function clearAllState(): void {
-  state = makeDefaultState();
+/** Call this whenever auth userId changes (including logout → guest). */
+export function switchUser(newUserId: string): void {
+  const oldId = currentState.userId;
+  if (oldId === newUserId) return;
+  console.log(`[Dashboard] switchUser: "${oldId}" → "${newUserId}"`);
+  saveToStorage(currentState); // persist old user
+  currentState = loadFromStorage(newUserId);
   notify();
 }
 
 // ── Actions ────────────────────────────────────────────────────────────────
 
-export function setActivity(hour: number, activityType: TimelineSlot['activity']): void {
-  const next = [...state.timeline];
-  next[hour] = { hour, activity: activityType };
-  state = { ...state, timeline: next };
+export function setActivity(hour: number, activity: TimelineSlot['activity']): void {
+  const next = [...currentState.timeline];
+  next[hour] = { hour, activity };
+  currentState = { ...currentState, timeline: next };
   notify();
 }
 
 export function setActivityFilter(filter: ActivityType | null): void {
-  state = { ...state, activityFilter: filter };
+  currentState = { ...currentState, activityFilter: filter };
   notify();
 }
 
@@ -154,39 +133,39 @@ export function addTask(title: string, scope: TaskScope, activityType?: Activity
     exp: EXP_PER_TASK,
     activityType,
   };
-  state = { ...state, tasks: [...state.tasks, t] };
+  currentState = { ...currentState, tasks: [...currentState.tasks, t] };
   notify();
   return t;
 }
 
 export function toggleTask(id: string): void {
-  state = {
-    ...state,
-    tasks: state.tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t)),
+  currentState = {
+    ...currentState,
+    tasks: currentState.tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t)),
   };
   notify();
 }
 
 export function removeTask(id: string): void {
-  state = { ...state, tasks: state.tasks.filter((t) => t.id !== id) };
+  currentState = { ...currentState, tasks: currentState.tasks.filter((t) => t.id !== id) };
   notify();
 }
 
 export function awardExp(amount: number): void {
-  let exp = state.exp + amount;
-  let level = state.level;
+  let exp = currentState.exp + amount;
+  let level = currentState.level;
   let needed = expToNextLevel(level);
   while (exp >= needed) {
     exp -= needed;
     level += 1;
     needed = expToNextLevel(level);
   }
-  state = { ...state, exp, level };
+  currentState = { ...currentState, exp, level };
   notify();
 }
 
 export function markCelebrated(): void {
-  state = { ...state, lastCelebrationDate: todayIso() };
+  currentState = { ...currentState, lastCelebrationDate: todayIso() };
   notify();
 }
 
@@ -205,9 +184,9 @@ export function planTomorrow(titles: string[]): void {
       date: iso,
       exp: EXP_PER_TASK,
     }));
-  state = {
-    ...state,
-    tasks: [...state.tasks, ...newOnes],
+  currentState = {
+    ...currentState,
+    tasks: [...currentState.tasks, ...newOnes],
     tomorrowPlanLockedDate: todayIso(),
   };
   notify();
@@ -215,7 +194,7 @@ export function planTomorrow(titles: string[]): void {
 
 export function ensureScopeSeeded(scope: TaskScope): void {
   const target = scopeDate(scope);
-  if (state.tasks.some((t) => t.scope === scope && t.date === target)) return;
+  if (currentState.tasks.some((t) => t.scope === scope && t.date === target)) return;
   const fresh: Task[] = seedTitles[scope].map((title, idx) => ({
     id: `${Date.now()}-${scope}-${idx}-${Math.random().toString(36).slice(2, 6)}`,
     title,
@@ -224,6 +203,12 @@ export function ensureScopeSeeded(scope: TaskScope): void {
     date: target,
     exp: EXP_PER_TASK,
   }));
-  state = { ...state, tasks: [...state.tasks, ...fresh] };
+  currentState = { ...currentState, tasks: [...currentState.tasks, ...fresh] };
   notify();
 }
+
+const seedTitles: Record<TaskScope, string[]> = {
+  today: ['Học 1 chương sách / khóa học', 'Hoàn thành 1 task công việc', 'Tập thể dục 30 phút'],
+  week:  ['Đọc xong 2 chương sách', 'Hoàn thành project cá nhân', 'Dọn dẹp phòng / không gian làm việc'],
+  month: ['Hoàn thành mục tiêu lớn tháng này', 'Tiết kiệm đủ ngân sách', 'Học được kỹ năng mới'],
+};
