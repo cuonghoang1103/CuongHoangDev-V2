@@ -128,9 +128,18 @@ public class MusicController {
             track.setArtist(request.getArtist() != null ? request.getArtist() : "Unknown Artist");
             track.setDurationSeconds(request.getDurationSeconds());
             track.setCoverImage(request.getCoverImageUrl());
-            track.setAudioUrl(request.getAudioUrl());
             track.setSupabasePath(request.getSupabasePath());
             track.setActive(request.getActive() != null ? request.getActive() : true);
+
+            // Fallback: if audioUrl is null/blank but supabasePath is provided,
+            // build the public URL from the path using the same logic as SupabaseStorageService
+            String audioUrl = request.getAudioUrl();
+            if ((audioUrl == null || audioUrl.isBlank()) && request.getSupabasePath() != null && !request.getSupabasePath().isBlank()) {
+                audioUrl = supabaseService.buildPublicUrl(request.getSupabasePath());
+                log.info("[MusicController] audioUrl is null/blank — built fallback from supabasePath '{}' -> '{}'",
+                        request.getSupabasePath(), audioUrl);
+            }
+            track.setAudioUrl(audioUrl);
 
             log.info("[MusicController] ===== MusicTrack entity BEFORE service call =====");
             log.info("[MusicController]   track.title        = {}", track.getTitle());

@@ -26,7 +26,7 @@ public class MusicTrack {
      * Public URL of the audio file.
      * Currently sourced from Supabase Storage (previously Cloudinary).
      */
-    @Column(name = "audio_url", nullable = false, length = 700)
+    @Column(name = "audio_url", length = 700)
     private String audioUrl;
 
     /**
