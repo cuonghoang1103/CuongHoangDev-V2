@@ -11,6 +11,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.Map;
 import java.util.UUID;
@@ -205,24 +207,23 @@ public class SupabaseStorageService implements StorageService {
             throw new IOException("Supabase Storage is not configured");
         }
 
+        // Supabase Storage API: POST /storage/v1/object/upload/sign/{bucket}/{path}
+        // Headers: apikey=anon_key, Authorization=Bearer anon_key (NOT service role key)
+        String effectiveApikey = (anonKey != null && !anonKey.isBlank()) ? anonKey : serviceRoleKey;
         String signUrl = supabaseUrl + "/storage/v1/object/upload/sign/" + bucketName + "/" + path;
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        // Supabase requires apikey header (must be anon key, NOT service role JWT)
-        // Fall back to serviceRoleKey if anonKey is not set
-        String effectiveApikey = (anonKey != null && !anonKey.isBlank()) ? anonKey : serviceRoleKey;
+        // Supabase requires both apikey and Authorization to match and use the anon key
         headers.set("apikey", effectiveApikey);
-        headers.set("Authorization", "Bearer " + serviceRoleKey);
+        headers.set("Authorization", "Bearer " + effectiveApikey);
 
-        String body = String.format("{\"expiresIn\": %d}", expiresInSeconds);
-        HttpEntity<String> request = new HttpEntity<>(body, headers);
+        String requestBody = String.format("{\"expiresIn\": %d}", expiresInSeconds);
+        HttpEntity<String> request = new HttpEntity<>(requestBody, headers);
 
         try {
-            log.info("[Supabase] Creating signed URL - URL: {}, path: {}, expires: {}s", signUrl, path, expiresInSeconds);
-            log.info("[Supabase] Headers - apikey: {}..., auth: Bearer {}...",
-                    effectiveApikey.substring(0, Math.min(10, effectiveApikey.length())),
-                    serviceRoleKey.substring(0, Math.min(10, serviceRoleKey.length())));
+            log.info("[Supabase] Creating signed upload URL for path: {}, expires: {}s", path, expiresInSeconds);
+            log.info("[Supabase] Using apikey: {}...", effectiveApikey.substring(0, Math.min(10, effectiveApikey.length())));
 
             ResponseEntity<Map> response = restTemplate.exchange(
                     signUrl,
@@ -231,32 +232,40 @@ public class SupabaseStorageService implements StorageService {
                     Map.class
             );
 
-            log.info("[Supabase] Signed URL response status: {}", response.getStatusCode());
-            log.info("[Supabase] Signed URL response body: {}", response.getBody());
+            log.info("[Supabase] Sign response status: {}, body: {}", response.getStatusCode(), response.getBody());
 
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
-                // Response may contain: { "url": "...", "token": "..." }
                 String signedPath = (String) response.getBody().get("url");
                 String token = (String) response.getBody().get("token");
+
                 if (signedPath == null) {
-                    throw new IOException("Supabase returned null signed URL path. Full response: " + response.getBody());
+                    throw new IOException("Supabase returned null signed URL path. Body: " + response.getBody());
                 }
-                // The signed URL may already contain the full path or be relative
-                String fullUrl = signedPath.startsWith("http") ? signedPath : supabaseUrl + signedPath;
-                // Supabase requires apikey as a query param on the signed URL for direct browser uploads
-                if (effectiveApikey != null && !effectiveApikey.isBlank()) {
-                    fullUrl += (fullUrl.contains("?") ? "&" : "?") + "apikey=" + effectiveApikey;
+
+                // Build base URL: signedPath may be absolute or relative
+                String baseUrl = signedPath.startsWith("http") ? signedPath : supabaseUrl + signedPath;
+
+                // Append query params: apikey (URL-encoded) AND token (critical for HMAC validation)
+                String separator = baseUrl.contains("?") ? "&" : "?";
+
+                // apikey MUST be URL-encoded — anon keys contain _ and -
+                String encodedApikey = URLEncoder.encode(effectiveApikey, StandardCharsets.UTF_8);
+                String uploadUrl = baseUrl + separator + "apikey=" + encodedApikey;
+
+                // token is the HMAC signature from Supabase — REQUIRED for the upload to be valid
+                if (token != null && !token.isBlank()) {
+                    String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
+                    uploadUrl += "&token=" + encodedToken;
                 }
-                log.info("[Supabase] Created signed upload URL: {}", fullUrl);
-                log.info("[Supabase] Token: {}", token != null ? token.substring(0, Math.min(20, token.length())) + "..." : "null");
-                return fullUrl;
+
+                log.info("[Supabase] Final signed upload URL: {}", uploadUrl);
+                return uploadUrl;
             } else {
                 throw new IOException("Failed to create signed upload URL: HTTP " + response.getStatusCode() + ", body: " + response.getBody());
             }
         } catch (HttpClientErrorException e) {
             String bodyStr = e.getResponseBodyAsString();
             log.error("[Supabase] Signed URL creation failed [{}]: {}", e.getStatusCode(), bodyStr);
-            log.error("[Supabase] Full error response headers: {}", e.getResponseHeaders());
             throw new IOException("Supabase API error [" + e.getStatusCode() + "]: " + bodyStr);
         }
     }
