@@ -1,0 +1,25 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Deploy: render-blueprints up
+#
+# This file tells Render:
+#   - What service to create
+#   - What health check to use
+#   - How to build and run
+#
+# You can also set these manually in the Render Dashboard:
+#   Dashboard → API Backend → Health Check → Path: /health
+#                                         → Region: Singapore (or nearest)
+#                                         → Initial Delay: 30s
+#                                         → Timeout: 2m
+
+services:
+  - type: web
+    name: api-backend
+    env: java
+    javaVersion: 21
+    buildCommand: ./mvnw -f api-backend/pom.xml clean package -DskipTests
+    startCommand: java -jar api-backend/target/api-backend-0.0.1-SNAPSHOT.jar
+    healthCheckPath: /health
+    regions:
+      - singapore
+    plan: free

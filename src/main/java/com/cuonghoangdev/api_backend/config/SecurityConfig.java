@@ -152,6 +152,7 @@ public class SecurityConfig {
                     .requestMatchers("/api/v1/ai/admin/**").hasRole("ADMIN")
                     .requestMatchers("/swagger-ui/**", "/v3/api-docs/**", "/swagger-ui.html").permitAll()
                     .requestMatchers("/oauth2/**", "/login/oauth2/**").permitAll()
+                    .requestMatchers("/", "/health", "/error").permitAll()
                     .anyRequest().authenticated()
             )
             .authenticationProvider(authenticationProvider())
