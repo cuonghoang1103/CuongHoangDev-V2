@@ -294,13 +294,13 @@ public class MusicController {
     @Operation(
             summary = "Get Supabase upload URL",
             description = """
-                    Admin only. Returns a pre-signed upload URL for direct browser-to-Supabase upload.
+                    Admin only. Returns a signed upload URL for direct browser-to-Supabase upload.
                     This bypasses the Vercel body limit entirely — the audio file goes directly
                     from the browser to Supabase Storage.
 
                     Frontend should:
-                    1. Call this endpoint to get the upload URL
-                    2. PUT the audio file directly to the `uploadUrl`
+                    1. Call this endpoint to get the signed uploadUrl
+                    2. PUT the audio file directly to the `uploadUrl` (binary body, no auth needed)
                     3. Call POST /admin/tracks with the returned `path` as `supabasePath`
                     """
     )
@@ -321,7 +321,9 @@ public class MusicController {
             String ext = getExtension(fileName);
             String baseName = UUID.randomUUID().toString();
             String path = "tracks/" + baseName + ext;
-            String uploadUrl = supabaseService.buildPublicUrl(path);
+
+            // Create signed upload URL valid for 2 hours
+            String uploadUrl = supabaseService.createSignedUploadUrl(path, 7200);
 
             return ResponseEntity.ok(Map.of(
                     "success", true,
@@ -332,6 +334,7 @@ public class MusicController {
                     )
             ));
         } catch (Exception e) {
+            log.error("[MusicController] Failed to create Supabase upload URL", e);
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "message", e.getMessage()

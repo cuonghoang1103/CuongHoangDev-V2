@@ -240,38 +240,47 @@ export default function AdminMusicPage() {
     }
   };
 
-  // Upload audio file through Next.js proxy → backend → Supabase
-  // File goes through Vercel to backend server, then backend uploads to Supabase.
-  // This bypasses the Vercel 4.5MB browser limit because the upload
-  // is initiated from the backend server (not the browser).
   const uploadViaProxy = async (file: File): Promise<string> => {
     setUploading(true);
     try {
       const token = getToken();
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('title', title);
-      formData.append('artist', artist);
-      formData.append('coverUrl', coverImage || '');
-      formData.append('durationSeconds', String(durationSeconds));
 
-      const res = await fetch(`${API}/admin/upload`, {
+      // Step 1: Get signed upload URL from backend
+      const res = await fetch(`${API}/admin/upload/supabase`, {
         method: 'POST',
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: formData,
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          fileName: file.name,
+          contentType: file.type || 'audio/mpeg',
+        }),
       });
 
       const data = await res.json().catch(() => ({}));
 
-      if (!res.ok) {
-        throw new Error(data.message || `Upload failed: HTTP ${res.status}`);
+      if (!res.ok || !data.success) {
+        throw new Error(data.message || `Failed to get upload URL: HTTP ${res.status}`);
       }
 
-      if (!data.success || !data.data?.audioUrl) {
-        throw new Error(data.message || 'Upload failed: invalid response');
+      const { uploadUrl, path: supabasePath } = data.data;
+
+      // Step 2: Upload file directly to Supabase (bypasses Vercel 4.5MB limit)
+      const uploadRes = await fetch(uploadUrl, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': file.type || 'audio/mpeg',
+        },
+        body: file,
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error(`Supabase upload failed: HTTP ${uploadRes.status}`);
       }
 
-      return data.data.audioUrl;
+      // Step 3: Return the public URL
+      return data.data.publicUrl;
     } catch (err: any) {
       throw new Error(err.message || 'Upload that bai');
     } finally {

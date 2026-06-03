@@ -186,6 +186,52 @@ public class SupabaseStorageService implements StorageService {
         return supabaseUrl + "/storage/v1/object/public/" + bucketName + "/" + path;
     }
 
+    /**
+     * Creates a signed upload URL for direct browser-to-Supabase uploads.
+     * This bypasses the Vercel 4.5MB limit because the file goes directly
+     * from the browser to Supabase.
+     *
+     * @param path  The storage path, e.g. "tracks/uuid.mp3"
+     * @param expiresInSeconds How long the signed URL is valid (default 2 hours)
+     * @return Upload URL that accepts a PUT request with the file body
+     * @throws IOException if Supabase is not configured or request fails
+     */
+    public String createSignedUploadUrl(String path, int expiresInSeconds) throws IOException {
+        if (!configured) {
+            throw new IOException("Supabase Storage is not configured");
+        }
+
+        String signUrl = supabaseUrl + "/storage/v1/object/upload/sign/" + bucketName + "/" + path;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_JSON);
+        headers.set("Authorization", "Bearer " + serviceRoleKey);
+
+        String body = String.format("{\"expiresIn\": %d}", expiresInSeconds);
+        HttpEntity<String> request = new HttpEntity<>(body, headers);
+
+        try {
+            ResponseEntity<Map> response = restTemplate.exchange(
+                    signUrl,
+                    HttpMethod.POST,
+                    request,
+                    Map.class
+            );
+
+            if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
+                // Response: { "url": "/storage/v1/object/upload/sign/..." }
+                String signedPath = (String) response.getBody().get("url");
+                return supabaseUrl + signedPath;
+            } else {
+                throw new IOException("Failed to create signed upload URL: HTTP " + response.getStatusCode());
+            }
+        } catch (HttpClientErrorException e) {
+            String bodyStr = e.getResponseBodyAsString();
+            log.error("[Supabase] Signed URL creation failed [{}]: {}", e.getStatusCode(), bodyStr);
+            throw new IOException("Failed to create signed upload URL [" + e.getStatusCode() + "]: " + bodyStr);
+        }
+    }
+
     // --- Private helpers ---
 
     private String buildPath(String folder, String fileName) {
