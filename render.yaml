@@ -17,8 +17,8 @@ services:
     name: api-backend
     env: java
     javaVersion: 21
-    buildCommand: ./mvnw -f api-backend/pom.xml clean package -DskipTests
-    startCommand: java -jar api-backend/target/api-backend-0.0.1-SNAPSHOT.jar
+    buildCommand: ./mvnw clean package -DskipTests
+    startCommand: java -jar target/api-backend-0.0.1-SNAPSHOT.jar
     healthCheckPath: /health
     regions:
       - singapore

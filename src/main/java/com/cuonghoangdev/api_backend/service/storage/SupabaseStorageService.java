@@ -131,26 +131,34 @@ public class SupabaseStorageService implements StorageService {
 
     @Override
     public StorageResult upload(MultipartFile file, String folder, String fileName) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new IOException("No file provided");
+        }
+        return upload(file.getBytes(), file.getOriginalFilename(), file.getContentType(), folder, fileName);
+    }
+
+    /**
+     * Upload bytes directly to Supabase — avoids double-read of the same data.
+     * Call this from code that already has the bytes in memory.
+     */
+    public StorageResult upload(byte[] bytes, String originalName, String contentType,
+                                String folder, String fileName) throws IOException {
         if (!configured) {
             throw new IOException("Supabase Storage is not configured. " +
                     "Set SUPABASE_URL, SUPABASE_ANON_KEY, and SUPABASE_SERVICE_ROLE_KEY.");
         }
 
-        if (file == null || file.isEmpty()) {
-            throw new IOException("No file provided");
+        if (bytes == null || bytes.length == 0) {
+            throw new IOException("No data provided");
         }
 
-        long size = file.getSize();
+        long size = bytes.length;
         if (size > MAX_FILE_SIZE) {
             throw new IOException("File too large. Max " + (MAX_FILE_SIZE / 1024 / 1024) + "MB. " +
                     "Your file is " + (size / 1024 / 1024) + "MB.");
         }
 
-        String originalName = file.getOriginalFilename();
-        String contentType = file.getContentType();
-
-        // ContentType may be null/blank when browser doesn't send it (especially for audio files).
-        // Try to derive from file extension as fallback.
+        // Derive contentType from extension if not provided
         if (contentType == null || contentType.trim().isEmpty()) {
             String ext = getExtension(originalName).toLowerCase();
             contentType = switch (ext) {
@@ -162,16 +170,14 @@ public class SupabaseStorageService implements StorageService {
                 case ".flac" -> "audio/flac";
                 case ".wma"  -> "audio/x-ms-wma";
                 case ".aiff" -> "audio/aiff";
-                default      -> "audio/mpeg"; // safe default for music files
+                default      -> "audio/mpeg";
             };
-            log.info("[Supabase] ContentType was null/empty, derived from extension '{}' -> '{}'", ext, contentType);
         }
 
         String ext = getExtension(originalName);
         String baseName;
         if (fileName != null) {
             baseName = fileName.replaceAll("[^a-zA-Z0-9._-]", "_");
-            // Avoid double extension: only append ext if fileName doesn't already have one
             if (!baseName.toLowerCase().endsWith(ext.toLowerCase())) {
                 baseName += ext;
             }
@@ -180,25 +186,18 @@ public class SupabaseStorageService implements StorageService {
         }
         String path = buildPath(folder, baseName);
 
-        log.info("[Supabase] Uploading audio: {} ({} bytes, type={}) -> {}",
+        log.info("[Supabase] Uploading (bytes): {} ({} bytes, type={}) -> {}",
                 originalName, size, contentType, path);
 
-        File tempFile = null;
+        String uploadUrl = supabaseUrl + "/storage/v1/object/" + bucketName + "/" + path;
+
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.parseMediaType(contentType));
+        headers.set("Authorization", "Bearer " + serviceRoleKey);
+
+        HttpEntity<byte[]> request = new HttpEntity<>(bytes, headers);
+
         try {
-            tempFile = File.createTempFile("audio_upload_", ext);
-            file.transferTo(tempFile);
-
-            String uploadUrl = supabaseUrl + "/storage/v1/object/" + bucketName + "/" + path;
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.parseMediaType(
-                    contentType != null ? contentType : "audio/mpeg"));
-            // Server-side upload requires service role key (bypasses RLS)
-            headers.set("Authorization", "Bearer " + serviceRoleKey);
-
-            HttpEntity<byte[]> request = new HttpEntity<>(
-                    Files.readAllBytes(tempFile.toPath()), headers);
-
             log.info("[Supabase] PUT to: {}", uploadUrl);
 
             ResponseEntity<Void> response = restTemplate.exchange(
@@ -210,44 +209,22 @@ public class SupabaseStorageService implements StorageService {
 
             if (response.getStatusCode().is2xxSuccessful()) {
                 String publicUrl = buildPublicUrl(path);
-
-                log.info("[Supabase] ===== Upload SUCCESS =====");
-                log.info("[Supabase]   path      = {}", path);
-                log.info("[Supabase]   publicUrl = {}", publicUrl);
-                log.info("[Supabase]   originalName = {}", originalName);
-                log.info("[Supabase]   contentType = {}", contentType);
-                log.info("[Supabase]   size      = {} bytes", size);
-
-                StorageResult result = new StorageResult(
-                        publicUrl,
-                        path,
-                        originalName,
-                        contentType,
-                        size,
-                        StorageType.SUPABASE
-                );
-
-                log.info("[Supabase]   StorageResult = {}", result);
-                return result;
+                log.info("[Supabase] ===== Upload SUCCESS ===== path={}, publicUrl={}, size={} bytes",
+                        path, publicUrl, size);
+                return new StorageResult(publicUrl, path, originalName, contentType, size, StorageType.SUPABASE);
             } else {
                 throw new IOException("Upload failed: HTTP " + response.getStatusCode());
             }
-
         } catch (HttpClientErrorException e) {
             String body = e.getResponseBodyAsString();
             log.error("[Supabase] Upload HTTP error [{}]: {}", e.getStatusCode(), body);
             throw new IOException("Supabase upload failed [" + e.getStatusCode() + "]: " + body);
         } catch (ResourceAccessException e) {
-            log.error("[Supabase] Upload connection error: {} — Cause: {}", e.getMessage(), e.getCause());
-            throw new IOException("Cannot reach Supabase: " + e.getMessage() +
-                    ". Check SUPABASE_URL is correct and Supabase is accessible.");
+            log.error("[Supabase] Upload connection error: {}", e.getMessage());
+            throw new IOException("Cannot reach Supabase: " + e.getMessage());
         } catch (RestClientException e) {
             log.error("[Supabase] Upload unexpected error: {}", e.getMessage());
             throw new IOException("Supabase upload error: " + e.getMessage());
-        } finally {
-            if (tempFile != null && tempFile.exists()) {
-                Files.deleteIfExists(tempFile.toPath());
-            }
         }
     }
 

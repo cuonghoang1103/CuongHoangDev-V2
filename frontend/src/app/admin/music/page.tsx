@@ -191,10 +191,10 @@ export default function AdminMusicPage() {
         finalCover = coverImage;
       }
 
-      // Step 3: persist metadata
+      // Step 3: persist metadata to DB
       if (editingId) {
-        // UPDATE
-        const body: any = {
+        // UPDATE existing track
+        const body: Record<string, unknown> = {
           title: title.trim(),
           artist: artist.trim(),
           durationSeconds,
@@ -211,11 +211,24 @@ export default function AdminMusicPage() {
         });
         toast.success('Cap nhat thanh cong');
       } else {
-        // CREATE — backend already saved the track; just need a confirmation here
+        // CREATE new track — upload succeeded, now save to DB
         if (!audioTrackData) {
           toast.error('Khong co audio de tao track');
           return;
         }
+        const body = {
+          title: title.trim(),
+          artist: artist.trim(),
+          audioUrl: audioTrackData.audioUrl,
+          supabasePath: audioTrackData.supabasePath,
+          coverImageUrl: finalCover,
+          durationSeconds,
+          active: true,
+        };
+        const createRes = await apiFetch('/admin/tracks', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
         toast.success('Tao track thanh cong');
       }
 

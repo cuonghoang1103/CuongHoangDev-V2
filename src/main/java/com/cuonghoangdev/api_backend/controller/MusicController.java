@@ -459,15 +459,28 @@ public class MusicController {
         }
 
         try {
-            // Convert Part to Spring MultipartFile so our existing storage service works
-            MultipartFile springFile = convertPartToMultipartFile(filePart, submittedFilename);
+            // Read bytes once — avoid double-read via temp file
+            byte[] bytes = filePart.getInputStream().readAllBytes();
 
-            String ext = getExtension(submittedFilename);
-            String path = "tracks/" + UUID.randomUUID() + ext;
+            // Derive contentType from extension if not set
+            if (contentType == null || contentType.isBlank()) {
+                String ext = getExtension(submittedFilename).toLowerCase();
+                contentType = switch (ext) {
+                    case ".mp3"  -> "audio/mpeg";
+                    case ".wav"  -> "audio/wav";
+                    case ".ogg"  -> "audio/ogg";
+                    case ".m4a"  -> "audio/mp4";
+                    case ".aac"  -> "audio/aac";
+                    case ".flac" -> "audio/flac";
+                    default      -> "application/octet-stream";
+                };
+            }
 
-            log.info("[MusicController] Uploading to Supabase: {} -> {}", submittedFilename, path);
+            String path = "tracks/" + UUID.randomUUID() + getExtension(submittedFilename);
 
-            var result = supabaseService.upload(springFile, "tracks", path);
+            log.info("[MusicController] Uploading {} bytes to Supabase: {}", bytes.length, path);
+
+            var result = supabaseService.upload(bytes, submittedFilename, contentType, "tracks", path);
 
             log.info("[MusicController] Upload success — publicUrl: {}", result.getUrl());
 
@@ -537,21 +550,15 @@ public class MusicController {
             String contentType = request.getContentType();
             String ext = getExtension(filename);
 
-            MultipartFile springFile = new org.springframework.mock.web.MockMultipartFile(
-                    "file", filename, contentType != null ? contentType : "audio/mpeg", bytes);
-
             String path = "tracks/" + UUID.randomUUID() + ext;
-            log.info("[MusicController] Calling supabaseService.upload() — path='{}', size={} bytes", path, bytes.length);
+            log.info("[MusicController] Calling supabaseService.upload(byte[]) — path='{}', size={} bytes", path, bytes.length);
 
-            var result = supabaseService.upload(springFile, "tracks", path);
+            var result = supabaseService.upload(bytes, filename, contentType != null ? contentType : "audio/mpeg", "tracks", path);
 
             log.info("[MusicController] ===== Supabase upload SUCCESS =====");
             log.info("[MusicController]   result.publicId        = {}", result.getPublicId());
             log.info("[MusicController]   result.url             = {}", result.getUrl());
-            log.info("[MusicController]   result.originalFileName = {}", result.getOriginalFileName());
             log.info("[MusicController]   result.fileSize       = {} bytes", result.getFileSize());
-            log.info("[MusicController]   result.contentType    = {}", result.getContentType());
-            log.info("[MusicController]   result.storageType    = {}", result.getStorageType());
 
             return ResponseEntity.ok(Map.of(
                     "success", true,
