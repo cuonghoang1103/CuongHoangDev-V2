@@ -1,25 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
-import { X, Star, Trophy, Calendar, Plus, Heart, CheckCircle2 } from 'lucide-react';
-import type { Task, TaskScope } from './types';
+import { X, Star, Trophy, Calendar, Plus, Zap } from 'lucide-react';
+import type { Task } from './types';
 import { expToNextLevel } from './store';
 
 const CONGRATS_MESSAGES = [
-  'Onii-chan hôm nay tuyệt vời lắm! Level up thôi!',
-  'Senpai đã hoàn thành xuất sắc nhiệm vụ ngày hôm nay!',
-  'Bạn làm được rồi! Ngày mai sẽ còn tuyệt vời hơn!',
-  'Fantastic! Tiếp tục phát huy nhé, champion!',
-  'Hôm nay bạn đã rất nỗ lực! Tự hào về bạn!',
+  '🌟 Onii-chan hôm nay tuyệt vời lắm! Level up thôi!',
+  '💖 Senpai đã hoàn thành xuất sắc mọi nhiệm vụ!',
+  '✨ Bạn làm được rồi! Ngày mai sẽ còn tuyệt vời hơn!',
+  '🔥 Fantastic! Tiếp tục phát huy nhé, champion!',
+  '🎯 Hôm nay bạn đã rất nỗ lực! Tự hào về bạn!',
 ];
 
 const ENCOURAGE_MESSAGES = [
-  'Ngày mai chúng ta sẽ làm tốt hơn! Cố lên nhé!',
-  'Không sao cả, ngày mai là cơ hội mới. Đừng bỏ cuộc!',
-  'Mỗi ngày là một bước tiến. Tiếp tục nhé!',
-  'Bạn đã cố gắng rất nhiều rồi! Ngày mai sẽ thành công!',
+  '💪 Ngày mai chúng ta sẽ làm tốt hơn! Cố lên nhé!',
+  '🌈 Không sao cả, ngày mai là cơ hội mới. Đừng bỏ cuộc!',
+  '🚀 Mỗi ngày là một bước tiến. Tiếp tục nhé!',
+  '⭐ Bạn đã cố gắng rất nhiều rồi! Ngày mai sẽ thành công!',
 ];
 
 function pickMsg(arr: string[]) {
@@ -49,73 +49,50 @@ export default function StatsModal({
   onPlanTomorrow,
   onCelebrate,
 }: Props) {
-  const [tomorrowPlan, setTomorrowPlan] = useState<string[]>(['', '', '']);
-  const [step, setStep] = useState<'stats' | 'plan'>('stats');
+  const planInputsRef = useRef<HTMLInputElement[]>([]);
 
   const done = todayTasks.filter((t) => t.done);
   const pct = todayTasks.length ? Math.round((done.length / todayTasks.length) * 100) : 0;
   const isPerfect = pct === 100;
-
   const neededNext = expToNextLevel(currentLevel);
   const expProgress = (currentExp / neededNext) * 100;
 
+  // Gather plan inputs — track at component level so they persist between renders
+  const plans = planInputsRef.current
+    .map((el) => el?.value.trim() ?? '')
+    .filter(Boolean);
+  const hasPlan = plans.length >= 1;
+
   const handleOpen = () => {
     if (isPerfect) {
-      const duration = 2500;
-      let fired = 0;
+      // Big confetti celebration
       const interval = setInterval(() => {
         confetti({
-          particleCount: 120,
-          spread: 100,
+          particleCount: 140,
+          spread: 110,
           origin: { x: Math.random(), y: 0.5 },
-          colors: ['#a855f7', '#ec4899', '#06b6d4', '#f59e0b', '#10b981', '#ffffff'],
-          startVelocity: 40,
-          gravity: 0.85,
-          scalar: 1.3,
+          colors: ['#a855f7', '#ec4899', '#06b6d4', '#f59e0b', '#10b981', '#ffffff', '#fb923c', '#4ade80'],
+          startVelocity: 45,
+          gravity: 0.8,
+          scalar: 1.4,
+          ticks: 200,
         });
-        fired++;
-        if (fired >= 5) clearInterval(interval);
-      }, 500);
+      }, 400);
+      setTimeout(() => clearInterval(interval), 2800);
     }
-    setStep('stats');
   };
-
-  const canClose = step === 'stats'
-    ? (isPerfect || alreadyPlanned || tomorrowPlan.filter((t) => t.trim()).length >= 3)
-    : true;
 
   const handleClose = () => {
-    if (step === 'stats') {
-      if (isPerfect || alreadyPlanned) {
-        onCelebrate();
-        onClose();
-      } else {
-        const planned = tomorrowPlan.filter((t) => t.trim());
-        if (planned.length >= 3) {
-          onPlanTomorrow(planned);
-          onCelebrate();
-          onClose();
-        } else {
-          setStep('plan');
-        }
-      }
-    } else {
-      const planned = tomorrowPlan.filter((t) => t.trim());
-      if (planned.length >= 3) {
-        onPlanTomorrow(planned);
-        onCelebrate();
-        onClose();
-      }
+    if (hasPlan) {
+      onPlanTomorrow(plans);
+      onCelebrate();
+      onClose();
     }
   };
 
-  const updatePlan = (i: number, val: string) => {
-    setTomorrowPlan((prev) => {
-      const next = [...prev];
-      next[i] = val;
-      return next;
-    });
-  };
+  useEffect(() => {
+    if (open) handleOpen();
+  }, [open]);
 
   if (!open) return null;
 
@@ -124,200 +101,271 @@ export default function StatsModal({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/70 backdrop-blur-md"
-      onAnimationStart={handleOpen}
+      transition={{ duration: 0.3 }}
+      className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/75 backdrop-blur-xl"
     >
       <motion.div
-        initial={{ scale: 0.8, opacity: 0, y: 40 }}
+        initial={{ scale: 0.75, opacity: 0, y: 60 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.8, opacity: 0, y: 40 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-        className="w-full max-w-md rounded-3xl bg-gradient-to-br from-[#1a1c2e] via-[#161830] to-[#0f111a] border border-white/10 overflow-hidden shadow-2xl shadow-violet-500/20"
+        exit={{ scale: 0.85, opacity: 0, y: 40 }}
+        transition={{ type: 'spring', stiffness: 280, damping: 24 }}
+        className="relative w-full max-w-lg rounded-3xl overflow-hidden"
+        style={{
+          background: 'linear-gradient(165deg, #1a1c2e 0%, #161830 50%, #0f111a 100%)',
+          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 0 80px rgba(168,85,247,0.2), 0 40px 80px rgba(0,0,0,0.6)',
+        }}
       >
-        {/* Header */}
-        <div className="relative p-6 pb-4 text-center overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-violet-600/20 to-transparent pointer-events-none" />
-          <div className="relative">
-            <div className="text-5xl mb-2">{isPerfect ? '🌟' : '💪'}</div>
-            <h2 className="text-2xl font-black bg-gradient-to-r from-violet-300 via-fuchsia-300 to-cyan-300 bg-clip-text text-transparent">
-              {isPerfect ? 'Level Up!' : 'Tổng kết ngày'}
-            </h2>
-            <p className="text-sm text-slate-400 mt-1">
-              {isPerfect ? 'Hôm nay hoàn hảo tuyệt đối!' : 'Ngày của bạn như thế nào?'}
-            </p>
-          </div>
-        </div>
-
-        <AnimatePresence mode="wait">
-          {step === 'stats' ? (
-            <motion.div
-              key="stats"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              className="px-6 pb-6 space-y-4"
-            >
-              {/* Completion ring */}
-              <div className="flex justify-center">
-                <div className="relative w-28 h-28">
-                  <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
-                    <circle cx="50" cy="50" r="42" fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
-                    <motion.circle
-                      cx="50" cy="50" r="42"
-                      fill="none"
-                      stroke="url(#grad)"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                      strokeDasharray={`${2 * Math.PI * 42}`}
-                      initial={{ strokeDashoffset: 2 * Math.PI * 42 }}
-                      animate={{ strokeDashoffset: 2 * Math.PI * 42 * (1 - pct / 100) }}
-                      transition={{ duration: 1.2, ease: [0.34, 1.56, 0.64, 1] }}
-                    />
-                    <defs>
-                      <linearGradient id="grad" x1="0%" y1="0%" x2="100%" y2="0%">
-                        <stop offset="0%" stopColor="#a855f7" />
-                        <stop offset="100%" stopColor="#ec4899" />
-                      </linearGradient>
-                    </defs>
-                  </svg>
-                  <div className="absolute inset-0 flex flex-col items-center justify-center">
-                    <span className="text-3xl font-black text-white">{pct}%</span>
-                    <span className="text-[10px] text-slate-400">hoàn thành</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Stats row */}
-              <div className="grid grid-cols-3 gap-3">
-                <div className="rounded-2xl bg-white/[0.04] border border-white/5 p-3 text-center">
-                  <CheckCircle2 className="w-5 h-5 text-emerald-400 mx-auto mb-1" />
-                  <div className="text-lg font-black text-white">{done.length}</div>
-                  <div className="text-[10px] text-slate-400">Đã xong</div>
-                </div>
-                <div className="rounded-2xl bg-white/[0.04] border border-white/5 p-3 text-center">
-                  <Star className="w-5 h-5 text-violet-400 mx-auto mb-1" />
-                  <div className="text-lg font-black text-white">+{expGained}</div>
-                  <div className="text-[10px] text-slate-400">EXP nhận</div>
-                </div>
-                <div className="rounded-2xl bg-white/[0.04] border border-white/5 p-3 text-center">
-                  <Trophy className="w-5 h-5 text-amber-400 mx-auto mb-1" />
-                  <div className="text-lg font-black text-white">{currentLevel}</div>
-                  <div className="text-[10px] text-slate-400">Level hiện tại</div>
-                </div>
-              </div>
-
-              {/* EXP progress */}
-              <div>
-                <div className="flex justify-between text-xs text-slate-400 mb-1">
-                  <span>EXP Level {currentLevel}</span>
-                  <span className="font-mono">{currentExp}/{neededNext}</span>
-                </div>
-                <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${expProgress}%` }}
-                    transition={{ duration: 1, ease: 'easeOut', delay: 0.5 }}
-                    style={{ boxShadow: '0 0 10px rgba(168,85,247,0.6)' }}
-                  />
-                </div>
-              </div>
-
-              {/* Message */}
-              <div className="rounded-2xl bg-gradient-to-r from-violet-500/10 to-fuchsia-500/10 border border-violet-500/20 p-3 text-center">
-                <p className="text-sm italic text-slate-300">
-                  {isPerfect ? pickMsg(CONGRATS_MESSAGES) : pickMsg(ENCOURAGE_MESSAGES)}
-                </p>
-              </div>
-
-              {/* Next action */}
-              {step === 'stats' && !isPerfect && !alreadyPlanned && (
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  <Calendar className="w-3.5 h-3.5 shrink-0" />
-                  <span>Bạn cần lên kế hoạch cho ngày mai để đóng modal</span>
-                </div>
-              )}
-
-              <button
-                onClick={handleClose}
-                className="w-full py-3 rounded-2xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-white font-bold text-sm shadow-lg shadow-violet-500/30 hover:opacity-90 transition-opacity"
-              >
-                {isPerfect
-                  ? ' Tiếp tục!'
-                  : alreadyPlanned
-                  ? 'Đã lên kế hoạch rồi! Tiếp tục'
-                  : step === 'stats'
-                  ? 'Lên kế hoạch cho ngày mai'
-                  : 'Hoàn tất'}
-              </button>
-            </motion.div>
-          ) : (
-            <motion.div
-              key="plan"
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="px-6 pb-6 space-y-4"
-            >
-              <div className="text-center">
-                <Calendar className="w-10 h-10 text-cyan-400 mx-auto mb-2" />
-                <h3 className="text-lg font-bold text-white">Lên kế hoạch cho ngày mai</h3>
-                <p className="text-xs text-slate-400 mt-1">Ít nhất 3 task cho ngày mai nhé!</p>
-              </div>
-
-              {tomorrowPlan.map((val, i) => (
-                <div key={i} className="flex items-center gap-2">
-                  <span className="shrink-0 w-6 h-6 rounded-lg bg-gradient-to-br from-violet-500/30 to-fuchsia-500/20 text-center text-xs font-bold text-white/80 leading-6">
-                    {i + 1}
-                  </span>
-                  <input
-                    autoFocus={i === 0}
-                    value={val}
-                    onChange={(e) => updatePlan(i, e.target.value)}
-                    placeholder={`Task ${i + 1} cho ngày mai...`}
-                    className="flex-1 bg-white/[0.05] border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 focus:bg-cyan-500/5 transition-all"
-                  />
-                </div>
-              ))}
-
-              <button
-                onClick={() => setTomorrowPlan((p) => [...p, ''])}
-                className="w-full flex items-center justify-center gap-1.5 py-2 rounded-xl border border-dashed border-white/10 text-slate-500 hover:text-white hover:border-white/20 text-sm transition-all"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                Thêm task
-              </button>
-
-              <div className="text-xs text-slate-500 text-center">
-                {tomorrowPlan.filter((t) => t.trim()).length}/3 task đã nhập
-              </div>
-
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setStep('stats')}
-                  className="flex-1 py-3 rounded-2xl border border-white/10 text-slate-400 text-sm hover:bg-white/5 transition-colors"
-                >
-                  Quay lại
-                </button>
-                <button
-                  onClick={handleClose}
-                  disabled={tomorrowPlan.filter((t) => t.trim()).length < 3}
-                  className="flex-1 py-3 rounded-2xl bg-gradient-to-r from-cyan-600 to-blue-600 text-white font-bold text-sm disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-cyan-500/20 hover:opacity-90 transition-opacity"
-                >
-                  Xác nhận &amp; tiếp tục
-                </button>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Close X */}
+        {/* ── Close button ── */}
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-xl hover:bg-white/10 text-slate-500 hover:text-white transition-all"
+          className="absolute top-4 right-4 z-10 p-2 rounded-xl hover:bg-white/10 text-slate-500 hover:text-white transition-all"
         >
           <X className="w-4 h-4" />
         </button>
+
+        {/* ── Header ── */}
+        <div className="relative px-8 pt-8 pb-6 text-center overflow-hidden">
+          {/* Glow background */}
+          <div className="absolute inset-0 pointer-events-none"
+               style={{ background: isPerfect
+                 ? 'radial-gradient(ellipse at 50% 0%, rgba(168,85,247,0.25) 0%, transparent 70%)'
+                 : 'radial-gradient(ellipse at 50% 0%, rgba(6,182,212,0.15) 0%, transparent 70%)' }} />
+
+          {/* Big emoji character */}
+          <motion.div
+            initial={{ scale: 0, rotate: -15 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 20, delay: 0.1 }}
+            className="text-7xl mb-3 drop-shadow-2xl"
+          >
+            {isPerfect ? '🌟' : pct >= 50 ? '💪' : '🌙'}
+          </motion.div>
+
+          <motion.h2
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="text-3xl font-black bg-gradient-to-r from-violet-300 via-fuchsia-300 to-cyan-300 bg-clip-text text-transparent mb-1"
+          >
+            {isPerfect ? 'Level Up!' : 'Tổng kết ngày'}
+          </motion.h2>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.3 }}
+            className="text-sm text-slate-400"
+          >
+            {isPerfect ? 'Ngày hoàn hảo tuyệt đối!' : `Bạn đã hoàn thành ${pct}% nhiệm vụ hôm nay`}
+          </motion.p>
+        </div>
+
+        {/* ── Body ── */}
+        <div className="px-8 pb-6 space-y-5">
+
+          {/* Completion ring */}
+          <div className="flex justify-center">
+            <div className="relative w-36 h-36">
+              <svg className="w-full h-full -rotate-90" viewBox="0 0 100 100">
+                {/* Track */}
+                <circle cx="50" cy="50" r="40" fill="none"
+                        stroke="rgba(255,255,255,0.05)" strokeWidth="8" />
+                {/* Progress */}
+                <motion.circle
+                  cx="50" cy="50" r="40"
+                  fill="none"
+                  stroke={isPerfect ? 'url(#perfectGrad)' : 'url(#normalGrad)'}
+                  strokeWidth="8"
+                  strokeLinecap="round"
+                  strokeDasharray={`${2 * Math.PI * 40}`}
+                  initial={{ strokeDashoffset: 2 * Math.PI * 40 }}
+                  animate={{ strokeDashoffset: 2 * Math.PI * 40 * (1 - pct / 100) }}
+                  transition={{ duration: 1.4, ease: [0.34, 1.56, 0.64, 1] }}
+                />
+                <defs>
+                  <linearGradient id="perfectGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#a855f7" />
+                    <stop offset="50%" stopColor="#ec4899" />
+                    <stop offset="100%" stopColor="#f59e0b" />
+                  </linearGradient>
+                  <linearGradient id="normalGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#8b5cf6" />
+                    <stop offset="100%" stopColor="#06b6d4" />
+                  </linearGradient>
+                </defs>
+              </svg>
+
+              {/* Center content */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <motion.span
+                  key={pct}
+                  initial={{ opacity: 0, scale: 0.5 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.5, type: 'spring' }}
+                  className="text-3xl font-black text-white"
+                >
+                  {pct}%
+                </motion.span>
+                <span className="text-[10px] text-slate-400 font-medium">hoàn thành</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Stats row */}
+          <div className="grid grid-cols-3 gap-3">
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+              className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-3.5 text-center"
+            >
+              <div className="w-8 h-8 rounded-xl bg-emerald-500/20 flex items-center justify-center mx-auto mb-2">
+                <svg viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="w-4 h-4">
+                  <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" />
+                  <polyline points="22 4 12 14.01 9 11.01" />
+                </svg>
+              </div>
+              <div className="text-xl font-black text-white">{done.length}</div>
+              <div className="text-[10px] text-slate-500 font-medium">Hoàn thành</div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-3.5 text-center"
+            >
+              <div className="w-8 h-8 rounded-xl bg-violet-500/20 flex items-center justify-center mx-auto mb-2">
+                <Zap className="w-4 h-4 text-violet-400" />
+              </div>
+              <div className="text-xl font-black text-white">+{expGained}</div>
+              <div className="text-[10px] text-slate-500 font-medium">EXP nhận</div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 }}
+              className="rounded-2xl bg-white/[0.04] border border-white/[0.06] p-3.5 text-center"
+            >
+              <div className="w-8 h-8 rounded-xl bg-amber-500/20 flex items-center justify-center mx-auto mb-2">
+                <Trophy className="w-4 h-4 text-amber-400" />
+              </div>
+              <div className="text-xl font-black text-white">Lv.{currentLevel}</div>
+              <div className="text-[10px] text-slate-500 font-medium">Cấp độ</div>
+            </motion.div>
+          </div>
+
+          {/* EXP bar */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.5 }}
+          >
+            <div className="flex justify-between text-[11px] text-slate-400 mb-1.5">
+              <span>EXP — Level {currentLevel}</span>
+              <span className="font-mono font-bold">
+                <span className="text-white">{currentExp}</span>
+                <span className="text-slate-600">/{neededNext}</span>
+              </span>
+            </div>
+            <div className="relative h-2.5 rounded-full bg-white/5 overflow-hidden">
+              <motion.div
+                className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
+                initial={{ width: 0 }}
+                animate={{ width: `${Math.min(expProgress, 100)}%` }}
+                transition={{ duration: 1.2, ease: 'easeOut', delay: 0.6 }}
+                style={{ boxShadow: '0 0 12px rgba(168,85,247,0.6)' }}
+              />
+            </div>
+          </motion.div>
+
+          {/* Anime message */}
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.6 }}
+            className="rounded-2xl border p-4 text-center"
+            style={{
+              background: isPerfect
+                ? 'linear-gradient(135deg, rgba(168,85,247,0.12), rgba(236,72,153,0.08))'
+                : 'linear-gradient(135deg, rgba(6,182,212,0.08), rgba(168,85,247,0.06))',
+              border: isPerfect ? '1px solid rgba(168,85,247,0.25)' : '1px solid rgba(6,182,212,0.2)',
+            }}
+          >
+            <p className="text-sm font-medium text-slate-200 leading-relaxed">
+              {isPerfect ? pickMsg(CONGRATS_MESSAGES) : pickMsg(ENCOURAGE_MESSAGES)}
+            </p>
+          </motion.div>
+
+          {/* ── Plan tomorrow (always shown) ── */}
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.7 }}
+            className="rounded-2xl border border-white/[0.06] p-5"
+            style={{ background: 'rgba(255,255,255,0.02)' }}
+          >
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-cyan-500/20 flex items-center justify-center shrink-0">
+                <Calendar className="w-5 h-5 text-cyan-400" />
+              </div>
+              <div>
+                <h3 className="text-sm font-bold text-white leading-tight">Lên kế hoạch ngày mai</h3>
+                <p className="text-[11px] text-slate-500">Nhập ít nhất 1 task để đóng tổng kết</p>
+              </div>
+            </div>
+
+            <div className="space-y-2.5">
+              {[0, 1, 2].map((i) => (
+                <div key={i} className="flex items-center gap-2.5">
+                  <div className="shrink-0 w-7 h-7 rounded-xl bg-gradient-to-br from-violet-500/30 to-fuchsia-500/20 flex items-center justify-center text-xs font-black text-white/80">
+                    {i + 1}
+                  </div>
+                  <input
+                    ref={(el) => { if (el) planInputsRef.current[i] = el; }}
+                    placeholder={`Task ${i + 1} cho ngày mai...`}
+                    className="flex-1 bg-white/[0.04] border border-white/[0.08] rounded-xl px-4 py-2.5 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-cyan-500/50 focus:bg-cyan-500/[0.04] transition-all duration-200"
+                  />
+                </div>
+              ))}
+            </div>
+
+            {/* Progress indicator */}
+            <div className="flex justify-between items-center mt-3">
+              <span className="text-[11px] text-slate-500">
+                {plans.length >= 1
+                  ? `${plans.length} task — sẵn sàng đóng!`
+                  : 'Nhập ít nhất 1 task để tiếp tục'}
+              </span>
+              {plans.length >= 1 && (
+                <span className="text-[11px] text-emerald-400 font-medium flex items-center gap-1">
+                  <Star className="w-3 h-3 fill-emerald-400" />
+                  OK!
+                </span>
+              )}
+            </div>
+          </motion.div>
+
+          {/* ── Action button ── */}
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.8 }}
+            onClick={handleClose}
+            disabled={!hasPlan}
+            className={`w-full py-4 rounded-2xl font-black text-base transition-all duration-300
+              ${hasPlan
+                ? 'bg-gradient-to-r from-violet-600 via-fuchsia-600 to-violet-600 text-white'
+                : 'bg-white/[0.06] text-slate-500 cursor-not-allowed'}`}
+            style={hasPlan ? {
+              boxShadow: '0 0 30px rgba(168,85,247,0.4), 0 8px 20px rgba(0,0,0,0.3)',
+            } : {}}
+          >
+            {hasPlan ? '✨ Hoàn tất tổng kết!' : '🔒 Nhập ít nhất 1 task để tiếp tục'}
+          </motion.button>
+        </div>
       </motion.div>
     </motion.div>
   );
