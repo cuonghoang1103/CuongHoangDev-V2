@@ -106,21 +106,34 @@ public class MusicController {
     @PostMapping("/admin/tracks")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createTrack(@RequestBody MusicUploadRequest request) {
-        log.info("[MusicController] createTrack — title='{}', artist='{}', audioUrl='{}', supabasePath='{}', coverImageUrl='{}', durationSeconds={}",
+        log.info("[MusicController] createTrack RAW REQUEST: title='{}', artist='{}', audioUrl='{}', supabasePath='{}', coverImageUrl='{}', durationSeconds={}, active={}",
                 request.getTitle(), request.getArtist(), request.getAudioUrl(),
-                request.getSupabasePath(), request.getCoverImageUrl(), request.getDurationSeconds());
+                request.getSupabasePath(), request.getCoverImageUrl(), request.getDurationSeconds(), request.getActive());
+        log.info("[MusicController] request object class: {}", request.getClass().getName());
+        log.info("[MusicController] request object: {}", request);
 
         try {
             MusicTrack track = new MusicTrack();
-            track.setTitle(request.getTitle() != null ? request.getTitle() : "Untitled");
-            track.setArtist(request.getArtist() != null ? request.getArtist() : "Unknown Artist");
-            track.setDurationSeconds(request.getDurationSeconds());
-            track.setCoverImage(request.getCoverImageUrl());
-            track.setAudioUrl(request.getAudioUrl());
-            track.setSupabasePath(request.getSupabasePath());
-            track.setActive(request.getActive() != null ? request.getActive() : true);
+            String title = request.getTitle();
+            String artist = request.getArtist();
+            String audioUrl = request.getAudioUrl();
+            String supabasePath = request.getSupabasePath();
+            String coverImageUrl = request.getCoverImageUrl();
+            Integer durationSeconds = request.getDurationSeconds();
+            Boolean active = request.getActive();
 
-            log.info("[MusicController] Track object before save — title='{}', audioUrl='{}', supabasePath='{}', coverImage='{}'",
+            log.info("[MusicController] Extracted values — title='{}', artist='{}', audioUrl='{}', supabasePath='{}', coverImageUrl='{}', durationSeconds={}, active={}",
+                    title, artist, audioUrl, supabasePath, coverImageUrl, durationSeconds, active);
+
+            track.setTitle(title != null ? title : "Untitled");
+            track.setArtist(artist != null ? artist : "Unknown Artist");
+            track.setDurationSeconds(durationSeconds);
+            track.setCoverImage(coverImageUrl);
+            track.setAudioUrl(audioUrl);
+            track.setSupabasePath(supabasePath);
+            track.setActive(active != null ? active : true);
+
+            log.info("[MusicController] Track entity fields — title='{}', audioUrl='{}', supabasePath='{}', coverImage='{}'",
                     track.getTitle(), track.getAudioUrl(), track.getSupabasePath(), track.getCoverImage());
 
             MusicTrackDto created = musicTrackService.createTrack(track);
