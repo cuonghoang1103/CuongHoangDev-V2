@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { ssrSafeStorage } from '@/store/ssrSafeStorage';
-import type { DashboardState, Task, TimelineSlot, TaskScope } from './types';
+import type { DashboardState, Task, TimelineSlot, TaskScope, ActivityType } from './types';
 
 const EXP_PER_TASK = 25;
 const EXP_PER_LEVEL_BASE = 200;
@@ -21,11 +21,10 @@ function scopeDate(scope: TaskScope, ref = new Date()): string {
   if (scope === 'today') return todayIso();
   if (scope === 'week') {
     const d = new Date(ref);
-    const day = d.getDay() || 7; // Sun=0 → 7
+    const day = d.getDay() || 7;
     d.setDate(d.getDate() - (day - 1));
     return d.toISOString().slice(0, 10);
   }
-  // month
   return `${ref.getFullYear()}-${String(ref.getMonth() + 1).padStart(2, '0')}-01`;
 }
 
@@ -35,16 +34,16 @@ function makeEmptyTimeline(): TimelineSlot[] {
 
 interface DashboardStore extends DashboardState {
   setActivity: (hour: number, activityType: TimelineSlot['activity']) => void;
-  addTask: (title: string, scope: TaskScope) => Task;
+  setActivityFilter: (filter: ActivityType | null) => void;
+  addTask: (title: string, scope: TaskScope, activityType?: ActivityType) => Task;
   toggleTask: (id: string) => void;
   removeTask: (id: string) => void;
-  /** Award EXP for finishing all tasks of `scope` today (called by End-of-Day modal) */
   awardExp: (amount: number) => void;
   markCelebrated: () => void;
-  /** Replace the 3 planned tasks for "tomorrow" */
   planTomorrow: (titles: string[]) => void;
-  /** Seed fresh task list for a scope (used by daily reset) */
   ensureScopeSeeded: (scope: TaskScope) => void;
+  /** Returns tasks matching the active activityFilter + scope */
+  getFilteredTasks: (scope: TaskScope) => Task[];
 }
 
 interface CreateOptions {
@@ -80,6 +79,7 @@ export function createDashboardStore(opts: CreateOptions) {
         lastCelebrationDate: null,
         tomorrowPlanLockedDate: null,
         timeline: makeEmptyTimeline(),
+        activityFilter: null,
         tasks: [],
 
         setActivity: (hour, activityType) =>
@@ -89,7 +89,9 @@ export function createDashboardStore(opts: CreateOptions) {
             return { timeline: next };
           }),
 
-        addTask: (title, scope) => {
+        setActivityFilter: (filter) => set({ activityFilter: filter }),
+
+        addTask: (title, scope, activityType?: ActivityType) => {
           const t: Task = {
             id: `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
             title: title.trim(),
@@ -97,16 +99,16 @@ export function createDashboardStore(opts: CreateOptions) {
             done: false,
             date: scopeDate(scope),
             exp: EXP_PER_TASK,
+            activityType,
           };
           set((s) => ({ tasks: [...s.tasks, t] }));
           return t;
         },
 
         toggleTask: (id) =>
-          set((s) => {
-            const next = s.tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t));
-            return { tasks: next };
-          }),
+          set((s) => ({
+            tasks: s.tasks.map((t) => (t.id === id ? { ...t, done: !t.done } : t)),
+          })),
 
         removeTask: (id) =>
           set((s) => ({ tasks: s.tasks.filter((t) => t.id !== id) })),
@@ -124,8 +126,7 @@ export function createDashboardStore(opts: CreateOptions) {
             return { exp, level };
           }),
 
-        markCelebrated: () =>
-          set(() => ({ lastCelebrationDate: todayIso() })),
+        markCelebrated: () => set(() => ({ lastCelebrationDate: todayIso() })),
 
         planTomorrow: (titles) =>
           set((s) => {
@@ -164,6 +165,13 @@ export function createDashboardStore(opts: CreateOptions) {
             }));
             return { tasks: [...s.tasks, ...fresh] };
           }),
+
+        getFilteredTasks: (scope) => {
+          const { tasks, activityFilter } = get();
+          const base = tasks.filter((t) => t.scope === scope);
+          if (!activityFilter) return base;
+          return base.filter((t) => t.activityType === activityFilter);
+        },
       }),
       {
         name: storageKey,
@@ -173,8 +181,6 @@ export function createDashboardStore(opts: CreateOptions) {
   );
 }
 
-// Type alias for the hook returned by create
 export type DashboardStoreHook = ReturnType<typeof createDashboardStore>;
 
-// Helper: list of task scope seeds
 export const SCOPES: TaskScope[] = ['today', 'week', 'month'];

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Sparkles, ChevronRight, Zap } from 'lucide-react';
+import { Sparkles, ChevronRight, Zap, Clock, Bot } from 'lucide-react';
 import { toast } from 'sonner';
 
 import AvatarCard from './AvatarCard';
@@ -11,7 +11,20 @@ import TaskList from './TaskList';
 import StatsModal from './StatsModal';
 import { createDashboardStore } from './store';
 import { useAuthStore } from '@/store/authStore';
-import type { TaskScope } from './types';
+import type { TaskScope, ActivityType } from './types';
+import { ACTIVITY_META } from './Timeline';
+
+/** Maps ActivityType → label (shared with Timeline) */
+const ACT_LABELS: Record<ActivityType, string> = {
+  study:    'Học tập',
+  work:     'Làm việc',
+  exercise: 'Thể dục',
+  cook:     'Nấu ăn',
+  sleep:    'Đi ngủ',
+  rest:     'Nghỉ ngơi',
+  leisure:  'Giải trí',
+  social:   'Bạn bè',
+};
 
 export default function DashboardPage() {
   const { user } = useAuthStore();
@@ -31,10 +44,12 @@ export default function DashboardPage() {
   const store = useMemo(() => createDashboardStore({ userId }), [userId]);
 
   const {
-    level, exp, timeline, tasks, lastCelebrationDate,
-    tomorrowPlanLockedDate, setActivity,
+    level, exp, timeline, activityFilter,
+    tasks, lastCelebrationDate, tomorrowPlanLockedDate,
+    setActivity, setActivityFilter,
     addTask, toggleTask, removeTask, awardExp,
     markCelebrated, planTomorrow, ensureScopeSeeded,
+    getFilteredTasks,
   } = store();
 
   useEffect(() => {
@@ -54,6 +69,29 @@ export default function DashboardPage() {
   const isAllDone = totalToday > 0 && todayTasks.every((t) => t.done);
 
   const [statsOpen, setStatsOpen] = useState(false);
+
+  // ── Real-time clock ──
+  const [clock, setClock] = useState({ hour: new Date().getHours(), minute: new Date().getMinutes() });
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = new Date();
+      setClock({ hour: now.getHours(), minute: now.getMinutes() });
+    }, 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  const timeStr = `${String(clock.hour).padStart(2, '0')}:${String(clock.minute).padStart(2, '0')}`;
+
+  // ── Current activity from timeline ──
+  const currentHour = new Date().getHours();
+  const currentSlot = timeline[currentHour];
+  const currentActivity = currentSlot?.activity?.type ?? null;
+  const currentActivityMeta = currentActivity ? (ACTIVITY_META as any)[currentActivity] : null;
+
+  // ── Filtered tasks ──
+  const filteredTasks = activityFilter
+    ? todayTasks.filter((t) => t.activityType === activityFilter)
+    : [];
 
   const handleEndOfDay = () => {
     awardExp(todayExpGained);
@@ -80,38 +118,46 @@ export default function DashboardPage() {
 
   return (
     <div className="min-h-screen bg-[#0f111a] text-white pb-16">
-      {/* Background ambience */}
+      {/* Ambient background */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden">
         <div className="absolute top-0 left-1/4 w-[500px] h-[500px] bg-violet-600/8 rounded-full blur-[120px]" />
         <div className="absolute bottom-0 right-1/4 w-[400px] h-[400px] bg-fuchsia-600/8 rounded-full blur-[100px]" />
         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[700px] bg-cyan-600/4 rounded-full blur-[150px]" />
       </div>
 
-      <div className="relative z-10 max-w-5xl mx-auto px-4 pt-6 space-y-6">
-        {/* ── Header ── */}
+      <div className="relative z-10 max-w-5xl mx-auto px-4 pt-6 space-y-5">
+        {/* ── Header row ── */}
         <div className="flex items-end justify-between">
           <div>
-            <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-violet-300 via-fuchsia-300 to-cyan-300 bg-clip-text text-transparent">
+            <h1 className="text-3xl md:text-4xl font-black bg-gradient-to-r from-cyan-300 via-violet-300 to-fuchsia-300 bg-clip-text text-transparent">
               Dashboard
             </h1>
             <p className="text-sm text-slate-500 mt-1">Theo dõi ngày làm việc của bạn</p>
           </div>
 
-          {/* Quick stat pills */}
-          <div className="hidden sm:flex items-center gap-2">
-            <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/[0.04] border border-white/[0.06] text-xs">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
-              <span className="text-slate-300 font-medium">{doneToday}/{totalToday}</span>
-              <span className="text-slate-600">hôm nay</span>
+          {/* Clock widget */}
+          <div className="hidden sm:flex flex-col items-end gap-1">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/[0.04] border border-white/[0.06]">
+              <Clock className="w-4 h-4 text-cyan-400" />
+              <span className="font-mono font-black text-white text-base">{timeStr}</span>
             </div>
-            <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/[0.04] border border-white/[0.06] text-xs">
-              <Sparkles className="w-3.5 h-3.5 text-violet-400" />
-              <span className="text-white font-black">Lv.{level}</span>
-            </div>
+            {currentActivityMeta ? (
+              <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                <div
+                  className="w-2 h-2 rounded-full"
+                  style={{ background: currentActivityMeta.glowColor, boxShadow: `0 0 6px ${currentActivityMeta.glowColor}` }}
+                />
+                <span>
+                  Đang: <span style={{ color: currentActivityMeta.glowColor }} className="font-bold">{currentActivityMeta.label}</span>
+                </span>
+              </div>
+            ) : (
+              <span className="text-[11px] text-slate-600">Chưa gán hoạt động</span>
+            )}
           </div>
         </div>
 
-        {/* ── Avatar / Level Card ── */}
+        {/* ── Avatar Card ── */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -129,10 +175,15 @@ export default function DashboardPage() {
             transition={{ delay: 0.15, duration: 0.4 }}
             className="lg:col-span-2"
           >
-            <Timeline timeline={timeline} onSetActivity={setActivity} />
+            <Timeline
+              timeline={timeline}
+              activeFilter={activityFilter}
+              onSetActivity={setActivity}
+              onFilterActivity={setActivityFilter}
+            />
           </motion.div>
 
-          {/* Right: Tasks + End-of-day */}
+          {/* Right: Tasks + End-of-Day */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
@@ -141,9 +192,12 @@ export default function DashboardPage() {
           >
             <TaskList
               tasks={tasks}
+              activityFilter={activityFilter}
+              filteredTasks={filteredTasks}
               onToggle={toggleTask}
               onAddTask={addTask}
               onRemove={removeTask}
+              onClearFilter={() => setActivityFilter(null)}
             />
 
             {/* ── End-of-Day panel ── */}
@@ -158,11 +212,10 @@ export default function DashboardPage() {
                   backdropFilter: 'blur(20px)',
                 }}
               >
-                {/* Top accent bar */}
+                {/* Top accent */}
                 <div className="h-1 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-cyan-400" />
 
                 <div className="p-5 flex flex-col sm:flex-row items-center gap-4">
-                  {/* Left: info */}
                   <div className="flex-1 text-center sm:text-left">
                     <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
                       <Zap className="w-4 h-4 text-violet-400" />
@@ -176,8 +229,7 @@ export default function DashboardPage() {
                     <div className="text-[12px] text-slate-500">
                       {doneToday}/{totalToday} task · {todayPct}% · +{todayExpGained} EXP
                     </div>
-
-                    {/* Mini progress bar */}
+                    {/* Mini progress */}
                     <div className="mt-2 max-w-[200px] mx-auto sm:mx-0 h-1.5 rounded-full bg-white/5 overflow-hidden">
                       <motion.div
                         className="h-full rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500"
@@ -189,14 +241,15 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* Right: button */}
                   <div className="shrink-0">
                     <motion.button
                       whileHover={!alreadyCelebrated && isAllDone ? { scale: 1.04 } : {}}
                       whileTap={!alreadyCelebrated && isAllDone ? { scale: 0.97 } : {}}
                       onClick={handleEndOfDay}
                       disabled={alreadyCelebrated}
-                      className={`relative flex items-center gap-2.5 px-6 py-3 rounded-2xl font-bold text-sm transition-all duration-300
+                      className={`
+                        relative flex items-center gap-2.5 px-6 py-3 rounded-2xl font-bold text-sm
+                        transition-all duration-300
                         ${alreadyCelebrated
                           ? 'bg-white/[0.04] text-slate-500 cursor-not-allowed border border-white/[0.06]'
                           : isAllDone
@@ -219,7 +272,6 @@ export default function DashboardPage() {
           </motion.div>
         </div>
 
-        {/* Footer */}
         <p className="text-center text-[11px] text-slate-700 pb-4">
           Dữ liệu được lưu cục bộ trên thiết bị này
         </p>
