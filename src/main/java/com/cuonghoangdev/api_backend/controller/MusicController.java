@@ -530,8 +530,9 @@ public class MusicController {
             log.info("[MusicController]   result.url             = {}", result.getUrl());
             log.info("[MusicController]   result.originalFileName = {}", result.getOriginalFileName());
             log.info("[MusicController]   result.fileSize       = {}", result.getFileSize());
-            log.info("[MusicController]   result.message        = {}", result.getMessage());
-            log.info("[MusicController]   result.fullResponse    = {}", result);
+            log.info("[MusicController]   result.contentType    = {}", result.getContentType());
+            log.info("[MusicController]   result.storageType    = {}", result.getStorageType());
+            log.info("[MusicController]   result.fullResult     = {}", result);
 
             return ResponseEntity.ok(Map.of(
                     "success", true,
