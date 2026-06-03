@@ -10,7 +10,7 @@ import {
   Menu, X, User, LogOut, Settings, ChevronDown,
   BookOpen, Music, Globe, Phone, Mail, Facebook, ShoppingBag, Gamepad2,
   Home, GraduationCap, ShoppingCart, FileText, FolderOpen, MessageCircle,
-  Receipt,
+  Receipt, LayoutDashboard,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
@@ -194,6 +194,7 @@ export default function Navbar() {
     { href: '/games', label: t('games'), icon: Gamepad2, iconNode: <img src="/games-icon.png" alt="Games" className="w-4 h-4 object-contain" /> },
     { href: '/music', label: t('music'), icon: Music },
     { href: '/chat', label: t('aiChat'), icon: MessageCircle },
+    { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
   ];
 
   const switchLocale = (newLocale: string) => {
@@ -357,6 +358,10 @@ export default function Navbar() {
                           className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
                           <BookOpen className="w-4 h-4" />{t('myCourses')}
                         </Link>
+                        <Link href="/dashboard" onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
+                          <LayoutDashboard className="w-4 h-4" />Dashboard
+                        </Link>
                         <Link href="/my-orders" onClick={() => setUserMenuOpen(false)}
                           className="flex items-center gap-2 px-4 py-2.5 text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
                           <Receipt className="w-4 h-4" />Đơn hàng
@@ -461,6 +466,11 @@ export default function Navbar() {
                     className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm text-text-secondary hover:text-text-primary hover:bg-white/5 transition-colors">
                     <Music className="w-5 h-5 shrink-0" />
                     {t('music')}
+                  </Link>
+                  <Link href="/dashboard" onClick={() => setMobileOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm ${pathname === '/dashboard' ? 'text-neon-violet bg-neon-violet/10' : 'text-text-secondary hover:text-text-primary hover:bg-white/5'} transition-colors`}>
+                    <LayoutDashboard className="w-5 h-5 shrink-0" />
+                    Dashboard
                   </Link>
                 </div>
               )}
