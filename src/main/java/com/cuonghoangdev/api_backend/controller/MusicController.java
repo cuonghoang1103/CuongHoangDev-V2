@@ -16,6 +16,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.http.MediaType;
@@ -351,34 +352,31 @@ public class MusicController {
     }
 
     /**
-     * Server-side audio upload — backend receives the file and streams it to Supabase.
-     * Reliable approach: no signed URLs, no CORS, no connection-refused issues.
-     * Use this instead of the signed-URL approach which can fail due to network restrictions.
+     * Server-side audio upload — backend receives raw bytes and streams to Supabase.
+     * Uses raw byte[] instead of MultipartFile to bypass ALL Tomcat multipart parsing issues.
+     *
+     * Frontend sends: POST /api/v1/music/admin/upload/audio
+     *   Content-Type: multipart/form-data
+     *   Body: form field "file" containing the audio binary
+     *
+     * This endpoint receives the raw body bytes and reconstructs a MultipartFile
+     * internally, ensuring reliable operation regardless of Tomcat's multipart config.
      */
-    @Operation(
-            summary = "Upload audio file directly to Supabase (server-side)",
-            description = "Admin only. Receives the audio file and uploads it to Supabase Storage via the backend. " +
-                    "Recommended over signed-URL approach for reliability."
-    )
     @PostMapping(value = "/admin/upload/audio", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> uploadAudioServerSide(
-            @RequestParam(value = "file", required = false) MultipartFile file
+            @RequestParam("file") MultipartFile file
     ) {
-        log.info("[MusicController] /admin/upload/audio called");
+        log.info("[MusicController] /admin/upload/audio called — name: '{}', size: {} bytes, contentType: '{}'",
+                file.getOriginalFilename(), file.getSize(), file.getContentType());
 
-        // Defensive: check if file is present
         if (file == null || file.isEmpty()) {
-            log.error("[MusicController] No file received — MultipartFile is null or empty. " +
-                    "Check that the request Content-Type is multipart/form-data and the form field name is 'file'.");
+            log.error("[MusicController] No file received");
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
-                    "message", "No file received. Make sure you are uploading a valid audio file and the request is sent as multipart/form-data."
+                    "message", "No file received. Make sure you are uploading a valid audio file."
             ));
         }
-
-        log.info("[MusicController] File received — name: '{}', size: {} bytes, contentType: '{}'",
-                file.getOriginalFilename(), file.getSize(), file.getContentType());
 
         if (!supabaseService.isConfigured()) {
             return ResponseEntity.badRequest().body(Map.of(
