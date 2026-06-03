@@ -310,10 +310,13 @@ public class MusicController {
             @RequestParam(value = "fileName", defaultValue = "") String fileName,
             @RequestParam(value = "contentType", defaultValue = "audio/mpeg") String contentType
     ) {
+        log.info("[MusicController] /admin/upload/supabase called - configured={}", supabaseService.isConfigured());
+
         if (!supabaseService.isConfigured()) {
+            log.error("[MusicController] Supabase not configured. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY env vars.");
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
-                    "message", "Supabase Storage is not configured"
+                    "message", "Supabase Storage is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
             ));
         }
 
@@ -322,8 +325,12 @@ public class MusicController {
             String baseName = UUID.randomUUID().toString();
             String path = "tracks/" + baseName + ext;
 
-            // Create signed upload URL valid for 2 hours
+            log.info("[MusicController] Creating signed upload URL for path: {}", path);
+
+            // Create signed upload URL valid for 2 hours (7200 seconds)
             String uploadUrl = supabaseService.createSignedUploadUrl(path, 7200);
+
+            log.info("[MusicController] Signed upload URL created: {}", uploadUrl);
 
             return ResponseEntity.ok(Map.of(
                     "success", true,
@@ -337,7 +344,7 @@ public class MusicController {
             log.error("[MusicController] Failed to create Supabase upload URL", e);
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
-                    "message", e.getMessage()
+                    "message", "Failed to create upload URL: " + e.getMessage()
             ));
         }
     }

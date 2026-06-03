@@ -242,17 +242,23 @@ export default function AdminMusicPage() {
 
   const uploadViaProxy = async (file: File): Promise<string> => {
     setUploading(true);
+    const MAX_RETRIES = 2;
+
     try {
       const token = getToken();
+      if (!token) {
+        throw new Error('Khong co token xac thuc');
+      }
 
       // Step 1: Get signed upload URL from backend
+      console.log('[MusicUpload] Step 1: Getting signed upload URL from backend...');
       const res = await fetch(`${API}/admin/upload/supabase`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/x-www-form-urlencoded',
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
+        body: new URLSearchParams({
           fileName: file.name,
           contentType: file.type || 'audio/mpeg',
         }),
@@ -261,27 +267,50 @@ export default function AdminMusicPage() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok || !data.success) {
-        throw new Error(data.message || `Failed to get upload URL: HTTP ${res.status}`);
+        console.error('[MusicUpload] Failed to get upload URL:', data);
+        throw new Error(data.message || `Loi lay upload URL: HTTP ${res.status}`);
       }
 
-      const { uploadUrl, path: supabasePath } = data.data;
+      const { uploadUrl, path: supabasePath, publicUrl } = data.data;
+      console.log('[MusicUpload] Got signed URL:', uploadUrl);
 
       // Step 2: Upload file directly to Supabase (bypasses Vercel 4.5MB limit)
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': file.type || 'audio/mpeg',
-        },
-        body: file,
-      });
+      console.log('[MusicUpload] Step 2: Uploading to Supabase...');
 
-      if (!uploadRes.ok) {
-        throw new Error(`Supabase upload failed: HTTP ${uploadRes.status}`);
+      let uploadRes: Response;
+      for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+        try {
+          uploadRes = await fetch(uploadUrl, {
+            method: 'PUT',
+            headers: {
+              'Content-Type': file.type || 'audio/mpeg',
+            },
+            body: file,
+          });
+
+          if (uploadRes.ok) break;
+
+          console.warn(`[MusicUpload] Upload attempt ${attempt + 1} failed:`, uploadRes.status);
+          if (attempt < MAX_RETRIES) {
+            await new Promise(r => setTimeout(r, 1000 * (attempt + 1)));
+          }
+        } catch (fetchErr) {
+          console.error(`[MusicUpload] Upload attempt ${attempt + 1} error:`, fetchErr);
+          if (attempt === MAX_RETRIES) throw fetchErr;
+        }
       }
 
-      // Step 3: Return the public URL
-      return data.data.publicUrl;
+      if (!uploadRes!.ok) {
+        const errorText = await uploadRes!.text().catch(() => 'Unknown error');
+        console.error('[MusicUpload] Supabase upload failed:', errorText);
+        throw new Error(`Upload that bai: HTTP ${uploadRes!.status}`);
+      }
+
+      console.log('[MusicUpload] Upload to Supabase successful!');
+      return publicUrl;
+
     } catch (err: any) {
+      console.error('[MusicUpload] Error:', err);
       throw new Error(err.message || 'Upload that bai');
     } finally {
       setUploading(false);

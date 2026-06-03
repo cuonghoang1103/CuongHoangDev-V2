@@ -206,6 +206,8 @@ public class SupabaseStorageService implements StorageService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
+        // Supabase requires both apikey and Authorization headers
+        headers.set("apikey", serviceRoleKey);
         headers.set("Authorization", "Bearer " + serviceRoleKey);
 
         String body = String.format("{\"expiresIn\": %d}", expiresInSeconds);
@@ -222,14 +224,20 @@ public class SupabaseStorageService implements StorageService {
             if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                 // Response: { "url": "/storage/v1/object/upload/sign/..." }
                 String signedPath = (String) response.getBody().get("url");
-                return supabaseUrl + signedPath;
+                if (signedPath == null) {
+                    throw new IOException("Supabase returned null signed URL path");
+                }
+                // The signed URL already contains the full path from root
+                String fullUrl = supabaseUrl + signedPath;
+                log.info("[Supabase] Created signed upload URL: {}", fullUrl);
+                return fullUrl;
             } else {
                 throw new IOException("Failed to create signed upload URL: HTTP " + response.getStatusCode());
             }
         } catch (HttpClientErrorException e) {
             String bodyStr = e.getResponseBodyAsString();
             log.error("[Supabase] Signed URL creation failed [{}]: {}", e.getStatusCode(), bodyStr);
-            throw new IOException("Failed to create signed upload URL [" + e.getStatusCode() + "]: " + bodyStr);
+            throw new IOException("Supabase API error [" + e.getStatusCode() + "]: " + bodyStr);
         }
     }
 
