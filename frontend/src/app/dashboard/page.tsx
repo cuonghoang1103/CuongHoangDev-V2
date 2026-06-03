@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChevronRight, Zap, Clock, Bot } from 'lucide-react';
 import { toast } from 'sonner';
@@ -29,26 +29,24 @@ const ACT_LABELS: Record<ActivityType, string> = {
 export default function DashboardPage() {
   const { user, isAuthenticated } = useAuthStore();
 
-  const userId: string = user?.id != null
-    ? String(user.id)
-    : 'guest';
-
-  const store = useDashboardStore(userId);
-
+  // Destructuring from the Zustand hook — subscribes to ALL state changes
   const {
-    level, exp, timeline, activityFilter,
+    level, exp, timeline, activityFilter, userId: currentUserId,
     tasks, lastCelebrationDate, tomorrowPlanLockedDate,
     setActivity, setActivityFilter,
     addTask, toggleTask, removeTask, awardExp,
     markCelebrated, planTomorrow, ensureScopeSeeded,
-    getFilteredTasks,
-  } = store();
+  } = useDashboardStore();
 
-  // Hydrate: seed default tasks once after mount
+  // Track the current userId — seed defaults when userId changes
+  const prevUserIdRef = useRef<string>(currentUserId);
   useEffect(() => {
+    if (currentUserId !== prevUserIdRef.current) {
+      prevUserIdRef.current = currentUserId;
+    }
+    // Seed default tasks after mount or user switch
     (['today', 'week', 'month'] as TaskScope[]).forEach((s) => ensureScopeSeeded(s));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [currentUserId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const todayTasks = tasks.filter((t) => t.scope === 'today');
   const doneToday = todayTasks.filter((t) => t.done).length;

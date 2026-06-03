@@ -35,6 +35,8 @@ export interface Task {
 }
 
 export interface DashboardState {
+  /** Current user ID — changes on login/logout/switch account */
+  userId: string;
   level: number;
   exp: number;
   /** YYYY-MM-DD of the last "end of day" celebration */

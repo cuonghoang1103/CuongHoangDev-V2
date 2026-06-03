@@ -71,15 +71,12 @@ export const useAuthStore = create<AuthState>()(
           document.cookie = '__auth__=; path=/; max-age=0';
           document.cookie = 'backend_token=; path=/; max-age=0';
 
-          // 2. Clear ALL dashboard stores (any user) — prevents data bleed
-          const keysToRemove: string[] = [];
-          for (let i = 0; i < localStorage.length; i++) {
-            const key = localStorage.key(i);
-            if (key && key.startsWith('dashboard-')) {
-              keysToRemove.push(key);
-            }
-          }
-          keysToRemove.forEach((k) => localStorage.removeItem(k));
+          // 2. Clear dashboard state
+          localStorage.removeItem('dashboard-state');
+
+          // 3. Force full page reload so Zustand rehydrates from scratch
+          //    This ensures NO data from the old user is visible after logout
+          window.location.href = '/dashboard';
         }
         set({
           user: null,
