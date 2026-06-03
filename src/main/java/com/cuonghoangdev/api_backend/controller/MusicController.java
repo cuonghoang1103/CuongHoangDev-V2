@@ -12,13 +12,15 @@ import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.Part;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -351,31 +353,49 @@ public class MusicController {
     }
 
     /**
-     * Server-side audio upload — backend receives raw bytes and streams to Supabase.
-     * Uses raw byte[] instead of MultipartFile to bypass ALL Tomcat multipart parsing issues.
+     * Server-side audio upload — receives file via Jakarta Servlet Part API.
      *
-     * Frontend sends: POST /api/v1/music/admin/upload/audio
+     * Strategy: We use jakarta.servlet.http.Part (not Spring's MultipartFile)
+     * to parse the multipart/form-data body. The Part API is a raw servlet API
+     * that works without Spring's multipart resolution chain.
+     *
+     * This bypasses all Spring/Tomcat multipart configuration issues:
+     * no StandardServletMultipartResolver, no MultipartConfigElement needed.
+     *
+     * Frontend: POST /api/v1/music/admin/upload/audio
      *   Content-Type: multipart/form-data
-     *   Body: form field "file" containing the audio binary
-     *
-     * This endpoint receives the raw body bytes and reconstructs a MultipartFile
-     * internally, ensuring reliable operation regardless of Tomcat's multipart config.
+     *   Body: form field "file" = audio binary
      */
     @PostMapping(value = "/admin/upload/audio", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> uploadAudioServerSide(
-            @RequestParam("file") MultipartFile file
-    ) {
-        log.info("[MusicController] /admin/upload/audio called — name: '{}', size: {} bytes, contentType: '{}'",
-                file.getOriginalFilename(), file.getSize(), file.getContentType());
+    public ResponseEntity<?> uploadAudioServerSide(HttpServletRequest request) {
+        log.info("[MusicController] /admin/upload/audio called");
 
-        if (file == null || file.isEmpty()) {
-            log.error("[MusicController] No file received");
+        Part filePart;
+        try {
+            filePart = request.getPart("file");
+        } catch (Exception e) {
+            log.error("[MusicController] Failed to get 'file' part from request — {}", e.getMessage());
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
-                    "message", "No file received. Make sure you are uploading a valid audio file."
+                    "message", "Could not parse multipart request: " + e.getMessage()
+                            + ". Make sure Content-Type is multipart/form-data."
             ));
         }
+
+        if (filePart == null || filePart.getSubmittedFileName() == null || filePart.getSize() == 0) {
+            log.error("[MusicController] No file received — part is null or empty");
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "No file received. Send a multipart/form-data request with a 'file' field."
+            ));
+        }
+
+        String submittedFilename = filePart.getSubmittedFileName();
+        String contentType = filePart.getContentType();
+        long size = filePart.getSize();
+        log.info("[MusicController] File received — name: '{}', size: {} bytes, contentType: '{}'",
+                submittedFilename, size, contentType);
 
         if (!supabaseService.isConfigured()) {
             return ResponseEntity.badRequest().body(Map.of(
@@ -385,13 +405,15 @@ public class MusicController {
         }
 
         try {
-            String originalName = file.getOriginalFilename();
-            String ext = getExtension(originalName);
+            // Convert Part to Spring MultipartFile so our existing storage service works
+            MultipartFile springFile = convertPartToMultipartFile(filePart, submittedFilename);
+
+            String ext = getExtension(submittedFilename);
             String path = "tracks/" + UUID.randomUUID() + ext;
 
-            log.info("[MusicController] Streaming file to Supabase: {} -> {}", originalName, path);
+            log.info("[MusicController] Uploading to Supabase: {} -> {}", submittedFilename, path);
 
-            var result = supabaseService.upload(file, "tracks", path);
+            var result = supabaseService.upload(springFile, "tracks", path);
 
             log.info("[MusicController] Upload success — publicUrl: {}", result.getUrl());
 
@@ -417,6 +439,30 @@ public class MusicController {
                     "message", "Unexpected error: " + e.getMessage()
             ));
         }
+    }
+
+    /**
+     * Convert a Jakarta Servlet Part to a Spring MultipartFile.
+     * This lets us reuse the existing SupabaseStorageService without modification.
+     */
+    private MultipartFile convertPartToMultipartFile(Part part, String filename) throws IOException {
+        String contentType = part.getContentType();
+        if (contentType == null || contentType.isBlank()) {
+            String ext = getExtension(filename).toLowerCase();
+            contentType = switch (ext) {
+                case ".mp3"  -> "audio/mpeg";
+                case ".wav"  -> "audio/wav";
+                case ".ogg"  -> "audio/ogg";
+                case ".m4a"  -> "audio/mp4";
+                case ".aac"  -> "audio/aac";
+                case ".flac" -> "audio/flac";
+                default      -> "application/octet-stream";
+            };
+        }
+
+        byte[] bytes = part.getInputStream().readAllBytes();
+        return new org.springframework.mock.web.MockMultipartFile(
+                filename, filename, contentType, bytes);
     }
 
     // ========================================================================
