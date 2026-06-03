@@ -56,8 +56,8 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleMediaTypeNotSupported(HttpMediaTypeNotSupportedException ex) {
         MediaType contentType = ex.getContentType();
         String ctype = contentType != null ? contentType.toString() : "(none)";
-        log.error("[GlobalExceptionHandler] HttpMediaTypeNotSupported — contentType='{}', supportedTypes={}, requestMediaTypes={}",
-                ctype, ex.getSupportedMediaTypes(), ex.getActualMediaTypes());
+        log.error("[GlobalExceptionHandler] HttpMediaTypeNotSupported — contentType='{}', supportedTypes={}",
+                ctype, ex.getSupportedMediaTypes());
         return new ResponseEntity<>(
                 ApiResponse.error("Unsupported Content-Type: " + ctype + ". This endpoint requires multipart/form-data."),
                 HttpStatus.UNSUPPORTED_MEDIA_TYPE

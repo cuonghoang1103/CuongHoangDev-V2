@@ -1,29 +1,41 @@
 package com.cuonghoangdev.api_backend.config;
 
+import jakarta.servlet.MultipartConfigElement;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.boot.web.servlet.MultipartConfig;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.util.unit.DataSize;
 
 /**
- * Multipart configuration via @MultipartConfig annotation on the class.
+ * Provides a MultipartConfigElement bean that Spring Boot automatically
+ * applies to the auto-configured DispatcherServlet.
  *
- * This registers a MultipartConfigElement on the DispatcherServlet,
- * which tells Tomcat how to parse multipart/form-data request bodies.
- *
- * spring.servlet.multipart.* in application.yml sets the actual size limits.
- *
- * Note: We intentionally do NOT define a multipartResolver() @Bean here,
- * because Spring Boot auto-configures a StandardServletMultipartResolver
- * when spring.servlet.multipart.enabled=true. Having both can cause conflicts.
+ * This is the idiomatic Spring Boot way to configure multipart parsing
+ * programmatically while still respecting spring.servlet.multipart.* YAML values.
  */
 @Configuration
-@MultipartConfig
 public class MultipartConfig {
 
     private static final Logger log = LoggerFactory.getLogger(MultipartConfig.class);
 
-    public MultipartConfig() {
-        log.info("[MultipartConfig] Initialized — @MultipartConfig active on DispatcherServlet");
+    @Value("${spring.servlet.multipart.max-file-size:100MB}")
+    private DataSize maxFileSize;
+
+    @Value("${spring.servlet.multipart.max-request-size:100MB}")
+    private DataSize maxRequestSize;
+
+    @Bean
+    public MultipartConfigElement multipartConfigElement() {
+        log.info("[MultipartConfig] Creating MultipartConfigElement — maxFileSize={}, maxRequestSize={}",
+                maxFileSize, maxRequestSize);
+        MultipartConfigElement element = new MultipartConfigElement(
+                System.getProperty("java.io.tmpdir"),
+                maxFileSize.toBytes(),
+                maxRequestSize.toBytes(),
+                -1  // unlimited file size threshold (deferred to maxFileSize)
+        );
+        return element;
     }
 }
