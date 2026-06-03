@@ -62,28 +62,26 @@ export const useAuthStore = create<AuthState>()(
         })),
 
       logout: () => {
-        if (typeof window !== 'undefined') {
-          // 1. Clear auth tokens & user data
-          localStorage.removeItem('token');
-          localStorage.removeItem('auth_token');
-          localStorage.removeItem('user');
-          localStorage.removeItem('userId');
-          document.cookie = '__auth__=; path=/; max-age=0';
-          document.cookie = 'backend_token=; path=/; max-age=0';
-
-          // 2. Clear dashboard state
-          localStorage.removeItem('dashboard-state');
-
-          // 3. Force full page reload so Zustand rehydrates from scratch
-          //    This ensures NO data from the old user is visible after logout
-          window.location.href = '/dashboard';
+        if (typeof window === 'undefined') {
+          set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+          return;
         }
-        set({
-          user: null,
-          token: null,
-          isAuthenticated: false,
-          isLoading: false,
-        });
+
+        // 1. Clear auth tokens & user data
+        localStorage.removeItem('token');
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('userId');
+        document.cookie = '__auth__=; path=/; max-age=0';
+        document.cookie = 'backend_token=; path=/; max-age=0';
+
+        // 2. Clear dashboard state (direct localStorage — each user has their own key)
+        //    Dashboard store uses keys like "123_dashboard", "guest_dashboard"
+        //    We only need to clear the CURRENT user's key.
+        //    The safest approach: reload so the new user starts fresh.
+        window.location.href = '/dashboard';
+
+        set({ user: null, token: null, isAuthenticated: false, isLoading: false });
       },
 
       setLoading: (loading) =>

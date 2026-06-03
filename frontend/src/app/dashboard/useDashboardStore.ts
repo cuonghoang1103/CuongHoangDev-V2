@@ -1,30 +1,78 @@
 'use client';
 
 /**
- * Dashboard Zustand store + user sync hook.
+ * Wires auth userId → dashboard store.
  *
- * page.tsx imports useDashboardStore from here to get the Zustand hook.
- * useUserDashboard() wires auth userId to the store's switchUser() action.
+ * - Initializes localStorage state for the logged-in user on mount.
+ * - Subscribes to store changes (triggers re-renders).
+ * - Calls switchUser() when auth userId changes.
+ *
+ * Components import the store API directly:
+ *   import { getState, subscribe, addTask, ... } from './store';
  */
-import { useEffect, useRef } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useAuthStore } from '@/store/authStore';
-import { useDashboardStoreBase } from './store';
+import {
+  getState,
+  subscribe,
+  switchUser,
+  setActivity,
+  setActivityFilter,
+  addTask,
+  toggleTask,
+  removeTask,
+  awardExp,
+  markCelebrated,
+  planTomorrow,
+  ensureScopeSeeded,
+} from './store';
+import type { TaskScope } from './types';
 
-export const useDashboardStore = useDashboardStoreBase;
-
-export function useUserDashboard() {
+export function useDashboardStore() {
   const user = useAuthStore((s) => s.user);
-  const store = useDashboardStore;
-  const userId = user?.id != null ? String(user.id) : 'guest';
-  const prevRef = useRef<string>(userId);
+  const [snapshot, setSnapshot] = useState(() => getState());
+  const prevUserIdRef = useRef<string | null>(null);
 
+  // Subscribe to store changes
   useEffect(() => {
-    if (prevRef.current !== userId) {
-      console.log(`[Dashboard] User switch: "${prevRef.current}" → "${userId}"`);
-      store.getState().switchUser(userId);
-      prevRef.current = userId;
-    }
-  }, [userId, store]);
+    const unsub = subscribe(() => {
+      setSnapshot(getState());
+    });
+    return unsub;
+  }, []);
 
-  return store;
+  // Initialize / switch user on mount or auth change
+  useEffect(() => {
+    const userId = user?.id != null ? String(user.id) : 'guest';
+
+    if (prevUserIdRef.current === null) {
+      // First mount — load from localStorage for this user
+      switchUser(userId);
+      prevUserIdRef.current = userId;
+    } else if (prevUserIdRef.current !== userId) {
+      // Auth changed — switch to the new user
+      console.log(`[Dashboard] Auth changed: "${prevUserIdRef.current}" → "${userId}"`);
+      switchUser(userId);
+      prevUserIdRef.current = userId;
+    }
+  }, [user?.id]);
+
+  // Seed default tasks after user switch
+  useEffect(() => {
+    (['today', 'week', 'month'] as TaskScope[]).forEach((s) => ensureScopeSeeded(s));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [snapshot.userId]);
+
+  return {
+    ...snapshot,
+    setActivity,
+    setActivityFilter,
+    addTask,
+    toggleTask,
+    removeTask,
+    awardExp,
+    markCelebrated,
+    planTomorrow,
+    ensureScopeSeeded,
+  };
 }
