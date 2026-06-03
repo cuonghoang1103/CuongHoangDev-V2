@@ -44,6 +44,8 @@ interface DashboardStore extends DashboardState {
   ensureScopeSeeded: (scope: TaskScope) => void;
   /** Returns tasks matching the active activityFilter + scope */
   getFilteredTasks: (scope: TaskScope) => Task[];
+  /** Reset all state to defaults — called on logout or user switch */
+  reset: () => void;
 }
 
 interface CreateOptions {
@@ -81,6 +83,16 @@ export function createDashboardStore(opts: CreateOptions) {
         timeline: makeEmptyTimeline(),
         activityFilter: null,
         tasks: [],
+
+        reset: () => set({
+          level: 1,
+          exp: 0,
+          lastCelebrationDate: null,
+          tomorrowPlanLockedDate: null,
+          timeline: makeEmptyTimeline(),
+          activityFilter: null,
+          tasks: [],
+        }),
 
         setActivity: (hour, activityType) =>
           set((s) => {

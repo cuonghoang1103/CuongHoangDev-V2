@@ -63,11 +63,23 @@ export const useAuthStore = create<AuthState>()(
 
       logout: () => {
         if (typeof window !== 'undefined') {
+          // 1. Clear auth tokens & user data
           localStorage.removeItem('token');
+          localStorage.removeItem('auth_token');
           localStorage.removeItem('user');
-          // Clear auth state cookies
+          localStorage.removeItem('userId');
           document.cookie = '__auth__=; path=/; max-age=0';
           document.cookie = 'backend_token=; path=/; max-age=0';
+
+          // 2. Clear ALL dashboard stores (any user) — prevents data bleed
+          const keysToRemove: string[] = [];
+          for (let i = 0; i < localStorage.length; i++) {
+            const key = localStorage.key(i);
+            if (key && key.startsWith('dashboard-')) {
+              keysToRemove.push(key);
+            }
+          }
+          keysToRemove.forEach((k) => localStorage.removeItem(k));
         }
         set({
           user: null,

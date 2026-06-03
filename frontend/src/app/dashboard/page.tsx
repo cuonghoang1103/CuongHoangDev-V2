@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Sparkles, ChevronRight, Zap, Clock, Bot } from 'lucide-react';
 import { toast } from 'sonner';
@@ -9,7 +9,7 @@ import AvatarCard from './AvatarCard';
 import Timeline from './Timeline';
 import TaskList from './TaskList';
 import StatsModal from './StatsModal';
-import { createDashboardStore } from './store';
+import { useDashboardStore } from './useDashboardStore';
 import { useAuthStore } from '@/store/authStore';
 import type { TaskScope, ActivityType } from './types';
 import { ACTIVITY_META } from './Timeline';
@@ -27,21 +27,13 @@ const ACT_LABELS: Record<ActivityType, string> = {
 };
 
 export default function DashboardPage() {
-  const { user } = useAuthStore();
+  const { user, isAuthenticated } = useAuthStore();
 
-  const userId = user?.id
+  const userId: string = user?.id != null
     ? String(user.id)
-    : typeof window !== 'undefined'
-    ? localStorage.getItem('userId') || 'guest'
     : 'guest';
 
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => {
-    if (user?.id) localStorage.setItem('userId', String(user.id));
-    setHydrated(true);
-  }, [user?.id]);
-
-  const store = useMemo(() => createDashboardStore({ userId }), [userId]);
+  const store = useDashboardStore(userId);
 
   const {
     level, exp, timeline, activityFilter,
@@ -52,10 +44,11 @@ export default function DashboardPage() {
     getFilteredTasks,
   } = store();
 
+  // Hydrate: seed default tasks once after mount
   useEffect(() => {
-    if (!hydrated) return;
     (['today', 'week', 'month'] as TaskScope[]).forEach((s) => ensureScopeSeeded(s));
-  }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const todayTasks = tasks.filter((t) => t.scope === 'today');
   const doneToday = todayTasks.filter((t) => t.done).length;
@@ -105,16 +98,7 @@ export default function DashboardPage() {
     toast.success('Đã lưu kế hoạch cho ngày mai!');
   };
 
-  if (!hydrated) {
-    return (
-      <div className="min-h-screen bg-[#0f111a] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-12 h-12 border-2 border-violet-500/30 border-t-violet-400 rounded-full animate-spin" />
-          <p className="text-slate-500 text-sm">Đang tải Dashboard...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleClearFilter = () => setActivityFilter(null);
 
   return (
     <div className="min-h-screen bg-[#0f111a] text-white pb-16">
@@ -163,7 +147,7 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: 'easeOut' }}
         >
-          <AvatarCard level={level} exp={exp} username={user?.username} />
+          <AvatarCard level={level} exp={exp} username={user?.username} isAuthenticated={isAuthenticated} />
         </motion.div>
 
         {/* ── Main grid ── */}
@@ -197,7 +181,7 @@ export default function DashboardPage() {
               onToggle={toggleTask}
               onAddTask={addTask}
               onRemove={removeTask}
-              onClearFilter={() => setActivityFilter(null)}
+              onClearFilter={handleClearFilter}
             />
 
             {/* ── End-of-Day panel ── */}

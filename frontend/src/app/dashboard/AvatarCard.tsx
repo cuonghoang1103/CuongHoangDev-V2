@@ -147,12 +147,20 @@ interface Props {
   level: number;
   exp: number;
   username?: string;
+  isAuthenticated?: boolean;
 }
 
-export default function AvatarCard({ level, exp, username }: Props) {
+export default function AvatarCard({ level, exp, username, isAuthenticated }: Props) {
   const needed = expToNextLevel(level);
   const pct = Math.min((exp / needed) * 100, 100);
-  const greeting = username ? `Chào ${username}` : 'Chào Phi hành gia';
+
+  // Personalize: show real username if logged in, otherwise prompt to login
+  const greeting = isAuthenticated && username
+    ? `Chào ${username}!`
+    : 'Đăng nhập để bắt đầu';
+  const dashboardTitle = isAuthenticated && username
+    ? `${username}'s Dashboard`
+    : 'Mission Control — Guest';
   const [isHovered, setIsHovered] = useState(false);
 
   return (
@@ -241,7 +249,7 @@ export default function AvatarCard({ level, exp, username }: Props) {
           </div>
 
           <h1 className="text-xl md:text-2xl font-black bg-gradient-to-r from-cyan-200 via-violet-200 to-fuchsia-200 bg-clip-text text-transparent mb-5 truncate">
-            {username ? `${username}'s Dashboard` : 'Mission Control'}
+            {dashboardTitle}
           </h1>
 
           {/* ── EXP bar ── */}
