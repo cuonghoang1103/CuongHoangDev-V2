@@ -18,6 +18,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.http.MediaType;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -345,6 +346,62 @@ public class MusicController {
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
                     "message", "Failed to create upload URL: " + e.getMessage()
+            ));
+        }
+    }
+
+    /**
+     * Server-side audio upload — backend receives the file and streams it to Supabase.
+     * Reliable approach: no signed URLs, no CORS, no connection-refused issues.
+     * Use this instead of the signed-URL approach which can fail due to network restrictions.
+     */
+    @Operation(
+            summary = "Upload audio file directly to Supabase (server-side)",
+            description = "Admin only. Receives the audio file and uploads it to Supabase Storage via the backend. " +
+                    "Recommended over signed-URL approach for reliability."
+    )
+    @PostMapping(value = "/admin/upload/audio", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<?> uploadAudioServerSide(
+            @RequestParam("file") MultipartFile file
+    ) {
+        log.info("[MusicController] /admin/upload/audio called — file: {}, size: {}",
+                file.getOriginalFilename(), file.getSize());
+
+        if (!supabaseService.isConfigured()) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Supabase Storage is not configured. Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY."
+            ));
+        }
+
+        try {
+            String originalName = file.getOriginalFilename();
+            String ext = getExtension(originalName);
+            String path = "tracks/" + UUID.randomUUID() + ext;
+
+            log.info("[MusicController] Streaming file to Supabase: {} -> {}", originalName, path);
+
+            // Backend streams file directly to Supabase using service role key
+            // No signed URLs, no CORS, no browser-side auth required
+            var result = supabaseService.upload(file, "tracks", path);
+
+            log.info("[MusicController] Upload success — publicUrl: {}", result.getUrl());
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "data", Map.of(
+                            "path", result.getPublicId(),
+                            "audioUrl", result.getUrl(),
+                            "originalName", result.getOriginalFileName(),
+                            "fileSize", result.getFileSize()
+                    )
+            ));
+        } catch (IOException e) {
+            log.error("[MusicController] Server-side audio upload failed", e);
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Upload failed: " + e.getMessage()
             ));
         }
     }
