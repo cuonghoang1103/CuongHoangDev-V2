@@ -106,6 +106,10 @@ public class MusicController {
     @PostMapping("/admin/tracks")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createTrack(@RequestBody MusicUploadRequest request) {
+        log.info("[MusicController] createTrack — title='{}', artist='{}', audioUrl='{}', supabasePath='{}', coverImageUrl='{}', durationSeconds={}",
+                request.getTitle(), request.getArtist(), request.getAudioUrl(),
+                request.getSupabasePath(), request.getCoverImageUrl(), request.getDurationSeconds());
+
         try {
             MusicTrack track = new MusicTrack();
             track.setTitle(request.getTitle() != null ? request.getTitle() : "Untitled");
@@ -116,7 +120,11 @@ public class MusicController {
             track.setSupabasePath(request.getSupabasePath());
             track.setActive(request.getActive() != null ? request.getActive() : true);
 
+            log.info("[MusicController] Track object before save — title='{}', audioUrl='{}', supabasePath='{}', coverImage='{}'",
+                    track.getTitle(), track.getAudioUrl(), track.getSupabasePath(), track.getCoverImage());
+
             MusicTrackDto created = musicTrackService.createTrack(track);
+            log.info("[MusicController] createTrack SUCCESS — id={}, audioUrl={}", created.getId(), created.getAudioUrl());
             return ResponseEntity.ok(Map.of(
                     "success", true,
                     "data", Map.of(
@@ -492,6 +500,9 @@ public class MusicController {
             var result = supabaseService.upload(springFile, "tracks", path);
 
             log.info("[MusicController] Upload success — {}", result.getUrl());
+
+            log.info("[MusicController] Returning raw upload response — path='{}', audioUrl='{}', originalName='{}', fileSize={}",
+                    result.getPublicId(), result.getUrl(), result.getOriginalFileName(), result.getFileSize());
 
             return ResponseEntity.ok(Map.of(
                     "success", true,

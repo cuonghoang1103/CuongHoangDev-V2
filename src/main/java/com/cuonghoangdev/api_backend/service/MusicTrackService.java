@@ -51,10 +51,16 @@ public class MusicTrackService {
 
     @Transactional
     public MusicTrackDto createTrack(MusicTrack track) {
+        log.info("[MusicTrackService] createTrack called — title='{}', audioUrl='{}', supabasePath='{}', coverImage='{}'",
+                track.getTitle(), track.getAudioUrl(), track.getSupabasePath(), track.getCoverImage());
+
         MusicTrack saved = musicTrackRepository.save(track);
-        log.info("[MusicTrack] Created track id={} title='{}' audio={}",
+        log.info("[MusicTrackService] Saved track — id={}, title='{}', audioUrl='{}'",
                 saved.getId(), saved.getTitle(), saved.getAudioUrl());
-        return MusicTrackDto.fromEntity(saved);
+
+        MusicTrackDto dto = MusicTrackDto.fromEntity(saved);
+        log.info("[MusicTrackService] Returning DTO — id={}, audioUrl='{}'", dto.getId(), dto.getAudioUrl());
+        return dto;
     }
 
     @Transactional
