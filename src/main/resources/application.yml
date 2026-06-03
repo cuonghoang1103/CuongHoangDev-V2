@@ -150,4 +150,5 @@ cloudinary:
 supabase:
   url: ${SUPABASE_URL:}
   service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+  anon-key: ${SUPABASE_ANON_KEY:}
   bucket: ${SUPABASE_BUCKET:music-tracks}

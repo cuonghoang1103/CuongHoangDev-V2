@@ -34,6 +34,7 @@ public class SupabaseStorageService implements StorageService {
 
     private final String supabaseUrl;
     private final String serviceRoleKey;
+    private final String anonKey;
     private final String bucketName;
     private final boolean configured;
     private final RestTemplate restTemplate;
@@ -43,10 +44,12 @@ public class SupabaseStorageService implements StorageService {
     public SupabaseStorageService(
             @Value("${supabase.url:}") String supabaseUrl,
             @Value("${supabase.service-role-key:}") String serviceRoleKey,
+            @Value("${supabase.anon-key:}") String anonKey,
             @Value("${supabase.bucket:music-tracks}") String bucketName
     ) {
         this.supabaseUrl = supabaseUrl;
         this.serviceRoleKey = serviceRoleKey;
+        this.anonKey = anonKey;
         this.bucketName = bucketName;
         this.restTemplate = new RestTemplate();
 
@@ -206,8 +209,10 @@ public class SupabaseStorageService implements StorageService {
 
         HttpHeaders headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
-        // Supabase requires both apikey and Authorization headers
-        headers.set("apikey", serviceRoleKey);
+        // Supabase requires apikey header (must be anon key, NOT service role JWT)
+        // Fall back to serviceRoleKey if anonKey is not set
+        String effectiveApikey = (anonKey != null && !anonKey.isBlank()) ? anonKey : serviceRoleKey;
+        headers.set("apikey", effectiveApikey);
         headers.set("Authorization", "Bearer " + serviceRoleKey);
 
         String body = String.format("{\"expiresIn\": %d}", expiresInSeconds);
@@ -215,9 +220,9 @@ public class SupabaseStorageService implements StorageService {
 
         try {
             log.info("[Supabase] Creating signed URL - URL: {}, path: {}, expires: {}s", signUrl, path, expiresInSeconds);
-            log.info("[Supabase] Headers - apikey: {}, auth: Bearer {}", 
-                    serviceRoleKey.substring(0, Math.min(10, serviceRoleKey.length())) + "...",
-                    serviceRoleKey.substring(0, Math.min(10, serviceRoleKey.length())) + "...");
+            log.info("[Supabase] Headers - apikey: {}..., auth: Bearer {}...",
+                    effectiveApikey.substring(0, Math.min(10, effectiveApikey.length())),
+                    serviceRoleKey.substring(0, Math.min(10, serviceRoleKey.length())));
 
             ResponseEntity<Map> response = restTemplate.exchange(
                     signUrl,
@@ -238,6 +243,10 @@ public class SupabaseStorageService implements StorageService {
                 }
                 // The signed URL may already contain the full path or be relative
                 String fullUrl = signedPath.startsWith("http") ? signedPath : supabaseUrl + signedPath;
+                // Supabase requires apikey as a query param on the signed URL for direct browser uploads
+                if (effectiveApikey != null && !effectiveApikey.isBlank()) {
+                    fullUrl += (fullUrl.contains("?") ? "&" : "?") + "apikey=" + effectiveApikey;
+                }
                 log.info("[Supabase] Created signed upload URL: {}", fullUrl);
                 log.info("[Supabase] Token: {}", token != null ? token.substring(0, Math.min(20, token.length())) + "..." : "null");
                 return fullUrl;
