@@ -47,6 +47,7 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
   const token = getToken();
   const res = await fetch(`${API}${path}`, {
     ...options,
+    credentials: 'include',
     headers: {
       'Content-Type': 'application/json',
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -102,10 +103,16 @@ export default function AdminMusicPage() {
   const fetchTracks = async () => {
     setLoading(true);
     try {
-      const res = await apiFetch('/admin/tracks');
-      setTracks(res.data || []);
-    } catch {
-      toast.error('Khong the tai danh sach nhac');
+      const res = await fetch('/api/v1/music/admin/tracks', {
+        credentials: 'include',
+      });
+      const data = await res.json();
+      console.log('[AdminMusic] fetchTracks:', res.status, data);
+      setTracks(data.data || []);
+    } catch (err) {
+      console.error('[AdminMusic] fetchTracks error:', err);
+      toast.error('Không thể tải danh sách nhạc: ' + (err instanceof Error ? err.message : String(err)));
+      setTracks([]);
     } finally {
       setLoading(false);
     }
@@ -173,139 +180,103 @@ export default function AdminMusicPage() {
     setCoverImage(blobUrl);
   };
 
+  // ──────────────────────────────────────────────────────────────
+  // handleSave: single-step upload — file goes through Vercel proxy
+  //   → backend (server-to-Supabase, no 4.5MB browser limit)
+  //   → backend saves DB record
+  //   All errors are logged to console AND shown in the toast.
+  // ──────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!title.trim() || !artist.trim()) {
-      toast.error('Vui long dien day du thong tin');
+      toast.error('Vui lòng điền đầy đủ thông tin');
       return;
     }
 
     if (!editingId && !audioFile) {
-      toast.error('Vui long tai len file nhac');
+      toast.error('Vui lòng tải lên file nhạc');
       return;
     }
 
     setSaving(true);
+    setUploading(true);
     try {
-      let supabasePath: string | null = null;
-      let audioUrl: string | null = null;
-
-      // Step 1: Upload audio DIRECTLY to Supabase via signed URL — bypasses Vercel 4.5MB limit
-      if (audioFile) {
-        const token = getToken();
-        if (!token) {
-          toast.error('Khong co token xac thuc');
-          return;
-        }
-
-        // 1a. Get signed upload URL from backend
-        toast.info('Dang lay link upload...');
-        const sigRes = await fetch('/api/v1/music/admin/upload/supabase', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-          body: JSON.stringify({ fileName: audioFile.name, contentType: audioFile.type || 'audio/mpeg' }),
-        });
-
-        const sigText = await sigRes.text();
-        let sigData: Record<string, unknown> = {};
-        try { sigData = JSON.parse(sigText) as Record<string, unknown>; } catch { /* noop */ }
-
-        if (!sigRes.ok || sigData.success !== true) {
-          const msg = (sigData.message as string) || `Lỗi ${sigRes.status}`;
-          toast.error('Lỗi lay signed URL: ' + msg);
-          console.error('[MusicUpload] Signed URL error:', sigText);
-          return;
-        }
-
-        const sigInner = (sigData.data || {}) as Record<string, unknown>;
-        const uploadUrl = sigInner.uploadUrl as string;
-        supabasePath = sigInner.path as string;
-        audioUrl = sigInner.publicUrl as string;
-
-        console.log('[MusicUpload] uploadUrl from backend:', uploadUrl);
-        console.log('[MusicUpload] full URL (first 200):', (uploadUrl || '').slice(0, 200));
-
-        if (!uploadUrl || !supabasePath) {
-          toast.error('Signed URL khong hop le tu backend');
-          return;
-        }
-
-        // 1b. PUT file directly to Supabase (browser → Supabase, no Vercel in between)
-        toast.info('Dang upload nhac len Supabase...');
-        const putRes = await fetch(uploadUrl, {
-          method: 'PUT',
-          body: audioFile,
-          headers: { 'Content-Type': audioFile.type || 'audio/mpeg' },
-        });
-
-        if (!putRes.ok) {
-          const body = await putRes.text();
-          toast.error('Upload Supabase that bai: ' + putRes.status);
-          console.error('[MusicUpload] Supabase PUT failed:', putRes.status, body);
-          return;
-        }
-        toast.success('Upload nhac thanh cong!');
-        console.log('[MusicUpload] Supabase upload OK — audioUrl:', audioUrl, '| path:', supabasePath);
-      }
-
-      // Step 2: Upload cover image via fileApi
-      let finalCover: string | null = null;
+      // Step 1: Upload cover image via fileApi (Cloudinary)
+      let coverUrl: string | null = null;
       if (coverFile) {
-        toast.info('Dang upload anh bia...');
+        toast.info('Đang upload ảnh bìa...');
         const coverRes = await fileApi.upload(coverFile, 'music-covers');
-        finalCover = coverRes.data?.data?.url || null;
-        if (!finalCover) toast.warning('Upload anh bia that bai — tiep tuc khong co anh');
+        coverUrl = coverRes.data?.data?.url || null;
+        if (!coverUrl) {
+          toast.warning('Upload ảnh bìa thất bại — tiếp tục không có ảnh');
+        } else {
+          console.log('[AdminMusic] Cover uploaded:', coverUrl);
+        }
       } else if (coverImage && !coverImage.startsWith('blob:')) {
-        finalCover = coverImage;
+        coverUrl = coverImage;
       }
 
-      // Step 3: Create DB record
+      // Step 2: Create/update DB record
       if (editingId) {
+        // Editing: PATCH metadata + optional new audio
         const body: Record<string, unknown> = {
           title: title.trim(),
           artist: artist.trim(),
           durationSeconds,
+          coverImageUrl: coverUrl || undefined,
         };
         if (audioUrl) body.audioUrl = audioUrl;
-        if (supabasePath) body.supabasePath = supabasePath;
-        if (finalCover) body.coverImageUrl = finalCover;
 
-        await apiFetch(`/admin/tracks/${editingId}`, {
+        console.log('[AdminMusic] Updating track', editingId, 'with body:', body);
+        const res = await apiFetch(`/admin/tracks/${editingId}`, {
           method: 'PUT',
           body: JSON.stringify(body),
         });
-        toast.success('Cap nhat thanh cong');
+        console.log('[AdminMusic] Update response:', res);
+        toast.success('Cập nhật thành công');
       } else {
-        if (!audioUrl || !supabasePath) {
-          toast.error('Khong co audio — can upload file nhac truoc');
+        // Creating: single POST to /admin/upload
+        // Backend receives audio → uploads to Supabase → creates DB record
+        const formData = new FormData();
+        formData.append('audio', audioFile!);
+        formData.append('title', title.trim());
+        formData.append('artist', artist.trim());
+        formData.append('durationSeconds', String(durationSeconds));
+        if (coverUrl) formData.append('cover', coverUrl); // backend expects "cover" param
+
+        const token = getToken();
+        console.log('[AdminMusic] Uploading audio:', audioFile!.name, `(${(audioFile!.size / 1024 / 1024).toFixed(1)} MB)`);
+
+        const res = await fetch('/api/v1/music/admin/upload', {
+          method: 'POST',
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData,
+          credentials: 'include',
+        });
+
+        const rawText = await res.text();
+        console.log('[AdminMusic] Upload response:', res.status, rawText.slice(0, 500));
+
+        let data: Record<string, unknown> = {};
+        try { data = JSON.parse(rawText); } catch { /* raw text used below */ }
+
+        if (!res.ok || data.success === false) {
+          const msg = (data.message as string) || `Lỗi HTTP ${res.status}: ${rawText.slice(0, 200)}`;
+          toast.error(msg);
           return;
         }
-        const body = {
-          title: title.trim(),
-          artist: artist.trim(),
-          audioUrl,
-          supabasePath,
-          coverImageUrl: finalCover,
-          durationSeconds,
-          active: true,
-        };
-        await apiFetch('/admin/tracks', {
-          method: 'POST',
-          body: JSON.stringify(body),
-        });
-        toast.success('Tao track thanh cong!');
+
+        toast.success('Tạo track thành công!');
       }
 
       setShowForm(false);
       resetForm();
       fetchTracks();
     } catch (err: any) {
-      console.error('[MusicUpload] handleSave error:', err);
-      toast.error(err.message || 'Luu that bai');
+      console.error('[AdminMusic] handleSave error:', err);
+      toast.error(err.message || 'Lưu thất bại');
     } finally {
       setSaving(false);
+      setUploading(false);
     }
   };
 
