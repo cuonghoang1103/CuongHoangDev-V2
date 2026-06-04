@@ -12,13 +12,16 @@ export const dynamic = "force-dynamic";
 export async function POST(request: NextRequest) {
   try {
     const formData = await request.formData();
-    const file = formData.get("file") as File | null;
+    // Match backend MusicController.uploadFiles field name: "audio"
+    const file = formData.get("audio") as File | null;
     const title = (formData.get("title") as string) || "";
     const artist = (formData.get("artist") as string) || "";
-    const coverUrl = (formData.get("coverUrl") as string) || "";
     const durationSeconds = parseInt((formData.get("durationSeconds") as string) || "0", 10);
 
     if (!file) {
+      const fields: string[] = [];
+      formData.forEach((_, key) => fields.push(key));
+      console.error(`[v1/music/admin/upload] No "audio" field. Available: ${fields.join(", ")}`);
       return NextResponse.json({ success: false, message: "No file provided" }, { status: 400 });
     }
 
@@ -69,13 +72,12 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
     }
 
-    // Forward multipart form data to backend Java server
-    // Backend expects: audio=file, cover=optional, title, artist, durationSeconds
+    // Forward audio file to backend — backend uploads to Supabase and returns audioUrl
+    // Cover is handled separately via Cloudinary in Step 2 (create track record)
     const backendFormData = new FormData();
     backendFormData.append("audio", file);
     backendFormData.append("title", title);
     backendFormData.append("artist", artist);
-    backendFormData.append("coverUrl", coverUrl);
     backendFormData.append("durationSeconds", String(durationSeconds));
 
     const res = await fetch(`${BACKEND_URL}/api/v1/music/admin/upload`, {

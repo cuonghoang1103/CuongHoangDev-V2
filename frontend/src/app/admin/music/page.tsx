@@ -181,10 +181,10 @@ export default function AdminMusicPage() {
   };
 
   // ──────────────────────────────────────────────────────────────
-  // handleSave: single-step upload — file goes through Vercel proxy
-  //   → backend (server-to-Supabase, no 4.5MB browser limit)
-  //   → backend saves DB record
-  //   All errors are logged to console AND shown in the toast.
+  // handleSave: two-step flow
+  //   Step 1: POST /api/v1/music/admin/upload  (audio file → backend → Supabase)
+  //   Step 2: POST /api/v1/music/admin/tracks    (JSON body → DB record)
+  //   Cover: upload to Cloudinary separately first → pass URL as coverImageUrl
   // ──────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!title.trim() || !artist.trim()) {
@@ -200,68 +200,107 @@ export default function AdminMusicPage() {
     setSaving(true);
     setUploading(true);
     try {
-      // Step 1: Upload cover image via fileApi (Cloudinary)
-      let coverUrl: string | null = null;
+      // Step 0: Upload cover image to Cloudinary (returns URL string)
+      let coverImageUrl: string | null = null;
       if (coverFile) {
         toast.info('Đang upload ảnh bìa...');
         const coverRes = await fileApi.upload(coverFile, 'music-covers');
-        coverUrl = coverRes.data?.data?.url || null;
-        if (!coverUrl) {
+        coverImageUrl = coverRes.data?.data?.url || null;
+        if (!coverImageUrl) {
           toast.warning('Upload ảnh bìa thất bại — tiếp tục không có ảnh');
         } else {
-          console.log('[AdminMusic] Cover uploaded:', coverUrl);
+          console.log('[AdminMusic] Cover URL:', coverImageUrl);
         }
       } else if (coverImage && !coverImage.startsWith('blob:')) {
-        coverUrl = coverImage;
+        coverImageUrl = coverImage;
       }
 
-      // Step 2: Create/update DB record
       if (editingId) {
-        // Editing: PATCH metadata + optional new audio
+        // ── Editing: PUT JSON with optional new audioUrl ──
         const body: Record<string, unknown> = {
           title: title.trim(),
           artist: artist.trim(),
           durationSeconds,
-          coverImageUrl: coverUrl || undefined,
+          coverImageUrl: coverImageUrl || undefined,
         };
         if (audioUrl) body.audioUrl = audioUrl;
 
-        console.log('[AdminMusic] Updating track', editingId, 'with body:', body);
+        console.log('[AdminMusic] PUT /admin/tracks/', editingId, body);
         const res = await apiFetch(`/admin/tracks/${editingId}`, {
           method: 'PUT',
           body: JSON.stringify(body),
         });
-        console.log('[AdminMusic] Update response:', res);
+        console.log('[AdminMusic] PUT response:', res);
         toast.success('Cập nhật thành công');
       } else {
-        // Creating: single POST to /admin/upload
-        // Backend receives audio → uploads to Supabase → creates DB record
+        // ── Creating: Step 1 — upload audio to backend (→ Supabase) ──
         const formData = new FormData();
         formData.append('audio', audioFile!);
         formData.append('title', title.trim());
         formData.append('artist', artist.trim());
         formData.append('durationSeconds', String(durationSeconds));
-        if (coverUrl) formData.append('cover', coverUrl); // backend expects "cover" param
 
         const token = getToken();
-        console.log('[AdminMusic] Uploading audio:', audioFile!.name, `(${(audioFile!.size / 1024 / 1024).toFixed(1)} MB)`);
+        console.log('[AdminMusic] Step1: POST /admin/upload — file:', audioFile!.name,
+          `(${(audioFile!.size / 1024 / 1024).toFixed(1)} MB)`);
 
-        const res = await fetch('/api/v1/music/admin/upload', {
+        const uploadRes = await fetch('/api/v1/music/admin/upload', {
           method: 'POST',
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData,
           credentials: 'include',
         });
 
-        const rawText = await res.text();
-        console.log('[AdminMusic] Upload response:', res.status, rawText.slice(0, 500));
+        const uploadRaw = await uploadRes.text();
+        console.log('[AdminMusic] Step1 response:', uploadRes.status, uploadRaw.slice(0, 500));
 
-        let data: Record<string, unknown> = {};
-        try { data = JSON.parse(rawText); } catch { /* raw text used below */ }
+        let uploadData: Record<string, unknown> = {};
+        try { uploadData = JSON.parse(uploadRaw); } catch { /* raw used below */ }
 
-        if (!res.ok || data.success === false) {
-          const msg = (data.message as string) || `Lỗi HTTP ${res.status}: ${rawText.slice(0, 200)}`;
+        if (!uploadRes.ok || uploadData.success === false) {
+          const msg = (uploadData.message as string) || `Lỗi HTTP ${uploadRes.status}: ${uploadRaw.slice(0, 200)}`;
           toast.error(msg);
+          return;
+        }
+
+        // Extract audioUrl from upload response
+        const created = (uploadData.data as Record<string, unknown>) || {};
+        const audioUrl = (created.audioUrl as string) || (created.track as Record<string, unknown>)?.audioUrl as string || '';
+        const supabasePath = (created.supabasePath as string) || (created.track as Record<string, unknown>)?.supabasePath as string || '';
+
+        console.log('[AdminMusic] Step1 success — audioUrl:', audioUrl, '| supabasePath:', supabasePath);
+
+        // Step 2 — create track record with coverImageUrl
+        const body = {
+          title: title.trim(),
+          artist: artist.trim(),
+          audioUrl,
+          supabasePath,
+          coverImageUrl,
+          durationSeconds,
+          active: true,
+        };
+
+        console.log('[AdminMusic] Step2: POST /admin/tracks', body);
+        const trackRes = await fetch('/api/v1/music/admin/tracks', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(body),
+          credentials: 'include',
+        });
+
+        const trackRaw = await trackRes.text();
+        console.log('[AdminMusic] Step2 response:', trackRes.status, trackRaw.slice(0, 500));
+
+        let trackData: Record<string, unknown> = {};
+        try { trackData = JSON.parse(trackRaw); } catch { /* raw used below */ }
+
+        if (!trackRes.ok || trackData.success === false) {
+          const msg = (trackData.message as string) || `Lỗi HTTP ${trackRes.status}: ${trackRaw.slice(0, 200)}`;
+          toast.error('Upload thành công nhưng tạo record thất bại: ' + msg);
           return;
         }
 
