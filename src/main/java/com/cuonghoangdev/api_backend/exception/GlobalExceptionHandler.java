@@ -75,8 +75,9 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneralException(Exception ex) {
+        log.error("[GlobalExceptionHandler] Unhandled exception: {} — {}", ex.getClass().getSimpleName(), ex.getMessage(), ex);
         return new ResponseEntity<>(
-                ApiResponse.error("Lỗi hệ thống: " + ex.getMessage()),
+                ApiResponse.error("Lỗi hệ thống: " + ex.getClass().getSimpleName() + ": " + ex.getMessage()),
                 HttpStatus.INTERNAL_SERVER_ERROR
         );
     }

@@ -1,5 +1,6 @@
 package com.cuonghoangdev.api_backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -180,7 +181,9 @@ public class Product {
     // ══════════════════════════════════════════════════════════════════════════════
 
     public static class ProductSpec {
+        @JsonProperty("label")
         private String label;
+        @JsonProperty("value")
         private String value;
 
         public ProductSpec() {}
