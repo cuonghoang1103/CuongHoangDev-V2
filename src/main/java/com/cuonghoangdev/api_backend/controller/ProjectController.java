@@ -7,6 +7,8 @@ import com.cuonghoangdev.api_backend.exception.BadRequestException;
 import com.cuonghoangdev.api_backend.exception.ResourceNotFoundException;
 import com.cuonghoangdev.api_backend.repository.ProjectRepository;
 import com.cuonghoangdev.api_backend.service.ProjectService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,6 +16,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/projects")
@@ -26,9 +30,7 @@ public class ProjectController {
     @Autowired
     private ProjectRepository projectRepository;
 
-    // ══════════════════════════════════════════════════════════════
-    // READ endpoints — handled entirely by the service layer
-    // ══════════════════════════════════════════════════════════════
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @GetMapping
     @Operation(summary = "Lấy danh sách dự án với phân trang")
@@ -61,15 +63,6 @@ public class ProjectController {
         return ResponseEntity.ok(
                 ApiResponse.ok("Chi tiết dự án", projectService.getBySlug(slug)));
     }
-
-    // ══════════════════════════════════════════════════════════════
-    // WRITE endpoints — delegate to service
-    // ProjectService is @Transactional and calls Hibernate.initialize()
-    // so the lazy 'skills' collection is always loaded before the
-    // session closes. Calling ProjectDto.fromEntity() HERE (in the
-    // controller, outside a transaction) would throw:
-    //   LazyInitializationException: no session
-    // ══════════════════════════════════════════════════════════════
 
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
@@ -104,7 +97,7 @@ public class ProjectController {
     }
 
     // ══════════════════════════════════════════════════════════════
-    // Request DTO — plain data carrier, no Hibernate involvement
+    // Request DTO — accepts both List<String> images and legacy String images
     // ══════════════════════════════════════════════════════════════
 
     public static class ProjectRequest {
@@ -115,6 +108,7 @@ public class ProjectController {
         private String thumbnailUrl;
         private String projectUrl;
         private String githubUrl;
+        /** Comma-separated string, e.g. "React, Spring Boot, PostgreSQL" */
         private String techStack;
         private String role;
         private String duration;
@@ -122,8 +116,8 @@ public class ProjectController {
         private Boolean featured;
         private java.time.LocalDate startDate;
         private java.time.LocalDate endDate;
-        /** JSON array string of image URLs, e.g. '["url1","url2"]' */
-        private String images;
+        /** New: JSON array of image URLs, e.g. ["url1","url2"] */
+        private List<String> images;
 
         public String getTitle()              { return title; }
         public void setTitle(String title)    { this.title = title; }
@@ -153,12 +147,9 @@ public class ProjectController {
         public void setStartDate(java.time.LocalDate d) { this.startDate = d; }
         public java.time.LocalDate getEndDate()   { return endDate; }
         public void setEndDate(java.time.LocalDate d)   { this.endDate = d; }
-        public String getImages()             { return images; }
-        public void setImages(String i)       { this.images = i; }
+        public List<String> getImages()             { return images; }
+        public void setImages(List<String> i)       { this.images = i; }
 
-        /** Maps request fields to a transient Project entity.
-         *  The entity has no ID yet — the service layer will save it
-         *  and Hibernate.initialize() the lazy 'skills' collection. */
         public Project toEntity() {
             Project p = new Project();
             p.setTitle(title);
@@ -175,7 +166,14 @@ public class ProjectController {
             p.setIsFeatured(featured != null ? featured : false);
             p.setStartDate(startDate);
             p.setEndDate(endDate);
-            p.setImages(images);
+            // Serialize images list → JSON string for storage
+            if (images != null && !images.isEmpty()) {
+                try {
+                    p.setImages(MAPPER.writeValueAsString(images));
+                } catch (JsonProcessingException e) {
+                    p.setImages("[]");
+                }
+            }
             return p;
         }
     }
