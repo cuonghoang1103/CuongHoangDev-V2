@@ -42,7 +42,7 @@ export default function ThumbnailUploader({
     setUploading(true);
     try {
       const res = await fileApi.upload(file, 'thumbnails');
-      const url = res.data?.data?.downloadUrl as string | undefined;
+        const url = res.data?.data?.url as string | undefined;
       if (url) {
         onChange(url);
         toast.success('Upload ảnh đại diện thành công!');

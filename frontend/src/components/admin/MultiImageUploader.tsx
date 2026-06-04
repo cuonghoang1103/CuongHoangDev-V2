@@ -28,7 +28,7 @@ export default function MultiImageUploader({
     async (file: File): Promise<string | null> => {
       try {
         const res = await fileApi.upload(file, 'thumbnails');
-        const url = res.data?.data?.downloadUrl as string | undefined;
+        const url = res.data?.data?.url as string | undefined;
         if (url) return url;
         toast.error(res.data?.message || 'Upload thất bại.');
         return null;

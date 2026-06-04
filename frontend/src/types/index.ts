@@ -233,7 +233,8 @@ export interface FileUploadResponse {
   storedName: string;
   contentType: string;
   fileSize: number;
-  downloadUrl: string;
+  /** Backend returns `url`, not `downloadUrl` */
+  url: string;
   uploadedAt: string;
 }
 

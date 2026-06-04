@@ -101,7 +101,7 @@ export default function PremiumPlaylist({ isNight = true }: PremiumPlaylistProps
         fd.append('category', 'thumbnails');
         const res = await fetch('/api/v1/files/upload', { method: 'POST', credentials: 'include', body: fd });
         const data = await res.json();
-        if (data.success) coverUrl = data.data.downloadUrl;
+        if (data.success) coverUrl = data.data.url;
       } catch (_) {}
     }
     await createPlaylist(newPlaylistName.trim(), coverUrl);
