@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import { Upload, X, Image, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { Upload, X, ImageIcon, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface ImageUploadProps {
@@ -197,7 +197,7 @@ export default function ImageUpload({
             <img src={value} alt="Uploaded" className="w-20 h-20 rounded-lg object-cover shrink-0" />
           ) : (
             <div className="w-20 h-20 rounded-lg bg-darkbg flex items-center justify-center shrink-0">
-              <Image className="w-8 h-8 text-text-muted" />
+              <ImageIcon className="w-8 h-8 text-text-muted" />
             </div>
           )}
           <div className="flex-1 min-w-0">

@@ -62,6 +62,21 @@ async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
 
 const DEFAULT_COVER = 'https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=400&q=80';
 
+function TrackCoverImage({ track, className }: { track: { coverImage?: string; title: string }; className?: string }) {
+  const [imgError, setImgError] = useState(false);
+  const src = !imgError && track.coverImage ? track.coverImage : DEFAULT_COVER;
+  return (
+    <Image
+      src={src}
+      alt={track.title}
+      fill
+      className={className}
+      onError={() => setImgError(true)}
+      unoptimized={src.startsWith('http')}
+    />
+  );
+}
+
 export default function AdminMusicPage() {
   const { t } = useTranslation();
   const [tracks, setTracks] = useState<Track[]>([]);
@@ -369,13 +384,7 @@ export default function AdminMusicPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-darkbg">
-                          <Image
-                            src={track.coverImage || DEFAULT_COVER}
-                            alt={track.title}
-                            fill
-                            className="object-cover"
-                            onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_COVER; }}
-                          />
+                          <TrackCoverImage track={track} className="object-cover" />
                         </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-text-primary truncate max-w-[200px]">{track.title}</p>
