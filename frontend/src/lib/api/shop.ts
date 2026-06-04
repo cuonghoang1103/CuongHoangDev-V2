@@ -6,8 +6,6 @@ const API_BASE = '/api/v1';
 
 function getToken(): string {
   if (typeof window === 'undefined') return '';
-  // Credentials: token stored as 'token' in localStorage (set by login)
-  // OAuth: token stored as 'auth_token' in localStorage (set by setAuth)
   return localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
 }
 
@@ -41,6 +39,11 @@ async function request<T>(
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
+export interface ProductSpec {
+  label: string;
+  value: string;
+}
+
 export interface ProductResponse {
   id: number;
   name: string;
@@ -57,7 +60,11 @@ export interface ProductResponse {
   active: boolean;
   categoryId?: number;
   categoryName?: string;
+  categorySlug?: string;
   type: string;
+  fileUrl?: string;
+  specs?: ProductSpec[];
+  guidance?: string;
   createdAt: string;
 }
 
@@ -99,6 +106,31 @@ export interface CreateOrderRequest {
   notes?: string;
 }
 
+export interface OrderItemResponse {
+  id: number;
+  productName: string;
+  productSlug?: string;
+  productImage?: string;
+  price: number;
+  quantity: number;
+  total: number;
+  fileUrl?: string;
+  credentials?: string;
+}
+
+export interface DigitalDelivery {
+  productName: string;
+  type: string;
+  fileUrl?: string;
+  credentials?: string;
+}
+
+export interface DeliveryInfo {
+  hasDigitalItems: boolean;
+  items: DigitalDelivery[];
+  message: string;
+}
+
 export interface OrderResponse {
   id: number;
   orderCode: string;
@@ -116,17 +148,8 @@ export interface OrderResponse {
   paymentStatus: string;
   paidAt?: string;
   items: OrderItemResponse[];
+  deliveryInfo?: DeliveryInfo;
   createdAt: string;
-}
-
-export interface OrderItemResponse {
-  id: number;
-  productName: string;
-  productSlug?: string;
-  productImage?: string;
-  price: number;
-  quantity: number;
-  total: number;
 }
 
 // ─── Products API ─────────────────────────────────────────────────────────────
@@ -197,7 +220,7 @@ export async function validateDiscount(
 
 export async function createOrder(
   data: CreateOrderRequest
-): Promise<ApiResponse<OrderResponse> > {
+): Promise<ApiResponse<OrderResponse>> {
   return request('/orders', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -206,11 +229,11 @@ export async function createOrder(
 
 export async function getOrderByCode(
   code: string
-): Promise<ApiResponse<OrderResponse> > {
+): Promise<ApiResponse<OrderResponse>> {
   return request(`/orders/${code}`);
 }
 
-export async function getMyOrders(): Promise<ApiResponse<OrderResponse[]> > {
+export async function getMyOrders(): Promise<ApiResponse<OrderResponse[]>> {
   return request('/orders/my');
 }
 
@@ -218,7 +241,7 @@ export async function getMyOrders(): Promise<ApiResponse<OrderResponse[]> > {
 
 export async function adminCreateProduct(
   data: Partial<ProductResponse>
-): Promise<ApiResponse<ProductResponse> > {
+): Promise<ApiResponse<ProductResponse>> {
   return request('/shop/admin/products', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -228,7 +251,7 @@ export async function adminCreateProduct(
 export async function adminUpdateProduct(
   id: number,
   data: Partial<ProductResponse>
-): Promise<ApiResponse<ProductResponse> > {
+): Promise<ApiResponse<ProductResponse>> {
   return request(`/shop/admin/products/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -237,7 +260,7 @@ export async function adminUpdateProduct(
 
 export async function adminDeleteProduct(
   id: number
-): Promise<ApiResponse<void> > {
+): Promise<ApiResponse<void>> {
   return request(`/shop/admin/products/${id}`, {
     method: 'DELETE',
   });
@@ -262,7 +285,7 @@ export async function adminGetOrders(params?: {
 export async function adminUpdateOrderStatus(
   id: number,
   status: string
-): Promise<ApiResponse<OrderResponse> > {
+): Promise<ApiResponse<OrderResponse>> {
   return request(`/orders/admin/${id}/status`, {
     method: 'PUT',
     body: JSON.stringify({ status }),
@@ -293,7 +316,7 @@ export async function adminGetDiscounts() {
 
 export async function adminCreateDiscount(
   data: Record<string, unknown>
-): Promise<ApiResponse<void> > {
+): Promise<ApiResponse<void>> {
   return request('/discounts/admin', {
     method: 'POST',
     body: JSON.stringify(data),
@@ -303,7 +326,7 @@ export async function adminCreateDiscount(
 export async function adminUpdateDiscount(
   id: number,
   data: Record<string, unknown>
-): Promise<ApiResponse<void> > {
+): Promise<ApiResponse<void>> {
   return request(`/discounts/admin/${id}`, {
     method: 'PUT',
     body: JSON.stringify(data),
@@ -312,7 +335,7 @@ export async function adminUpdateDiscount(
 
 export async function adminDeleteDiscount(
   id: number
-): Promise<ApiResponse<void> > {
+): Promise<ApiResponse<void>> {
   return request(`/discounts/admin/${id}`, {
     method: 'DELETE',
   });
@@ -323,9 +346,9 @@ export async function adminDeleteDiscount(
 export function mapProductFromBackend(bp: ProductResponse) {
   return {
     id: String(bp.id),
-    name: bp.name,
-    slug: bp.slug,
-    price: bp.price,
+    name: bp.name ?? '',
+    slug: bp.slug ?? '',
+    price: bp.price ?? 0,
     originalPrice: bp.originalPrice,
     thumbnail: bp.thumbnailUrl || '/images/products/default.jpg',
     category: (bp.categoryName as 'Web Template' | 'Tools' | 'Software' | 'Accounts' | 'Ebook') || 'Web Template',
@@ -333,11 +356,14 @@ export function mapProductFromBackend(bp: ProductResponse) {
     reviewCount: 0,
     description: bp.shortDescription || bp.description || '',
     features: [],
+    specs: bp.specs ?? [],
+    guidance: bp.guidance ?? '',
+    fileUrl: bp.fileUrl,
     isHot: false,
     isNew: false,
-    stock: bp.stockQuantity,
-    isFeatured: bp.featured,
-    soldCount: bp.soldCount,
+    stock: bp.stockQuantity ?? 0,
+    isFeatured: bp.featured ?? false,
+    soldCount: bp.soldCount ?? 0,
     createdAt: bp.createdAt,
     tags: [],
   };

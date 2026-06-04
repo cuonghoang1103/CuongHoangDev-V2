@@ -17,6 +17,21 @@ import type { Product, ProductCategory, ProductSpec } from '@/types';
 import ImageUpload from '@/components/admin/ImageUpload';
 import { useTranslation } from '@/hooks/useTranslation';
 
+const REVALIDATE_SECRET = process.env.NEXT_PUBLIC_REVALIDATE_SECRET ?? '';
+
+/** Calls the revalidate endpoint so public pages reflect admin mutations immediately. */
+async function triggerRevalidate(paths: string[], tags: string[] = []) {
+  try {
+    await fetch('/api/revalidate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ paths, tags }),
+    });
+  } catch {
+    // Non-fatal: revalidation is best-effort
+  }
+}
+
 // ─── Category-specific spec templates ─────────────────────────────────────────────
 
 interface SpecTemplate {
@@ -345,6 +360,7 @@ export default function AdminShopPage() {
       await adminDeleteProduct(parseInt(id));
       deleteProduct(id);
       toast.success(t('admin.shop.deleteSuccess'));
+      await triggerRevalidate(['/shop'], ['products']);
     } catch {
       toast.error(t('admin.shop.deleteError'));
     } finally {
@@ -362,40 +378,34 @@ export default function AdminShopPage() {
 
     try {
       const slug = productForm.slug.trim() || slugify(productForm.name);
+      const payload = {
+        name: productForm.name,
+        slug,
+        price: productForm.price,
+        originalPrice: productForm.originalPrice || undefined,
+        thumbnailUrl: productForm.thumbnail,
+        shortDescription: productForm.description,
+        stockQuantity: productForm.stock,
+        featured: productForm.isFeatured,
+        active: true,
+        fileUrl: productForm.fileUrl || undefined,
+        specs: productForm.specs.filter((s) => s.label.trim() && s.value.trim()),
+        guidance: productForm.guidance || undefined,
+      };
 
       if (editingId) {
-        await adminUpdateProduct(parseInt(editingId), {
-          name: productForm.name,
-          slug,
-          price: productForm.price,
-          originalPrice: productForm.originalPrice || undefined,
-          thumbnailUrl: productForm.thumbnail,
-          shortDescription: productForm.description,
-          stockQuantity: productForm.stock,
-          featured: productForm.isFeatured,
-          fileUrl: productForm.fileUrl || null,
-        });
+        await adminUpdateProduct(parseInt(editingId), payload);
         toast.success(t('admin.shop.updateSuccess'));
         updateProduct(editingId, { ...productForm, id: editingId, slug });
       } else {
-        const res = await adminCreateProduct({
-          name: productForm.name,
-          slug,
-          price: productForm.price,
-          originalPrice: productForm.originalPrice || undefined,
-          thumbnailUrl: productForm.thumbnail,
-          shortDescription: productForm.description,
-          stockQuantity: productForm.stock,
-          featured: productForm.isFeatured,
-          active: true,
-          fileUrl: productForm.fileUrl || null,
-        });
+        const res = await adminCreateProduct(payload);
         toast.success(t('admin.shop.createSuccess'));
         const created = mapProductFromBackend(res.data);
         updateProduct(created.id, created);
       }
       setShowForm(false);
       if (!isLoaded) fetchProducts();
+      await triggerRevalidate(['/shop'], ['products']);
     } catch {
       toast.error(t('admin.shop.saveError'));
     } finally {
@@ -409,6 +419,7 @@ export default function AdminShopPage() {
     try {
       await adminUpdateProduct(parseInt(product.id), { featured: newVal });
       toggleFeatured(product.id);
+      await triggerRevalidate(['/shop'], ['products']);
     } catch {
       toast.error(t('admin.shop.toggleError'));
     }

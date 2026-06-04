@@ -1,6 +1,8 @@
 package com.cuonghoangdev.api_backend.entity;
 
+import io.hypersistence.utils.hibernate.type.json.JsonType;
 import jakarta.persistence.*;
+import org.hibernate.annotations.Type;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -65,6 +67,25 @@ public class Product {
     @Column(name = "file_url", length = 500)
     private String fileUrl;
 
+    /**
+     * Dynamic specification key-value pairs — serialized as JSON.
+     * Examples:
+     *   AI Account:  [{ "label": "Loại tài khoản", "value": "ChatGPT Plus" }, { "label": "Bộ nhớ", "value": "32K tokens" }]
+     *   Tool/Script: [{ "label": "Phiên bản", "value": "v2.3.1" }, { "label": "Tương thích", "value": "Node 18+" }]
+     *   IoT:         [{ "label": "Chipset", "value": "ESP32" }, { "label": "Wifi", "value": "2.4GHz 802.11n" }]
+     *   Second-hand: [{ "label": "Tình trạng", "value": "Đã qua sử dụng - 9/10" }, { "label": "Phụ kiện", "value": "Đầy đủ" }]
+     */
+    @Type(JsonType.class)
+    @Column(name = "specs", columnDefinition = "jsonb")
+    private List<ProductSpec> specs = new ArrayList<>();
+
+    /**
+     * Markdown/HTML guidance text for deployment instructions, warranty, and FAQ.
+     * Rendered on the "Hướng dẫn & Bảo hành" tab of the product detail page.
+     */
+    @Column(columnDefinition = "TEXT")
+    private String guidance;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -107,8 +128,33 @@ public class Product {
     public void setType(String type) { this.type = type; }
     public String getFileUrl() { return fileUrl; }
     public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
+    public List<ProductSpec> getSpecs() { return specs; }
+    public void setSpecs(List<ProductSpec> specs) { this.specs = specs; }
+    public String getGuidance() { return guidance; }
+    public void setGuidance(String guidance) { this.guidance = guidance; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+
+    // ─── Nested embeddable: specification key-value pair ─────────────────────
+    @Embeddable
+    public static class ProductSpec {
+        @Column(length = 200)
+        private String label;
+
+        @Column(length = 1000)
+        private String value;
+
+        public ProductSpec() {}
+        public ProductSpec(String label, String value) {
+            this.label = label;
+            this.value = value;
+        }
+
+        public String getLabel() { return label; }
+        public void setLabel(String label) { this.label = label; }
+        public String getValue() { return value; }
+        public void setValue(String value) { this.value = value; }
+    }
 }

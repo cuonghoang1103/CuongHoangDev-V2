@@ -299,14 +299,14 @@ export default function Navbar() {
                 ))}
               </div>
 
-              {/* Cart */}
+              {/* Cart — guard getTotalItems() with mounted to prevent hydration mismatch */}
               <button
                 onClick={openDrawer}
                 className="relative flex items-center justify-center w-10 h-10 rounded-xl bg-darkcard border border-darkborder hover:border-neon-violet/30 transition-colors"
                 title="Shopping Cart"
               >
                 <ShoppingBag className="w-4 h-4 text-text-secondary" />
-                {getTotalItems() > 0 && (
+                {mounted && getTotalItems() > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-neon-violet text-white text-xs font-bold rounded-full flex items-center justify-center shadow-lg">
                     {getTotalItems()}
                   </span>

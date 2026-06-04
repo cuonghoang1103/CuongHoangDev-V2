@@ -21,7 +21,10 @@ public class CreateOrderRequest {
     private List<OrderItemRequest> items;
 
     private String discountCode;
+    private String notes;
 
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
     public String getBuyerName() { return buyerName; }
     public void setBuyerName(String buyerName) { this.buyerName = buyerName; }
     public String getBuyerEmail() { return buyerEmail; }

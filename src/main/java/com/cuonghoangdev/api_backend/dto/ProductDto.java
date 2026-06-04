@@ -1,6 +1,8 @@
 package com.cuonghoangdev.api_backend.dto;
 
+import com.cuonghoangdev.api_backend.entity.Product;
 import java.math.BigDecimal;
+import java.util.List;
 
 public class ProductDto {
     private Long id;
@@ -22,6 +24,8 @@ public class ProductDto {
     private String categorySlug;
     private String type;
     private String fileUrl;
+    private List<Product.ProductSpec> specs;
+    private String guidance;
     private String createdAt;
 
     public ProductDto() {}
@@ -64,6 +68,10 @@ public class ProductDto {
     public void setType(String type) { this.type = type; }
     public String getFileUrl() { return fileUrl; }
     public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
+    public List<Product.ProductSpec> getSpecs() { return specs; }
+    public void setSpecs(List<Product.ProductSpec> specs) { this.specs = specs; }
+    public String getGuidance() { return guidance; }
+    public void setGuidance(String guidance) { this.guidance = guidance; }
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
 }

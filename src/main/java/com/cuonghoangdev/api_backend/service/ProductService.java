@@ -5,6 +5,7 @@ import com.cuonghoangdev.api_backend.entity.Product;
 import com.cuonghoangdev.api_backend.entity.ProductCategory;
 import com.cuonghoangdev.api_backend.repository.ProductRepository;
 import com.cuonghoangdev.api_backend.repository.ProductCategoryRepository;
+import org.hibernate.Hibernate;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -19,7 +20,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 @Service
-@Transactional
+@Transactional(readOnly = true)
 public class ProductService {
 
     @Autowired
@@ -69,10 +70,14 @@ public class ProductService {
             .collect(Collectors.toList());
     }
 
+    @Transactional
     public ProductDto createProduct(Product product) {
-        return toDto(productRepository.save(product));
+        Product saved = productRepository.save(product);
+        Hibernate.initialize(saved.getSpecs());
+        return toDto(saved);
     }
 
+    @Transactional
     public ProductDto updateProduct(Long id, Product updated) {
         Product product = productRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Product not found"));
@@ -88,9 +93,13 @@ public class ProductService {
         product.setCategory(updated.getCategory());
         product.setType(updated.getType());
         product.setFileUrl(updated.getFileUrl());
+        product.setSpecs(updated.getSpecs());
+        product.setGuidance(updated.getGuidance());
+        Hibernate.initialize(product.getSpecs());
         return toDto(productRepository.save(product));
     }
 
+    @Transactional
     public void deleteProduct(Long id) {
         Product product = productRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Product not found"));
@@ -105,6 +114,8 @@ public class ProductService {
     }
 
     private ProductDto toDto(Product p) {
+        Hibernate.initialize(p.getSpecs());
+        Hibernate.initialize(p.getCategory());
         ProductDto dto = new ProductDto();
         dto.setId(p.getId());
         dto.setName(p.getName());
@@ -128,6 +139,8 @@ public class ProductService {
         dto.setActive(p.getActive());
         dto.setType(p.getType());
         dto.setFileUrl(p.getFileUrl());
+        dto.setSpecs(p.getSpecs());
+        dto.setGuidance(p.getGuidance());
         if (p.getCategory() != null) {
             dto.setCategoryId(p.getCategory().getId());
             dto.setCategoryName(p.getCategory().getName());

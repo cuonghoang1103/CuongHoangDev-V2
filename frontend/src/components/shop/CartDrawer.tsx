@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Minus, Plus, ShoppingBag, Trash2, ArrowRight, BookOpen, Package } from 'lucide-react';
 import Image from 'next/image';
@@ -15,18 +16,23 @@ function formatPrice(price: number): string {
 }
 
 export default function CartDrawer() {
-  const {
-    items,
-    isDrawerOpen,
-    closeDrawer,
-    removeItem,
-    updateQuantity,
-    getTotalPrice,
-    getTotalItems,
-  } = useCartStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
-  const shopItems = items.filter((i) => i.itemType === 'shop');
-  const academyItems = items.filter((i) => i.itemType === 'academy');
+  // Non-persisted selectors (always safe to call)
+  const isDrawerOpen = useCartStore((s) => s.isDrawerOpen);
+  const closeDrawer = useCartStore((s) => s.closeDrawer);
+
+  // Persisted data — read via individual selectors AFTER mount to prevent hydration mismatch.
+  // Using selectors avoids reading the full store state during SSR.
+  const items = useCartStore((s) => s.items);
+  const getTotalPrice = useCartStore((s) => s.getTotalPrice);
+  const getTotalItems = useCartStore((s) => s.getTotalItems);
+  const removeItem = useCartStore((s) => s.removeItem);
+  const updateQuantity = useCartStore((s) => s.updateQuantity);
+
+  const shopItems = mounted ? items.filter((i) => i.itemType === 'shop') : [];
+  const academyItems = mounted ? items.filter((i) => i.itemType === 'academy') : [];
 
   return (
     <AnimatePresence>
@@ -54,7 +60,7 @@ export default function CartDrawer() {
               <div className="flex items-center gap-2">
                 <ShoppingBag className="w-5 h-5 text-neon-violet" />
                 <h2 className="font-heading font-bold text-text-primary">
-                  Giỏ hàng ({getTotalItems()})
+                  Giỏ hàng ({mounted ? getTotalItems() : 0})
                 </h2>
               </div>
               <button
@@ -67,7 +73,7 @@ export default function CartDrawer() {
 
             {/* Items */}
             <div className="flex-1 overflow-y-auto p-5 space-y-6">
-              {items.length === 0 ? (
+              {!mounted || items.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full text-center">
                   <div className="w-20 h-20 rounded-full bg-darkbg flex items-center justify-center mb-4">
                     <ShoppingBag className="w-10 h-10 text-text-muted/30" />
@@ -236,7 +242,7 @@ export default function CartDrawer() {
             </div>
 
             {/* Footer */}
-            {items.length > 0 && (
+            {mounted && items.length > 0 && (
               <div className="p-5 border-t border-darkborder bg-darkbg/50">
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-text-secondary text-sm">Tổng cộng</span>

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Star, Users, BookOpen, Clock, Play, ShoppingCart, Check } from 'lucide-react';
 import type { Course } from '@/types';
@@ -21,9 +22,14 @@ function formatPrice(price: number, isFree: boolean): string {
 }
 
 export default function CourseCard({ course }: { course: Course }) {
-  const { addAcademyItem, isInCart } = useCartStore();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  const addAcademyItem = useCartStore((s) => s.addAcademyItem);
+  const isInCartFn = useCartStore((s) => s.isInCart);
+
   const hasDiscount = course.discountPrice && course.discountPrice > 0;
-  const inCart = isInCart('academy', undefined, course.id);
+  const inCart = mounted ? isInCartFn('academy', undefined, course.id) : false;
   const isFree = course.isFree || course.price === 0;
 
   const handleAddToCart = (e: React.MouseEvent) => {

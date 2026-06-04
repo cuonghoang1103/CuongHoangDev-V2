@@ -32,6 +32,20 @@ public class ShopOrderItem {
     @Column(nullable = false, precision = 10, scale = 2)
     private java.math.BigDecimal total = java.math.BigDecimal.ZERO;
 
+    /**
+     * File download URL returned when a digital product (AI Account, Tool/Script)
+     * is delivered after payment completion.
+     */
+    @Column(name = "file_url", length = 500)
+    private String fileUrl;
+
+    /**
+     * Credential text key(s) returned when an AI Account is delivered.
+     * E.g. "Email: user@example.com | Password: Abc123! | API Key: sk-..."
+     */
+    @Column(name = "credentials", columnDefinition = "TEXT")
+    private String credentials;
+
     public ShopOrderItem() {}
 
     public Long getId() { return id; }
@@ -50,4 +64,8 @@ public class ShopOrderItem {
     public void setQuantity(Integer quantity) { this.quantity = quantity; }
     public java.math.BigDecimal getTotal() { return total; }
     public void setTotal(java.math.BigDecimal total) { this.total = total; }
+    public String getFileUrl() { return fileUrl; }
+    public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
+    public String getCredentials() { return credentials; }
+    public void setCredentials(String credentials) { this.credentials = credentials; }
 }

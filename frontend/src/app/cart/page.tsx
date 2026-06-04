@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -7,7 +8,7 @@ import { useRouter } from 'next/navigation';
 import {
   Minus, Plus, Trash2, ArrowLeft, ShoppingBag,
   ShieldCheck, CreditCard, Lock, Tag, ArrowRight,
-  BookOpen, Package,
+  BookOpen, Package, Loader2,
 } from 'lucide-react';
 import { useCartStore } from '@/store/cartStore';
 import StarRating from '@/components/shop/StarRating';
@@ -21,12 +22,23 @@ function formatPrice(price: number): string {
 }
 
 export default function CartPage() {
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   const { items, removeItem, updateQuantity, getTotalPrice, clearCart } = useCartStore();
   const router = useRouter();
 
-  const shopItems = items.filter((i) => i.itemType === 'shop');
-  const academyItems = items.filter((i) => i.itemType === 'academy');
-  const subtotal = getTotalPrice();
+  const shopItems = mounted ? items.filter((i) => i.itemType === 'shop') : [];
+  const academyItems = mounted ? items.filter((i) => i.itemType === 'academy') : [];
+  const subtotal = mounted ? getTotalPrice() : 0;
+
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-darkbg pt-20 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-neon-violet" />
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (

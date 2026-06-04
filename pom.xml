@@ -161,6 +161,13 @@
 			<artifactId>spring-boot-starter-actuator</artifactId>
 		</dependency>
 
+		<!-- Hypersistence Utils for JSON column mapping -->
+		<dependency>
+			<groupId>io.hypersistence</groupId>
+			<artifactId>hypersistence-utils-hibernate-63</artifactId>
+			<version>3.9.0</version>
+		</dependency>
+
 		<!-- Spring AI for RAG Chatbot
 		<dependency>
 			<groupId>org.springframework.ai</groupId>
