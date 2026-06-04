@@ -45,9 +45,8 @@ function formatSeconds(seconds?: number): string {
 }
 
 export default function MusicPage() {
-  const { tracks, setTracks, isHydrated } = useMusicStore();
+  const { setTracks } = useMusicStore();
   const { x: mouseX, y: mouseY } = useMousePosition();
-  const [initialized, setInitialized] = useState(false);
   const [loading, setLoading] = useState(true);
   const [timeOfDay, setTimeOfDay] = useState<'day' | 'night'>('night');
 
@@ -61,21 +60,17 @@ export default function MusicPage() {
     return () => clearInterval(interval);
   }, []);
 
+  // Always fetch from backend — no persistence, always fresh data
   useEffect(() => {
-    if (!isHydrated || initialized) return;
-
     const init = async () => {
-      // Always fetch from backend as source of truth — uploaded tracks may not be in localStorage
       const backendTracks = await fetchBackendTracks();
       if (backendTracks.length > 0) {
         setTracks(backendTracks);
       }
-      setInitialized(true);
       setLoading(false);
     };
-
     init();
-  }, [isHydrated, initialized]);
+  }, []);
 
   const isNight = timeOfDay === 'night';
 
@@ -168,7 +163,7 @@ export default function MusicPage() {
 
         {/* Main Content */}
         <main className="flex-1 px-4 sm:px-6 py-6 pb-28">
-          {loading || !initialized ? (
+          {loading ? (
             <div className="flex items-center justify-center h-64">
               <motion.div
                 className="flex flex-col items-center gap-3"
