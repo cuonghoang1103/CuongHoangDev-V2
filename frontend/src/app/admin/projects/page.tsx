@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { toast } from 'sonner';
 import {
   Plus,
@@ -13,6 +13,8 @@ import {
   ExternalLink,
   GitBranch,
   XCircle,
+  Images,
+  BookOpen,
 } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { projectsApi } from '@/lib/api';
@@ -118,15 +120,17 @@ function ProjectFormModal({
   const [form, setForm] = useState({
     title: project?.title ?? '',
     description: project?.description ?? '',
-    content: project?.content ?? '',
     technologies: Array.isArray(project?.technologies) ? [...project.technologies] : [] as string[],
-    images: Array.isArray(project?.images) ? [...project.images] : [] as string[],
     status: project?.status ?? 'IN_PROGRESS',
     projectUrl: project?.projectUrl ?? '',
     githubUrl: project?.githubUrl ?? '',
     thumbnailUrl: project?.thumbnailUrl ?? '',
     featured: project?.featured ?? false,
+    images: Array.isArray(project?.images) ? [...project.images] : [] as string[],
+    content: project?.content ?? '',
   });
+
+  const [showAdvanced, setShowAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const set = (fields: Partial<typeof form>) =>
@@ -136,14 +140,14 @@ function ProjectFormModal({
     title: form.title,
     slug: slugify(form.title),
     description: form.description,
-    content: form.content,
     techStack: form.technologies.join(', '),
-    images: JSON.stringify(form.images),
     status: form.status,
     projectUrl: form.projectUrl || null,
     githubUrl: form.githubUrl || null,
     thumbnailUrl: form.thumbnailUrl || null,
     featured: form.featured,
+    images: form.images,
+    content: form.content || null,
   });
 
   const handleSave = async () => {
@@ -164,12 +168,18 @@ function ProjectFormModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative bg-darkbg border border-darkborder rounded-2xl w-full max-w-lg p-6 max-h-[90vh] overflow-y-auto">
+      <div className="relative bg-darkbg border border-darkborder rounded-2xl w-full max-w-2xl p-6 max-h-[90vh] overflow-y-auto">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
-          <h2 className="font-heading font-bold text-text-primary">
-            {isEditing ? 'Chỉnh sửa dự án' : 'Thêm dự án mới'}
-          </h2>
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+              style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
+              <BookOpen className="w-4 h-4 text-white" />
+            </div>
+            <h2 className="font-heading font-bold text-text-primary">
+              {isEditing ? 'Chỉnh sửa dự án' : 'Thêm dự án mới'}
+            </h2>
+          </div>
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg hover:bg-white/5 text-text-muted transition-colors"
@@ -178,7 +188,7 @@ function ProjectFormModal({
           </button>
         </div>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           {/* Title */}
           <div>
             <label className="block text-sm font-medium text-text-primary mb-1.5">
@@ -275,42 +285,65 @@ function ProjectFormModal({
             </div>
           </div>
 
-          {/* Thumbnail / Gallery */}
+          {/* Thumbnail URL */}
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1.5">
-              Hình ảnh dự án
-            </label>
-            <MultiImageUploader
-              images={form.images}
-              onChange={(images) => {
-                set({ images });
-                // auto-set first image as thumbnail
-                if (images.length > 0 && !form.thumbnailUrl) {
-                  set({ thumbnailUrl: images[0] });
-                }
-              }}
+            <label className="block text-sm font-medium text-text-primary mb-1.5">Thumbnail URL</label>
+            <input
+              type="url"
+              value={form.thumbnailUrl}
+              onChange={(e) => set({ thumbnailUrl: e.target.value })}
+              placeholder="https://images.unsplash.com/..."
+              className="w-full px-4 py-2.5 bg-darkcard border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
             />
-            {form.images.length === 0 && (
-              <input
-                type="url"
-                value={form.thumbnailUrl}
-                onChange={(e) => set({ thumbnailUrl: e.target.value })}
-                placeholder="Hoặc dán URL ảnh thumbnail..."
-                className="w-full mt-2 px-4 py-2.5 bg-darkcard border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
-              />
-            )}
           </div>
 
-          {/* Rich-Text Case Study */}
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1.5">
-              Case Study / Hành trình phát triển
-            </label>
-            <RichTextEditor
-              value={form.content}
-              onChange={(content) => set({ content })}
-              placeholder="Viết chi tiết về quá trình phát triển dự án, thách thức, giải pháp, và kết quả..."
-            />
+          {/* ── ADVANCED SECTION ───────────────────────────────────────── */}
+          <div className="border border-darkborder rounded-xl overflow-hidden">
+            <button
+              type="button"
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="w-full flex items-center justify-between px-4 py-3 text-sm font-medium text-text-primary hover:bg-white/[0.02] transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <Images className="w-4 h-4 text-neon-violet" />
+                Nội dung nâng cao
+                <span className="text-[10px] px-1.5 py-0.5 rounded bg-neon-violet/10 text-neon-violet font-medium">
+                  Gallery + Case Study
+                </span>
+              </span>
+              <span className={`transform transition-transform ${showAdvanced ? 'rotate-180' : ''}`}>
+                <ChevronRight className="w-4 h-4 text-text-muted" />
+              </span>
+            </button>
+
+            {showAdvanced && (
+              <div className="px-4 pb-4 space-y-4 border-t border-darkborder pt-4">
+                {/* Multi-Image Gallery */}
+                <MultiImageUploader
+                  images={form.images}
+                  onChange={(images) => set({ images })}
+                  maxImages={10}
+                />
+
+                {/* Rich-Text Editor */}
+                <RichTextEditor
+                  value={form.content}
+                  onChange={(content) => set({ content })}
+                  placeholder={`Viết case study, hành trình phát triển dự án...
+
+## Giai đoạn 1: Lên kế hoạch
+- Nghiên cứu yêu cầu dự án
+- Phân tích tech stack phù hợp
+
+## Giai đoạn 2: Phát triển
+Triển khai các tính năng cốt lõi...
+
+> Bài học quan trọng: luôn ưu tiên UX từ đầu
+
+Xem thêm: [Tài liệu tham khảo](https://example.com)`}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -339,7 +372,7 @@ function slugify(text: string) {
   return text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
 }
 
-// ─── Admin Page ───────────────────────────────────────────────────────────────
+// ─── Admin Page ────────────────────────────────────────────────────────────────
 export default function AdminProjectsPage() {
   const { projects, addProject, updateProject, deleteProject } = useProjectStore();
   const [search, setSearch] = useState('');
@@ -444,11 +477,19 @@ export default function AdminProjectsPage() {
               key={project.id}
               className="bg-darkcard border border-darkborder rounded-2xl overflow-hidden hover:border-neon-violet/20 transition-colors group"
             >
-              <div className="h-32 bg-gradient-to-br from-neon-indigo/10 via-neon-violet/10 to-neon-fuchsia/10 flex items-center justify-center relative">
+              {/* Thumbnail */}
+              <div className="h-32 bg-gradient-to-br from-neon-indigo/10 via-neon-violet/10 to-neon-fuchsia/10 flex items-center justify-center relative overflow-hidden">
                 {project.thumbnailUrl ? (
                   <img src={project.thumbnailUrl} alt={project.title} className="w-full h-full object-cover" />
                 ) : (
                   <GitBranch className="w-12 h-12 text-neon-violet/30" />
+                )}
+                {/* Gallery indicator */}
+                {Array.isArray(project.images) && project.images.length > 0 && (
+                  <div className="absolute bottom-2 right-2 px-2 py-0.5 rounded-full bg-black/60 text-white text-[10px] font-medium flex items-center gap-1">
+                    <Images className="w-3 h-3" />
+                    {project.images.length + 1}
+                  </div>
                 )}
                 {project.featured && (
                   <span className="absolute top-2 right-2 px-2 py-0.5 bg-yellow-400/20 text-yellow-300 text-xs rounded-full font-medium">
@@ -456,6 +497,7 @@ export default function AdminProjectsPage() {
                   </span>
                 )}
               </div>
+
               <div className="p-4">
                 <div className="flex items-start justify-between mb-2 gap-2">
                   <h3 className="text-sm font-medium text-text-primary truncate flex-1">{project.title}</h3>
@@ -464,6 +506,19 @@ export default function AdminProjectsPage() {
                   </span>
                 </div>
                 <p className="text-xs text-text-muted line-clamp-2 mb-3">{project.description}</p>
+
+                {/* Content badge */}
+                {project.content && project.content.length > 0 && (
+                  <div className="flex items-center gap-1 mb-3">
+                    <BookOpen className="w-3 h-3 text-neon-violet/60" />
+                    <span className="text-[10px] text-neon-violet/60">
+                      {project.content.length > 100
+                        ? `${Math.round(project.content.length / 100) * 100}+ ký tự`
+                        : `${project.content.length} ký tự`}
+                    </span>
+                  </div>
+                )}
+
                 <div className="flex flex-wrap gap-1 mb-3">
                   {(project.technologies ?? []).slice(0, 3).map((tech, i) => (
                     <span key={i} className="px-2 py-0.5 bg-neon-indigo/10 text-neon-indigo/80 rounded text-xs border border-neon-indigo/20">

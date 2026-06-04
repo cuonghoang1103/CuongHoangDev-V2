@@ -21,6 +21,28 @@ export const MOCK_PRODUCTS = [
       'Figma source file included',
       'Lifetime updates',
     ],
+    specs: [
+      { label: 'Framework', value: 'React 18 + Vite' },
+      { label: 'Styling', value: 'Tailwind CSS 3.4' },
+      { label: 'Components', value: '60+ Pre-built' },
+      { label: 'Page Layouts', value: '15+ Complete pages' },
+      { label: 'Charts', value: 'Chart.js, Recharts' },
+      { label: 'Auth', value: 'JWT ready' },
+      { label: 'Figma', value: 'Source file included' },
+      { label: 'Updates', value: 'Lifetime free' },
+    ],
+    guidance: `## Hướng dẫn cài đặt
+
+1. **Giải nén** file ZIP đã tải về
+2. Chạy \`npm install\` để cài dependencies
+3. Copy file \`.env.example\` thành \`.env\` và điền API keys
+4. Chạy \`npm run dev\` để khởi động dev server
+
+## Bảo hành
+
+- **30 ngày** hoàn tiền nếu template có lỗi kỹ thuật
+- Hỗ trợ qua email trong vòng **6 tháng** kể từ ngày mua
+- Không bao gồm tùy chỉnh riêng`,
     isHot: true,
     isNew: false,
     stock: 50,
@@ -49,6 +71,30 @@ export const MOCK_PRODUCTS = [
       'API key management',
       'Cross-platform CLI',
     ],
+    specs: [
+      { label: 'Runtime', value: 'Node.js 18+' },
+      { label: 'Package Manager', value: 'npm, yarn' },
+      { label: 'Supported OS', value: 'Windows, macOS, Linux' },
+      { label: 'Architecture', value: 'CLI + REST API' },
+      { label: 'Latest Version', value: 'v2.4.1' },
+      { label: 'Hardware Requirements', value: '2GB RAM, 500MB disk' },
+    ],
+    guidance: `## Hướng dẫn cài đặt
+
+\`\`\`bash
+npm install -g seo-master-tool
+seo-master init --api-key YOUR_KEY
+\`\`\`
+
+## Yêu cầu hệ thống
+
+- Node.js 18 trở lên
+- API keys từ Google Search Console, Ahrefs hoặc SEMrush
+
+## Bảo hành
+
+- Hỗ trợ cài đặt qua remote desktop
+- Cập nhật miễn phí trong **3 tháng**`,
     isHot: true,
     isNew: true,
     stock: 999,
@@ -76,6 +122,28 @@ export const MOCK_PRODUCTS = [
       'Multi-cursor helpers',
       'Works with VS Code & WebStorm',
     ],
+    specs: [
+      { label: 'Supported IDEs', value: 'VS Code, WebStorm, IntelliJ, PyCharm' },
+      { label: 'Latest Version', value: 'v3.1.0' },
+      { label: 'Snippets', value: '500+ across 20 languages' },
+      { label: 'AI Engine', value: 'Local + OpenAI fallback' },
+      { label: 'Supported OS', value: 'Windows, macOS, Linux' },
+      { label: 'License', value: 'Perpetual, 3 devices' },
+    ],
+    guidance: `## Cài đặt
+
+1. Mở VS Code → Extensions → Install from VSIX
+2. Hoặc JetBrains: Settings → Plugins → Install from disk
+3. Khởi động lại IDE sau khi cài
+
+## Kích hoạt license
+
+Nhập license key được gửi qua email sau khi thanh toán.
+
+## Bảo hành
+
+- Đổi license sang thiết bị mới: miễn phí 1 lần/năm
+- Hoàn tiền trong 7 ngày nếu plugin không hoạt động`,
     isHot: false,
     isNew: false,
     stock: 999,
@@ -104,6 +172,29 @@ export const MOCK_PRODUCTS = [
       'Instant delivery via email',
       'Account replacement guarantee',
     ],
+    specs: [
+      { label: 'Warranty Period', value: '12 months from delivery' },
+      { label: 'Login Method', value: 'Email + Password (shared)' },
+      { label: 'Validity', value: '12 months active' },
+      { label: 'Access', value: 'GPT-4, DALL-E 3, Advanced Data Analysis' },
+      { label: 'Delivery', value: 'Via email within 2 hours' },
+      { label: 'Replacement', value: 'Free if banned within 24h' },
+    ],
+    guidance: `## Thông tin giao hàng
+
+Tài khoản sẽ được gửi qua **email đăng ký** trong vòng **2 giờ** sau khi thanh toán.
+
+## Hướng dẫn đăng nhập
+
+1. Truy cập chat.openai.com
+2. Đăng nhập bằng email và mật khẩu được cung cấp
+3. **Không thay đổi** email/password để giữ bảo hành
+
+## Chính sách bảo hành
+
+- **24 giờ đầu**: Đổi tài khoản mới miễn phí nếu bị ban
+- **12 tháng**: Hỗ trợ khôi phục quyền truy cập nếu tài khoản có vấn đề
+- **Không hoàn tiền** sau khi nhận được tài khoản`,
     isHot: true,
     isNew: false,
     stock: 12,
@@ -131,6 +222,25 @@ export const MOCK_PRODUCTS = [
       'Updated for 2024',
       'Free bonus chapter',
     ],
+    specs: [
+      { label: 'Book Count', value: '3 volumes' },
+      { label: 'Format', value: 'PDF, EPUB, MOBI' },
+      { label: 'Diagrams', value: '500+' },
+      { label: 'Language', value: 'English' },
+      { label: 'Last Updated', value: '2024 Edition' },
+      { label: 'Bonus', value: 'Free chapter download' },
+    ],
+    guidance: `## Nội dung gói
+
+Bao gồm 3 cuốn sách dạng PDF/EPUB/MOBI:
+- **Volume 1**: System Design Fundamentals
+- **Volume 2**: Distributed Systems Patterns
+- **Volume 3**: Real-world Architecture Case Studies
+
+## Bảo hành
+
+- Hoàn tiền trong **7 ngày** nếu file bị lỗi
+- Không hỗ trợ đổi format sau khi giao`,
     isHot: false,
     isNew: true,
     stock: 999,
@@ -160,6 +270,24 @@ export const MOCK_PRODUCTS = [
       'Mobile-first responsive',
       'Figma source included',
     ],
+    specs: [
+      { label: 'Framework', value: 'Next.js 14 + Tailwind' },
+      { label: 'Animations', value: 'Framer Motion' },
+      { label: 'Responsive', value: 'Mobile-first' },
+      { label: 'Figma Source', value: 'Included' },
+      { label: 'Sections', value: 'Hero, Features, Pricing, FAQ, Testimonials' },
+      { label: 'License', value: 'Single project' },
+    ],
+    guidance: `## Cài đặt nhanh
+
+1. Clone repository
+2. \`npm install && npm run dev\`
+3. Thay đổi nội dung trong \`/content\`
+
+## Bảo hành
+
+- Hoàn tiền trong 14 ngày
+- Hỗ trợ cài đặt qua Zoom`,
     isHot: false,
     isNew: false,
     stock: 200,
@@ -188,6 +316,25 @@ export const MOCK_PRODUCTS = [
       'Dark mode native',
       'Offline mode',
     ],
+    specs: [
+      { label: 'Supported Protocols', value: 'REST, GraphQL, WebSocket, gRPC' },
+      { label: 'License', value: 'Perpetual, 1 device' },
+      { label: 'Latest Version', value: 'v1.8.0' },
+      { label: 'Supported OS', value: 'Windows, macOS, Linux' },
+      { label: 'Workspace', value: 'Collaborative, team sync' },
+    ],
+    guidance: `## Cài đặt
+
+Tải file cài đặt tương ứng với hệ điều hành từ link được gửi qua email.
+
+## Kích hoạt
+
+Nhập license key từ email vào mục Help → Activate License.
+
+## Bảo hành
+
+- Cập nhật miễn phí trong **1 năm**
+- Hoàn tiền trong 30 ngày`,
     isHot: true,
     isNew: true,
     stock: 300,
@@ -215,6 +362,20 @@ export const MOCK_PRODUCTS = [
       'Figma + HTML export',
       'Case study layouts',
     ],
+    specs: [
+      { label: 'Format', value: 'Figma + HTML export' },
+      { label: 'Sections', value: '8 pre-built sections' },
+      { label: 'Theme', value: 'Dark mode default' },
+      { label: 'Responsive', value: 'Desktop, tablet, mobile' },
+    ],
+    guidance: `## Cách sử dụng
+
+Mở file Figma bằng Figma app hoặc trình duyệt. Export sang HTML/CSS nếu cần.
+
+## Bảo hành
+
+- Hoàn tiền trong 7 ngày nếu template lỗi
+- Không hỗ trợ tùy chỉnh riêng`,
     isHot: false,
     isNew: false,
     stock: 500,
@@ -243,6 +404,28 @@ export const MOCK_PRODUCTS = [
       'Admin dashboard',
       'Instant email delivery',
     ],
+    specs: [
+      { label: 'AI Model', value: 'Claude Opus/Sonnet/Haiku' },
+      { label: 'Team Seats', value: 'Up to 5 members' },
+      { label: 'Rate Limit', value: '5x standard' },
+      { label: 'Validity', value: '6 months' },
+      { label: 'Access', value: 'Team workspace, Admin dashboard' },
+      { label: 'Delivery', value: 'Email within 24 hours' },
+    ],
+    guidance: `## Thông tin giao hàng
+
+Workspace access sẽ được gửi qua **email** trong vòng **24 giờ** sau thanh toán.
+
+## Hướng dẫn đăng nhập
+
+1. Truy cập claude.ai
+2. Chọn "Team" workspace
+3. Sử dụng credentials được cung cấp
+
+## Bảo hành
+
+- **7 ngày** đầu: Đổi mới nếu workspace không hoạt động
+- Không hoàn tiền sau khi đã truy cập workspace`,
     isHot: false,
     isNew: false,
     stock: 25,

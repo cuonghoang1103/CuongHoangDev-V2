@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, ExternalLink, Github, Calendar, Users, Code2, Eye, Star, GitFork, SlidersHorizontal } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
@@ -37,16 +36,104 @@ const MOCK_STATS: Record<number, { views: number; stars: number; forks: number }
   9: { views: 390, stars: 19, forks: 5 },
 };
 
-const TECH_BADGES: string[] = [
-  'Next.js', 'React', 'TypeScript', 'Vue.js', 'Angular',
-  'Node.js', 'Spring Boot', 'Python', 'FastAPI', 'Django',
-  'PostgreSQL', 'MongoDB', 'MySQL', 'Tailwind CSS',
-  'Docker', 'AWS', 'Firebase',
-];
-
 function formatCount(n: number): string {
   if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
   return String(n);
+}
+
+// ─── Mini Carousel for Project Cards ──────────────────────────────────────────
+function CardCarousel({ project }: { project: Project }) {
+  const [current, setCurrent] = useState(0);
+
+  const allImages = [
+    project.thumbnailUrl,
+    ...(project.images ?? []),
+  ].filter((u): u is string => typeof u === 'string' && u.trim().length > 0 && u.startsWith('http'));
+
+  if (allImages.length === 0) return null;
+
+  const hasMultiple = allImages.length > 1;
+
+  return (
+    <div className="relative h-48 overflow-hidden" style={{ borderRadius: '0' }}>
+      <AnimatePresence mode="wait">
+        {allImages[current] && (
+          <motion.img
+            key={current}
+            src={allImages[current]}
+            alt={project.title}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="absolute inset-0 w-full h-full object-cover"
+          />
+        )}
+      </AnimatePresence>
+
+      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+
+      {project.featured && (
+        <div className="absolute top-3 left-3 px-2.5 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-bold rounded-lg shadow-lg">
+          NOI BAT
+        </div>
+      )}
+
+      {project.status && (
+        <div className={`absolute top-3 right-3 px-2.5 py-1 text-xs font-medium rounded-lg border ${STATUS_COLORS[project.status] || ''}`}>
+          {STATUS_LABELS[project.status] || project.status}
+        </div>
+      )}
+
+      {hasMultiple && (
+        <>
+          <button
+            onClick={(e) => { e.stopPropagation(); setCurrent((c) => c === 0 ? allImages.length - 1 : c - 1); }}
+            className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center transition-all hover:scale-110 z-10"
+            style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M7 2L4 5L7 8" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setCurrent((c) => c === allImages.length - 1 ? 0 : c + 1); }}
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center transition-all hover:scale-110 z-10"
+            style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+              <path d="M3 2L6 5L3 8" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </>
+      )}
+
+      {hasMultiple && (
+        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10">
+          {allImages.map((_, i) => (
+            <button
+              key={i}
+              onClick={(e) => { e.stopPropagation(); setCurrent(i); }}
+              className="h-1.5 rounded-full transition-all"
+              style={{
+                width: i === current ? '16px' : '4px',
+                background: i === current ? '#a855f7' : 'rgba(255,255,255,0.4)',
+              }}
+            />
+          ))}
+        </div>
+      )}
+
+      {hasMultiple && (
+        <div
+          className="absolute top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] font-medium z-10"
+          style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', color: '#fff' }}
+        >
+          {current + 1}/{allImages.length}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function SkeletonGrid() {
@@ -68,18 +155,20 @@ function SkeletonGrid() {
   );
 }
 
+// ─── Project Card ───────────────────────────────────────────────────────────────
 function ProjectCard({
   project,
   starred,
   onToggleStar,
-  onOpenDrawer,
+  onOpenPanel,
 }: {
   project: Project;
   starred: boolean;
   onToggleStar: () => void;
-  onOpenDrawer?: () => void;
+  onOpenPanel: () => void;
 }) {
   const stats = MOCK_STATS[project.id] ?? { views: 0, stars: 0, forks: 0 };
+  const hasGallery = Array.isArray(project.images) && project.images.length > 0;
 
   return (
     <motion.article
@@ -89,36 +178,13 @@ function ProjectCard({
       exit={{ opacity: 0, scale: 0.95 }}
       transition={{ duration: 0.3 }}
       whileHover={{ scale: 1.02 }}
-      className="group flex flex-col bg-darkcard rounded-2xl border border-darkborder/50 hover:border-neon-violet/40 transition-all duration-300 overflow-hidden shadow-lg hover:shadow-neon-violet/10"
+      onClick={onOpenPanel}
+      className="group flex flex-col bg-darkcard rounded-2xl border border-darkborder/50 hover:border-neon-violet/40 transition-all duration-300 overflow-hidden shadow-lg hover:shadow-neon-violet/10 cursor-pointer"
     >
-      {/* Thumbnail */}
-      <div className="relative h-48 bg-gradient-to-br from-neon-indigo/30 via-neon-violet/20 to-neon-fuchsia/20 flex items-center justify-center overflow-hidden shrink-0">
-        {project.thumbnailUrl ? (
-          <img
-            src={project.thumbnailUrl}
-            alt={project.title}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          />
-        ) : (
-          <Code2 className="w-16 h-16 text-neon-violet/40" />
-        )}
+      {/* Card Carousel */}
+      <CardCarousel project={project} />
 
-        {/* Featured badge */}
-        {project.featured && (
-          <div className="absolute top-3 left-3 px-2.5 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-bold rounded-lg shadow-lg">
-            NỔI BẬT
-          </div>
-        )}
-
-        {/* Status badge */}
-        {project.status && (
-          <div className={`absolute top-3 right-3 px-2.5 py-1 text-xs font-medium rounded-lg border ${STATUS_COLORS[project.status] || ''}`}>
-            {STATUS_LABELS[project.status] || project.status}
-          </div>
-        )}
-      </div>
-
-      {/* Body — flex-grow ensures all cards match height */}
+      {/* Body */}
       <div className="flex flex-col flex-1 p-6">
         {/* Title */}
         <h3 className="text-lg font-heading font-bold text-text-primary mb-2 group-hover:text-neon-violet transition-colors line-clamp-1">
@@ -136,25 +202,25 @@ function ProjectCard({
             <Eye className="w-3.5 h-3.5" />
             {formatCount(stats.views)}
           </span>
-
-          {/* Star — fully interactive */}
           <button
-            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleStar(); }}
+            onClick={(e) => { e.stopPropagation(); onToggleStar(); }}
             className={`flex items-center gap-1 text-xs transition-all hover:scale-110 ${starred ? 'text-yellow-400' : 'text-text-muted hover:text-yellow-400'}`}
           >
-            <motion.span
-              animate={starred ? { scale: [1, 1.4, 1] } : { scale: 1 }}
-              transition={{ duration: 0.25 }}
-            >
+            <motion.span animate={starred ? { scale: [1, 1.4, 1] } : { scale: 1 }} transition={{ duration: 0.25 }}>
               <Star className="w-3.5 h-3.5" fill={starred ? 'currentColor' : 'none'} />
             </motion.span>
             {formatCount(stats.stars + (starred ? 1 : 0))}
           </button>
-
           <span className="flex items-center gap-1 text-xs text-text-muted">
             <GitFork className="w-3.5 h-3.5" />
             {formatCount(stats.forks)}
           </span>
+          {starred && (
+            <span className="ml-auto flex items-center gap-1 text-xs text-neon-violet/60">
+              <Star className="w-3.5 h-3.5 fill-current" />
+              Gallery
+            </span>
+          )}
         </div>
 
         {/* Tech stack tags */}
@@ -192,10 +258,10 @@ function ProjectCard({
           )}
         </div>
 
-        {/* Actions — always visible at bottom via flex-grow */}
+        {/* Actions */}
         <div className="flex gap-3 mt-auto pt-4 border-t border-darkborder/50">
           <button
-            onClick={() => onOpenDrawer?.()}
+            onClick={(e) => { e.stopPropagation(); onOpenPanel(); }}
             className="flex-1 py-2 text-center text-sm bg-gradient-to-r from-neon-indigo/20 to-neon-violet/20 border border-neon-violet/30 text-neon-violet rounded-lg hover:from-neon-indigo/30 hover:to-neon-violet/30 transition-all font-medium"
           >
             Chi tiết
@@ -228,17 +294,17 @@ function ProjectCard({
   );
 }
 
+// ─── Main Component ──────────────────────────────────────────────────────────────
 export default function ProjectsClient() {
   const { projects, setProjects } = useProjectStore();
 
-  // Starred state tracked locally per session
   const [starredIds, setStarredIds] = useState<Set<number>>(() => new Set());
-
   const [searchInput, setSearchInput] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [techFilter, setTechFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   useEffect(() => {
     const loadProjects = async () => {
@@ -265,7 +331,6 @@ export default function ProjectsClient() {
 
   const filtered = useMemo(() => {
     let result = [...projects];
-
     if (searchKeyword) {
       const q = searchKeyword.toLowerCase();
       result = result.filter(
@@ -275,17 +340,12 @@ export default function ProjectsClient() {
           (p.technologies ?? []).some((t) => t.toLowerCase().includes(q))
       );
     }
-
-    if (statusFilter) {
-      result = result.filter((p) => p.status === statusFilter);
-    }
-
+    if (statusFilter) result = result.filter((p) => p.status === statusFilter);
     if (techFilter) {
       result = result.filter(
         (p) => (p.technologies ?? []).some((t) => t.toLowerCase() === techFilter.toLowerCase())
       );
     }
-
     return result;
   }, [projects, searchKeyword, statusFilter, techFilter]);
 
@@ -317,10 +377,19 @@ export default function ProjectsClient() {
     });
   };
 
-  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const openPanel = (project: Project) => setSelectedProject(project);
+  const closePanel = () => setSelectedProject(null);
 
   return (
     <>
+      {/* Slide-over Panel */}
+      <ProjectDetailDrawer
+        project={selectedProject}
+        onClose={closePanel}
+        starred={selectedProject ? starredIds.has(selectedProject.id) : false}
+        onToggleStar={selectedProject ? () => toggleStar(selectedProject.id) : undefined}
+      />
+
       {/* Filters */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 space-y-3">
         {/* Search + Status row */}
@@ -443,7 +512,7 @@ export default function ProjectsClient() {
                     project={project}
                     starred={starredIds.has(project.id)}
                     onToggleStar={() => toggleStar(project.id)}
-                    onOpenDrawer={() => setSelectedProject(project)}
+                    onOpenPanel={() => openPanel(project)}
                   />
                 ))}
               </AnimatePresence>
@@ -473,14 +542,6 @@ export default function ProjectsClient() {
           </>
         )}
       </section>
-
-      {/* Project Detail Drawer */}
-      <ProjectDetailDrawer
-        project={selectedProject}
-        onClose={() => setSelectedProject(null)}
-        starred={selectedProject ? starredIds.has(selectedProject.id) : false}
-        onToggleStar={selectedProject ? () => toggleStar(selectedProject.id) : undefined}
-      />
     </>
   );
 }

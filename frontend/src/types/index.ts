@@ -370,6 +370,11 @@ export type SortOption = 'newest' | 'price_asc' | 'price_desc' | 'popular';
 
 export type ItemType = 'shop' | 'academy';
 
+export interface ProductSpec {
+  label: string;
+  value: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -382,6 +387,10 @@ export interface Product {
   reviewCount: number;
   description: string;
   features: string[];
+  /** Category-specific structured key-value pairs (e.g. Warranty Period, OS, Voltage) */
+  specs?: ProductSpec[];
+  /** Deployment / warranty instructions shown in Tab 3 */
+  guidance?: string;
   isHot?: boolean;
   isNew?: boolean;
   stock: number;
