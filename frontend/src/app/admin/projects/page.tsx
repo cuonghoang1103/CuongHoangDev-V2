@@ -21,6 +21,7 @@ import { projectsApi } from '@/lib/api';
 import type { Project } from '@/types';
 import MultiImageUploader from '@/components/admin/MultiImageUploader';
 import RichTextEditor from '@/components/admin/RichTextEditor';
+import ThumbnailUploader from '@/components/admin/ThumbnailUploader';
 
 const STATUS_OPTIONS = ['PLANNING', 'IN_PROGRESS', 'COMPLETED', 'MAINTENANCE'];
 
@@ -292,7 +293,7 @@ function ProjectFormModal({
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1.5">
                 YouTube Video URL
-                <span className="ml-1.5 text-[10px text-neon-emerald font-normal">(demo trực tiếp)</span>
+                <span className="ml-1.5 text-[10px] text-neon-emerald font-normal">(demo trực tiếp)</span>
               </label>
               <input
                 type="url"
@@ -314,17 +315,11 @@ function ProjectFormModal({
             </div>
           </div>
 
-          {/* Thumbnail URL */}
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1.5">Thumbnail URL</label>
-            <input
-              type="url"
-              value={form.thumbnailUrl}
-              onChange={(e) => set({ thumbnailUrl: e.target.value })}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full px-4 py-2.5 bg-darkcard border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
-            />
-          </div>
+          {/* Thumbnail Uploader */}
+          <ThumbnailUploader
+            value={form.thumbnailUrl}
+            onChange={(url) => set({ thumbnailUrl: url })}
+          />
 
           {/* ── ADVANCED SECTION ───────────────────────────────────────── */}
           <div className="border border-darkborder rounded-xl overflow-hidden">
