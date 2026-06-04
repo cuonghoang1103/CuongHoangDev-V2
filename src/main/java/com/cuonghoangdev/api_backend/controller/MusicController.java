@@ -34,6 +34,12 @@ import java.util.UUID;
 @Tag(name = "Music", description = "Music track management — audio stored in Supabase, covers in Cloudinary")
 public class MusicController {
 
+    // Simple DTO for the signed URL request body
+    public static class SignedUrlRequest {
+        public String fileName;
+        public String contentType;
+    }
+
     private static final Logger log = LoggerFactory.getLogger(MusicController.class);
 
     @Autowired
@@ -363,10 +369,9 @@ public class MusicController {
     )
     @PostMapping("/admin/upload/supabase")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> getSupabaseUploadUrl(
-            @RequestParam(value = "fileName", defaultValue = "") String fileName,
-            @RequestParam(value = "contentType", defaultValue = "audio/mpeg") String contentType
-    ) {
+    public ResponseEntity<?> getSupabaseUploadUrl(@RequestBody SignedUrlRequest request) {
+        String fileName = (request != null && request.fileName != null) ? request.fileName : "";
+        String contentType = (request != null && request.contentType != null) ? request.contentType : "audio/mpeg";
         log.info("[MusicController] /admin/upload/supabase called - configured={}", supabaseService.isConfigured());
 
         if (!supabaseService.isConfigured()) {
