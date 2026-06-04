@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -326,15 +327,17 @@ public class MusicController {
 
             MusicTrackDto created = musicTrackService.createTrack(track);
 
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "data", Map.of(
-                            "track", created,
-                            "audioUrl", audioUrl,
-                            "coverUrl", coverUrl,
-                            "supabasePath", supabasePath
-                    )
-            ));
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("track", created);
+            data.put("audioUrl", audioUrl);
+            data.put("coverUrl", coverUrl);
+            data.put("supabasePath", supabasePath);
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", true);
+            response.put("data", data);
+
+            return ResponseEntity.ok(response);
 
         } catch (IOException e) {
             log.error("[MusicController] Upload failed", e);
