@@ -387,6 +387,8 @@ export default function AdminShopPage() {
         shortDescription: productForm.description,
         stockQuantity: productForm.stock,
         featured: productForm.isFeatured,
+        isHot: productForm.isHot,
+        isNew: productForm.isNew,
         active: true,
         fileUrl: productForm.fileUrl || undefined,
         specs: productForm.specs.filter((s) => s.label.trim() && s.value.trim()),
@@ -425,6 +427,26 @@ export default function AdminShopPage() {
     }
   };
 
+  const handleToggleHot = async (product: Product) => {
+    const newVal = !(product as any).isHot;
+    try {
+      await adminUpdateProduct(parseInt(product.id), { isHot: newVal });
+      toggleHot(product.id);
+    } catch {
+      toast.error('Cập nhật Hot thất bại');
+    }
+  };
+
+  const handleToggleNew = async (product: Product) => {
+    const newVal = !(product as any).isNew;
+    try {
+      await adminUpdateProduct(parseInt(product.id), { isNew: newVal });
+      toggleNew(product.id);
+    } catch {
+      toast.error('Cập nhật New thất bại');
+    }
+  };
+
   const addFeature = () => {
     if (!featureInput.trim()) return;
     setProductForm((f) => ({ ...f, features: [...f.features, featureInput.trim()] }));
@@ -445,6 +467,34 @@ export default function AdminShopPage() {
     setProductForm((f) => ({ ...f, tags: f.tags.filter((_, idx) => idx !== i) }));
   };
 
+  /**
+   * Uploads digital product files directly to Supabase Storage (bypasses Vercel 4.5MB limit).
+   * Falls back to the proxy upload for small files if Supabase is unavailable.
+   */
+  const uploadFile = async (file: File, category: string): Promise<string | null> => {
+    const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+
+    // Step 1: Get signed upload URL
+    const res = await fetch(
+      `/api/v1/files/upload/signed-url?filename=${encodeURIComponent(filename)}&folder=${encodeURIComponent(category)}`,
+      { credentials: 'include' }
+    );
+    if (!res.ok) throw new Error('Failed to get signed URL');
+    const { data } = await res.json();
+    if (!data?.signedUrl) throw new Error('No signed URL returned');
+
+    // Step 2: PUT file directly to Supabase (no Vercel in the path)
+    const uploadRes = await fetch(data.signedUrl, {
+      method: 'PUT',
+      body: file,
+      headers: { 'Content-Type': file.type },
+    });
+    if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
+
+    return data.publicUrl ?? null;
+  };
+
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -454,8 +504,7 @@ export default function AdminShopPage() {
     }
     setUploadingFile(true);
     try {
-      const res = await fileApi.upload(file, 'products');
-      const url = res.data?.data?.url;
+      const url = await uploadFile(file, 'products');
       if (url) {
         setProductForm((f) => ({ ...f, fileUrl: url }));
         toast.success('Tải file thành công');
@@ -638,15 +687,15 @@ export default function AdminShopPage() {
                             <Star className={`w-4 h-4 ${product.isFeatured ? 'fill-current' : ''}`} />
                           </button>
                           <button
-                            onClick={() => toggleHot(product.id)}
-                            className={`p-1.5 rounded-lg transition-colors ${product.isHot ? 'text-orange-400 bg-orange-500/10' : 'text-text-muted hover:text-text-primary hover:bg-white/5'}`}
+                            onClick={() => handleToggleHot(product)}
+                            className={`p-1.5 rounded-lg transition-colors ${(product as any).isHot ? 'text-orange-400 bg-orange-500/10' : 'text-text-muted hover:text-text-primary hover:bg-white/5'}`}
                             title="Toggle Hot"
                           >
                             <Flame className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => toggleNew(product.id)}
-                            className={`p-1.5 rounded-lg transition-colors ${product.isNew ? 'text-neon-cyan bg-neon-cyan/10' : 'text-text-muted hover:text-text-primary hover:bg-white/5'}`}
+                            onClick={() => handleToggleNew(product)}
+                            className={`p-1.5 rounded-lg transition-colors ${(product as any).isNew ? 'text-neon-cyan bg-neon-cyan/10' : 'text-text-muted hover:text-text-primary hover:bg-white/5'}`}
                             title="Toggle New"
                           >
                             <Sparkles className="w-4 h-4" />

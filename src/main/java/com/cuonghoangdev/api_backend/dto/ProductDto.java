@@ -26,6 +26,8 @@ public class ProductDto {
     private String fileUrl;
     private List<Product.ProductSpec> specs;
     private String guidance;
+    private Boolean isHot;
+    private Boolean isNew;
     private String createdAt;
 
     public ProductDto() {}
@@ -72,6 +74,10 @@ public class ProductDto {
     public void setSpecs(List<Product.ProductSpec> specs) { this.specs = specs; }
     public String getGuidance() { return guidance; }
     public void setGuidance(String guidance) { this.guidance = guidance; }
+    public Boolean getIsHot() { return isHot; }
+    public void setIsHot(Boolean isHot) { this.isHot = isHot; }
+    public Boolean getIsNew() { return isNew; }
+    public void setIsNew(Boolean isNew) { this.isNew = isNew; }
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
 }

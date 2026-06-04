@@ -58,6 +58,12 @@ public class Product {
     @Column
     private Boolean featured = false;
 
+    @Column(name = "is_hot")
+    private Boolean isHot = false;
+
+    @Column(name = "is_new")
+    private Boolean isNew = false;
+
     @Column
     private Boolean active = true;
 
@@ -161,6 +167,10 @@ public class Product {
     public void setSoldCount(Integer soldCount) { this.soldCount = soldCount; }
     public Boolean getFeatured() { return featured; }
     public void setFeatured(Boolean featured) { this.featured = featured; }
+    public Boolean getIsHot() { return isHot; }
+    public void setIsHot(Boolean isHot) { this.isHot = isHot; }
+    public Boolean getIsNew() { return isNew; }
+    public void setIsNew(Boolean isNew) { this.isNew = isNew; }
     public Boolean getActive() { return active; }
     public void setActive(Boolean active) { this.active = active; }
     public ProductCategory getCategory() { return category; }

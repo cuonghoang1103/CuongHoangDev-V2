@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { Upload, X, ImageIcon, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 interface ImageUploadProps {
   value?: string;
@@ -35,7 +36,75 @@ export default function ImageUpload({
     return match ? decodeURIComponent(match[1]) : '';
   };
 
+  /**
+   * Upload via Supabase Storage signed URL — bypasses Vercel's 4.5MB limit.
+   * Flow:
+   *   1. GET /api/v1/files/upload/signed-url → get signed PUT URL + public URL
+   *   2. PUT file directly to Supabase Storage (browser → Supabase, no Vercel)
+   *   3. Return the public URL
+   */
+  const uploadViaSupabase = useCallback(async (file: File, category: string): Promise<string | null> => {
+    const filename = file.name;
+    const ext = filename.substring(filename.lastIndexOf('.')).toLowerCase();
+    const path = `${category}/${Date.now()}-${Math.random().toString(36).slice(2)}${ext}`;
+
+    // Step 1: Get signed upload URL from backend
+    let signedUrl: string;
+    try {
+      const res = await fetch(
+        `/api/v1/files/upload/signed-url?filename=${encodeURIComponent(filename)}&folder=${encodeURIComponent(category)}`,
+        { credentials: 'include' }
+      );
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ message: 'Failed to get upload URL' }));
+        throw new Error(err.message || 'Failed to get upload URL');
+      }
+      const data = await res.json();
+      signedUrl = data?.data?.signedUrl;
+      if (!signedUrl) throw new Error('No signed URL returned');
+    } catch (e) {
+      throw new Error(`Failed to get signed URL: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    // Step 2: PUT file directly to Supabase
+    try {
+      const uploadRes = await fetch(signedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+      if (!uploadRes.ok) {
+        throw new Error(`Supabase upload failed: HTTP ${uploadRes.status}`);
+      }
+    } catch (e) {
+      throw new Error(`Supabase upload failed: ${e instanceof Error ? e.message : String(e)}`);
+    }
+
+    // Step 3: Return the public URL
+    try {
+      const res = await fetch(
+        `/api/v1/files/upload/signed-url?filename=${encodeURIComponent(filename)}&folder=${encodeURIComponent(category)}`,
+        { credentials: 'include' }
+      );
+      const data = await res.json();
+      return data?.data?.publicUrl || null;
+    } catch {
+      return null;
+    }
+  }, []);
+
   const uploadToBackend = useCallback(async (file: File): Promise<string | null> => {
+    // Try Supabase first (handles large files, bypasses Vercel limit)
+    if (isSupabaseConfigured) {
+      try {
+        const url = await uploadViaSupabase(file, folder);
+        if (url) return url;
+      } catch (e) {
+        console.warn('[ImageUpload] Supabase upload failed, falling back to proxy:', e);
+      }
+    }
+
+    // Fallback: upload via Next.js proxy (works for small files < 4.5MB)
     const formData = new FormData();
     formData.append('file', file);
     formData.append('category', folder);
@@ -57,7 +126,7 @@ export default function ImageUpload({
 
     const data = await res.json();
     return data?.data?.url || null;
-  }, [folder]);
+  }, [folder, uploadViaSupabase]);
 
   const processFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {

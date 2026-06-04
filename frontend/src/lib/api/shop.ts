@@ -58,6 +58,8 @@ export interface ProductResponse {
   soldCount: number;
   featured: boolean;
   active: boolean;
+  isHot?: boolean;
+  isNew?: boolean;
   categoryId?: number;
   categoryName?: string;
   categorySlug?: string;
@@ -358,9 +360,9 @@ export function mapProductFromBackend(bp: ProductResponse) {
     features: [],
     specs: bp.specs ?? [],
     guidance: bp.guidance ?? '',
+    isHot: bp.isHot ?? false,
+    isNew: bp.isNew ?? false,
     fileUrl: bp.fileUrl,
-    isHot: false,
-    isNew: false,
     stock: bp.stockQuantity ?? 0,
     isFeatured: bp.featured ?? false,
     soldCount: bp.soldCount ?? 0,

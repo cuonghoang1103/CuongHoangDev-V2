@@ -95,6 +95,8 @@ public class ProductService {
         // setSpecs() serializes the list to JSON string
         product.setSpecs(updated.getSpecs());
         product.setGuidance(updated.getGuidance());
+        product.setIsHot(updated.getIsHot());
+        product.setIsNew(updated.getIsNew());
         return toDto(productRepository.save(product));
     }
 
@@ -141,6 +143,8 @@ public class ProductService {
         // getSpecs() deserializes from JSON — no Hibernate involvement
         dto.setSpecs(p.getSpecs());
         dto.setGuidance(p.getGuidance());
+        dto.setIsHot(p.getIsHot());
+        dto.setIsNew(p.getIsNew());
         if (p.getCategory() != null) {
             dto.setCategoryId(p.getCategory().getId());
             dto.setCategoryName(p.getCategory().getName());
