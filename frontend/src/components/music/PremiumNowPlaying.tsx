@@ -169,52 +169,14 @@ export default function PremiumNowPlaying({ isNight = true }: PremiumNowPlayingP
 
         {/* Album Art + Info Row */}
         <div className="flex gap-5 items-center mb-6">
-          {/* Cover Art */}
-          <motion.div
-            className="relative shrink-0"
-            animate={isPlaying ? { rotate: 360 } : { rotate: 0 }}
-            transition={{
-              rotate: { duration: isPlaying ? 20 : 0, repeat: Infinity, ease: 'linear' },
-            }}
-          >
-            <div
-              className="w-24 h-24 md:w-28 md:h-28 rounded-2xl overflow-hidden"
-              style={{
-                boxShadow: `0 0 40px ${c.glow}, 0 0 80px ${c.glowStrong}`,
-              }}
-            >
-              {isSafeCoverUrl(currentTrack.coverImage) ? (
-                <Image
-                  src={currentTrack.coverImage}
-                  alt={currentTrack.title}
-                  width={112}
-                  height={112}
-                  className="object-cover w-full h-full"
-                />
-              ) : (
-                <div
-                  className="w-full h-full flex items-center justify-center"
-                  style={{
-                    background: `linear-gradient(135deg, ${c.primary}, ${c.secondary})`,
-                  }}
-                >
-                  <span className="text-white/60 text-3xl font-bold">
-                    {currentTrack.title.charAt(0)}
-                  </span>
-                </div>
-              )}
-            </div>
-
-            {/* Glow ring when playing */}
-            {isPlaying && (
-              <motion.div
-                className="absolute inset-0 rounded-2xl -m-1"
-                style={{ border: `2px solid ${c.primary}` }}
-                animate={{ opacity: [0.2, 0.5, 0.2], scale: [1, 1.02, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              />
-            )}
-          </motion.div>
+          {/* Rotating Vinyl Disc */}
+          <VinylDisc
+            coverImage={currentTrack.coverImage}
+            title={currentTrack.title}
+            isPlaying={isPlaying}
+            primary={c.primary}
+            glow={c.glowStrong}
+          />
 
           {/* Track Info */}
           <div className="flex-1 min-w-0">
@@ -452,6 +414,147 @@ export default function PremiumNowPlaying({ isNight = true }: PremiumNowPlayingP
           {currentIndex + 1} / {tracks.length}
         </div>
       </div>
+    </motion.div>
+  );
+}
+
+// Rotating vinyl disc — cover art spins on a circular record
+function VinylDisc({
+  coverImage,
+  title,
+  isPlaying,
+  primary,
+  glow,
+}: {
+  coverImage: string;
+  title: string;
+  isPlaying: boolean;
+  primary: string;
+  glow: string;
+}) {
+  const DISC_SIZE = 120; // px
+
+  return (
+    <motion.div
+      className="relative shrink-0"
+      animate={{ rotate: isPlaying ? 360 : 0 }}
+      transition={{
+        rotate: {
+          duration: isPlaying ? 8 : 0,
+          repeat: Infinity,
+          ease: 'linear',
+        },
+      }}
+      style={{ width: DISC_SIZE, height: DISC_SIZE }}
+    >
+      {/* Outer glow ring */}
+      {isPlaying && (
+        <motion.div
+          className="absolute inset-0 rounded-full"
+          style={{
+            background: `radial-gradient(circle, ${primary}30 0%, transparent 70%)`,
+          }}
+          animate={{ scale: [1, 1.08, 1], opacity: [0.6, 1, 0.6] }}
+          transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+        />
+      )}
+
+      {/* Vinyl record base (dark disc) */}
+      <div
+        className="absolute inset-0 rounded-full overflow-hidden"
+        style={{
+          background: 'radial-gradient(circle at 30% 30%, #1a1a2e 0%, #0d0d15 60%, #080810 100%)',
+          boxShadow: `0 0 30px ${glow}, 0 0 60px ${glow}40, inset 0 0 20px rgba(0,0,0,0.5)`,
+        }}
+      >
+        {/* Vinyl grooves texture */}
+        {[...Array(8)].map((_, i) => (
+          <div
+            key={i}
+            className="absolute rounded-full"
+            style={{
+              inset: `${8 + i * 10}px`,
+              border: '1px solid rgba(255,255,255,0.04)',
+            }}
+          />
+        ))}
+
+        {/* Shiny highlight */}
+        <div
+          className="absolute rounded-full"
+          style={{
+            top: '5%',
+            left: '10%',
+            width: '35%',
+            height: '20%',
+            background: 'linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 100%)',
+          }}
+        />
+      </div>
+
+      {/* Cover art (center label) */}
+      <div
+        className="absolute rounded-full overflow-hidden"
+        style={{
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: `${DISC_SIZE * 0.45}px`,
+          height: `${DISC_SIZE * 0.45}px`,
+          boxShadow: `0 0 20px ${glow}, 0 2px 8px rgba(0,0,0,0.8)`,
+        }}
+      >
+        {isSafeCoverUrl(coverImage) ? (
+          <Image
+            src={coverImage}
+            alt={title}
+            width={DISC_SIZE * 0.45}
+            height={DISC_SIZE * 0.45}
+            className="object-cover w-full h-full"
+            unoptimized
+          />
+        ) : (
+          <div
+            className="w-full h-full flex items-center justify-center"
+            style={{ background: `linear-gradient(135deg, ${primary}, #ec4899)` }}
+          >
+            <span className="text-white/60 font-bold text-2xl">
+              {title.charAt(0)}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Center spindle */}
+      <div
+        className="absolute rounded-full"
+        style={{
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          width: '10px',
+          height: '10px',
+          background: 'radial-gradient(circle, #2a2a3a 0%, #111118 100%)',
+          boxShadow: 'inset 0 1px 2px rgba(255,255,255,0.1), 0 1px 2px rgba(0,0,0,0.8)',
+        }}
+      />
+
+      {/* Tonearm hint — small gradient when playing */}
+      {isPlaying && (
+        <div
+          className="absolute"
+          style={{
+            top: '50%',
+            right: '-4px',
+            transform: 'translateY(-50%)',
+            width: '28px',
+            height: '3px',
+            borderRadius: '2px',
+            background: `linear-gradient(to left, ${primary}, transparent)`,
+            opacity: 0.6,
+          }}
+        />
+      )}
     </motion.div>
   );
 }

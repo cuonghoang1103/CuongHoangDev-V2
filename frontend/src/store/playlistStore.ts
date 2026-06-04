@@ -77,13 +77,13 @@ export const usePlaylistStore = create<PlaylistState>()((set, get) => ({
 
   setPendingTrack: (track) => set({ pendingTrack: track }),
 
-  createPlaylist: async (name: string) => {
+  createPlaylist: async (name: string, coverUrl?: string) => {
     try {
       const res = await fetch('/api/v1/music/playlists', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, coverUrl }),
       });
       const data = await res.json();
       if (data.success) {

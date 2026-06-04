@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  X, Plus, Play, Trash2, ListMusic, Check, Loader2, ChevronRight, Music2,
+  X, Plus, Play, Trash2, ListMusic, Check, Loader2, ChevronRight, Music2, ImagePlus,
 } from 'lucide-react';
 import { usePlaylistStore } from '@/store/playlistStore';
 import { useMusicStore } from '@/store/musicStore';
@@ -33,6 +33,9 @@ export default function PlaylistDrawer() {
   const [addingTo, setAddingTo] = useState<number | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
+  const [pendingCover, setPendingCover] = useState<string | null>(null);
+  const [pendingCoverFile, setPendingCoverFile] = useState<File | null>(null);
 
   // Fetch playlists when drawer opens
   useEffect(() => {
@@ -42,12 +45,34 @@ export default function PlaylistDrawer() {
     }
   }, [isOpen, fetchPlaylists]);
 
+  const handleCoverSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setPendingCover(ev.target?.result as string);
+    reader.readAsDataURL(file);
+    setPendingCoverFile(file);
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newName.trim()) return;
     setCreating(true);
-    await createPlaylist(newName.trim());
+    let coverUrl: string | undefined;
+    if (pendingCoverFile) {
+      try {
+        const fd = new FormData();
+        fd.append('file', pendingCoverFile);
+        fd.append('category', 'thumbnails');
+        const res = await fetch('/api/v1/files/upload', { method: 'POST', credentials: 'include', body: fd });
+        const data = await res.json();
+        if (data.success) coverUrl = data.data.downloadUrl;
+      } catch (_) {}
+    }
+    await createPlaylist(newName.trim(), coverUrl);
     setNewName('');
+    setPendingCover(null);
+    setPendingCoverFile(null);
     setCreating(false);
     inputRef.current?.focus();
   };
@@ -184,7 +209,27 @@ export default function PlaylistDrawer() {
 
             {/* Create playlist */}
             <div className="px-5 pt-4 pb-3 shrink-0">
-              <form onSubmit={handleCreate} className="flex gap-2">
+              <form onSubmit={handleCreate} className="flex items-center gap-2">
+                {/* Cover upload button */}
+                <button
+                  type="button"
+                  onClick={() => coverInputRef.current?.click()}
+                  className="w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center"
+                  style={{ border: `1px dashed ${c.border}`, background: 'rgba(255,255,255,0.03)' }}
+                >
+                  <input
+                    ref={coverInputRef}
+                    type="file"
+                    accept="image/*"
+                    onChange={handleCoverSelect}
+                    className="hidden"
+                  />
+                  {pendingCover ? (
+                    <Image src={pendingCover} alt="Cover" width={40} height={40} className="object-cover w-full h-full" />
+                  ) : (
+                    <ImagePlus className="w-4 h-4" style={{ color: c.textMuted }} />
+                  )}
+                </button>
                 <input
                   ref={inputRef}
                   type="text"

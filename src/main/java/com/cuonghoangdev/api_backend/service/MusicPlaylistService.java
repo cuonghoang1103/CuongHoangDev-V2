@@ -49,22 +49,24 @@ public class MusicPlaylistService {
     }
 
     @Transactional
-    public MusicPlaylistDto createPlaylist(String name, String description, Long userId) {
+    public MusicPlaylistDto createPlaylist(String name, String description, String coverUrl, Long userId) {
         MusicPlaylist playlist = new MusicPlaylist(name);
         playlist.setDescription(description);
+        playlist.setCoverUrl(coverUrl);
         playlist.setUserId(userId);
         playlist.setIsPublic(true);
         MusicPlaylist saved = playlistRepository.save(playlist);
-        log.info("[MusicPlaylist] Created playlist id={} name='{}' userId={}", saved.getId(), name, userId);
+        log.info("[MusicPlaylist] Created playlist id={} name='{}' cover='{}' userId={}", saved.getId(), name, coverUrl, userId);
         return MusicPlaylistDto.fromEntity(saved);
     }
 
     @Transactional
-    public MusicPlaylistDto updatePlaylist(Long id, String name, String description) {
+    public MusicPlaylistDto updatePlaylist(Long id, String name, String description, String coverUrl) {
         MusicPlaylist playlist = playlistRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Playlist not found: " + id));
         if (name != null && !name.isBlank()) playlist.setName(name);
         if (description != null) playlist.setDescription(description);
+        if (coverUrl != null) playlist.setCoverUrl(coverUrl);
         MusicPlaylist saved = playlistRepository.save(playlist);
         log.info("[MusicPlaylist] Updated playlist id={}", saved.getId());
         return MusicPlaylistDto.fromEntity(saved);

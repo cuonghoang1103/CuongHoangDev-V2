@@ -50,16 +50,17 @@ public class MusicPlaylistController {
     ) {
         String name = (String) body.getOrDefault("name", "");
         String description = (String) body.getOrDefault("description", "");
+        String coverUrl = (String) body.getOrDefault("coverUrl", null);
         if (name == null || name.isBlank()) {
             return ResponseEntity.badRequest().body(ApiResponse.error("Playlist name is required"));
         }
         Long userId = principal != null ? principal.getId() : null;
-        MusicPlaylistDto created = playlistService.createPlaylist(name, description, userId);
+        MusicPlaylistDto created = playlistService.createPlaylist(name, description, coverUrl, userId);
         return ResponseEntity.ok(ApiResponse.ok("Playlist created", created));
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update a playlist name / description")
+    @Operation(summary = "Update a playlist name / description / cover")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<ApiResponse<MusicPlaylistDto>> updatePlaylist(
             @PathVariable Long id,
@@ -67,7 +68,8 @@ public class MusicPlaylistController {
     ) {
         String name = (String) body.get("name");
         String description = (String) body.get("description");
-        MusicPlaylistDto updated = playlistService.updatePlaylist(id, name, description);
+        String coverUrl = (String) body.get("coverUrl");
+        MusicPlaylistDto updated = playlistService.updatePlaylist(id, name, description, coverUrl);
         return ResponseEntity.ok(ApiResponse.ok("Playlist updated", updated));
     }
 
