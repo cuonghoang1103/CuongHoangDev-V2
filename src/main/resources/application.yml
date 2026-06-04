@@ -152,3 +152,21 @@ supabase:
   service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
   anon-key: ${SUPABASE_ANON_KEY:}
   bucket: ${SUPABASE_BUCKET:music-tracks}
+
+# Spring Actuator — required by Render for port binding detection and health probes
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+      base-path: /actuator
+  endpoint:
+    health:
+      show-details: when_authorized
+      probes:
+        enabled: true
+  health:
+    livenessState:
+      enabled: true
+    readinessState:
+      enabled: true
