@@ -7,6 +7,7 @@ import PremiumBackground from '@/components/music/PremiumBackground';
 import PremiumNowPlaying from '@/components/music/PremiumNowPlaying';
 import PremiumPlaylist from '@/components/music/PremiumPlaylist';
 import MiniPlayer from '@/components/music/MiniPlayer';
+import ClientOnly from '@/components/providers/ClientOnly';
 import { useMousePosition } from '@/components/music/useMousePosition';
 import { useMusicStore } from '@/store/musicStore';
 import type { Track } from '@/types';
@@ -211,8 +212,10 @@ export default function MusicPage() {
         </main>
       </div>
 
-      {/* Mini Player */}
-      <MiniPlayer isNight={isNight} />
+      {/* Mini Player — only renders after client mount */}
+      <ClientOnly>
+        <MiniPlayer isNight={isNight} />
+      </ClientOnly>
     </div>
   );
 }

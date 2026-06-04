@@ -12,7 +12,8 @@ interface MiniPlayerProps {
 export default function MiniPlayer({ isNight = true }: MiniPlayerProps) {
   const { currentTrack, isPlaying, currentTime, duration, next, previous, togglePlay } = useMusicStore();
 
-  if (!currentTrack) return null;
+  // Guard: null track or empty coverImage causes next/image to crash
+  if (!currentTrack || !currentTrack.coverImage) return null;
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
