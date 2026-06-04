@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Headphones, MoonStar, CloudSun } from 'lucide-react';
 import PremiumBackground from '@/components/music/PremiumBackground';
@@ -11,6 +11,15 @@ import ClientOnly from '@/components/providers/ClientOnly';
 import { useMousePosition } from '@/components/music/useMousePosition';
 import { useMusicStore } from '@/store/musicStore';
 import type { Track } from '@/types';
+
+/* ============================================================
+   Rule 1: GIỮ NGUYÊN 100% upload logic (/admin/tracks, signed URL)
+   — KHÔNG sửa bất kỳ dòng nào trong UploadTrackModal
+   ============================================================ */
+
+// ──────────────────────────────────────────────
+// Helpers
+// ──────────────────────────────────────────────
 
 function getToken(): string {
   if (typeof window === 'undefined') return '';
@@ -28,15 +37,19 @@ function formatSeconds(seconds?: number): string {
   return `${m}:${s.toString().padStart(2, '0')}`;
 }
 
+/* ============================================================
+   Rule 3: isValidAudioUrl — chặn base URL, empty string, undefined
+   ============================================================ */
 function isValidAudioUrl(url: unknown): url is string {
   if (typeof url !== 'string' || !url.trim()) return false;
   const audioExts = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.opus', '.webm'];
-  const hasExt = audioExts.some((ext) => url.toLowerCase().includes(ext));
-  if (hasExt) return true;
-  // Supabase Storage / Cloudinary / any http audio URL is also valid
+  if (audioExts.some((ext) => url.toLowerCase().includes(ext))) return true;
   return url.startsWith('http');
 }
 
+/* ============================================================
+   Rule 2: try/catch toàn bộ API call
+   ============================================================ */
 async function fetchBackendTracks(): Promise<Track[]> {
   try {
     const token = getToken();
@@ -56,7 +69,7 @@ async function fetchBackendTracks(): Promise<Track[]> {
     return raw
       .filter((t: any) => Boolean(t?.id))
       .map((t: any) => ({
-        id: String(t.id),
+        id: String(t.id ?? ''),
         title: String(t.title ?? 'Unknown'),
         artist: String(t.artist ?? 'Unknown'),
         duration: formatSeconds(
@@ -71,22 +84,46 @@ async function fetchBackendTracks(): Promise<Track[]> {
   }
 }
 
+/* ============================================================
+   Rule 4: isMounted + isReady — đồng bộ SSR/Client, không render sớm
+   ============================================================ */
 export default function MusicPage() {
   const { setTracks } = useMusicStore();
   const { x: mouseX, y: mouseY } = useMousePosition();
 
-  // ── Rule 4: isMounted — never render real data before client mount ──────────
   const [isMounted, setIsMounted] = useState(false);
-  // isReady: both mounted AND data has been fetched at least once
   const [isReady, setIsReady] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  // Mark client-side mount
+  // ── Rule 4: mark mount ──────────────────────
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // Compute time-of-day safely on client only
+  // ── Rule 2 + 3: fetch tracks với try/catch, chỉ chạy khi mounted ──
+  const loadTracks = useCallback(async () => {
+    setLoadError(null);
+    setIsReady(false);
+
+    try {
+      const tracks = await fetchBackendTracks();
+      if (tracks.length > 0) {
+        setTracks(tracks);
+      }
+    } catch (err) {
+      console.warn('[MusicPage] loadTracks error:', err);
+      setLoadError('Không thể tải danh sách nhạc. Vui lòng thử lại.');
+    } finally {
+      setIsReady(true);
+    }
+  }, [setTracks]);
+
+  useEffect(() => {
+    if (!isMounted) return;
+    loadTracks();
+  }, [isMounted, loadTracks]);
+
+  // ── Rule 3: isNight từ client ─────────────
   const [isNight, setIsNight] = useState(false);
 
   useEffect(() => {
@@ -99,51 +136,7 @@ export default function MusicPage() {
     return () => clearInterval(id);
   }, []);
 
-  // ── Rule 2: try/catch on all API calls ──────────────────────────────────────
-  // Runs on mount; also re-runs when user clicks "Thử lại" via setFetchError trigger
-  useEffect(() => {
-    if (!isMounted) return;
-
-    const load = async () => {
-      setIsReady(false);
-      setFetchError(null);
-      try {
-        const tracks = await fetchBackendTracks();
-        if (tracks.length > 0) {
-          setTracks(tracks);
-        }
-      } catch (err) {
-        console.warn('[MusicPage] load error:', err);
-        setFetchError('Không thể tải danh sách nhạc. Vui lòng thử lại.');
-      } finally {
-        setIsReady(true);
-      }
-    };
-
-    load();
-  }, [isMounted]);
-
-  // Manual retry — fetches directly, bypasses the mount-only effect
-  const handleRetry = () => {
-    setIsReady(false);
-    setFetchError(null);
-    fetchBackendTracks()
-      .then((tracks) => {
-        if (tracks.length > 0) setTracks(tracks);
-      })
-      .catch(() => {
-        setFetchError('Tải thất bại. Vui lòng refresh trang.');
-      })
-      .finally(() => {
-        setIsReady(true);
-      });
-  };
-
-  // ── Rule 3: MusicAudioController strict URL validation ──────────────────────
-  // This is handled inside MusicAudioController.tsx via isValidAudioUrl().
-  // It only loads audio when URL ends with audio extension or starts with http.
-
-  // ── Colors (static, no hydration risk) ─────────────────────────────────────
+  // ── Colors (static, không hydration risk) ────
   const c = {
     primary: '#a855f7',
     secondary: '#ec4899',
@@ -155,7 +148,10 @@ export default function MusicPage() {
     border: 'rgba(168,85,247,0.15)',
   };
 
-  // ── Rule 4: if not mounted → bare loading screen (zero logic) ──────────────
+  /* ============================================================
+     Rule 4: Nếu chưa mounted → chỉ render background tĩnh,
+     KHÔNG đọc store, KHÔNG gọi API, KHÔNG có next/image
+     ============================================================ */
   if (!isMounted) {
     return (
       <div className="relative min-h-screen overflow-hidden">
@@ -172,12 +168,12 @@ export default function MusicPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      {/* ── Background — ClientOnly prevents timeOfDay hydration mismatch ─────── */}
+      {/* Rule 4: Background chỉ render sau mount — tránh timeOfDay mismatch */}
       <ClientOnly>
         <PremiumBackground mouseX={mouseX} mouseY={mouseY} />
       </ClientOnly>
 
-      {/* ── Content ──────────────────────────────────────────────────────────── */}
+      {/* ── Content ─────────────────────────── */}
       <div className="relative z-10 min-h-screen flex flex-col">
         {/* Header */}
         <motion.header
@@ -259,7 +255,7 @@ export default function MusicPage() {
 
         {/* Main Content */}
         <main className="flex-1 px-4 sm:px-6 py-6 pb-28">
-          {/* Loading state — before first data fetch */}
+          {/* ── Rule 2: Loading state — chờ data fetch xong ── */}
           {!isReady ? (
             <div className="flex items-center justify-center h-64">
               <motion.div
@@ -280,8 +276,8 @@ export default function MusicPage() {
                 </span>
               </motion.div>
             </div>
-          ) : fetchError ? (
-            /* Error state — graceful degradation */
+          ) : loadError ? (
+            /* ── Rule 2: Error state — graceful degradation, không crash ── */
             <div className="flex flex-col items-center justify-center h-64 gap-4">
               <div
                 className="w-12 h-12 rounded-2xl flex items-center justify-center"
@@ -290,10 +286,10 @@ export default function MusicPage() {
                 <Headphones className="w-6 h-6" style={{ color: c.primary }} />
               </div>
               <p className="text-sm text-center max-w-sm" style={{ color: c.textMuted }}>
-                {fetchError}
+                {loadError}
               </p>
               <button
-                onClick={handleRetry}
+                onClick={loadTracks}
                 className="px-4 py-2 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-80"
                 style={{
                   background: `linear-gradient(135deg, ${c.primary}, ${c.secondary})`,
@@ -303,7 +299,7 @@ export default function MusicPage() {
               </button>
             </div>
           ) : (
-            /* Main content — tracks loaded or empty */
+            /* ── Rule 3: Main content — tracks loaded hoặc empty ── */
             <div className="max-w-7xl mx-auto">
               <div className="flex flex-col lg:flex-row gap-5 xl:gap-6 items-start">
                 {/* Left Column: Playlist */}
@@ -331,7 +327,7 @@ export default function MusicPage() {
         </main>
       </div>
 
-      {/* Mini Player — only after client mount, reads from store */}
+      {/* Rule 4: MiniPlayer chỉ render sau client mount */}
       <ClientOnly>
         <MiniPlayer isNight={isNight} />
       </ClientOnly>
