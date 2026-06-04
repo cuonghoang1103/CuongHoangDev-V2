@@ -10,6 +10,12 @@ import { toast } from 'sonner';
 import { fileApi } from '@/lib/api';
 import { useTranslation } from '@/hooks/useTranslation';
 
+const isDebug = process.env.NODE_ENV !== 'production';
+
+function debug(...args: unknown[]) {
+  if (isDebug) console.log('[AdminMusic]', ...args);
+}
+
 interface Track {
   id: number;
   title: string;
@@ -85,9 +91,15 @@ function uploadToSupabaseWithProgress(
 
 const API = '/api/v1/music';
 
+/**
+ * Read the backend JWT from the httpOnly cookie set by /api/auth/login.
+ * The token is never stored in localStorage — only the httpOnly cookie is used.
+ * credentials: 'include' automatically forwards the cookie on fetch calls.
+ */
 function getToken(): string {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/);
+  return match ? match[1] : '';
 }
 
 async function apiFetch(path: string, options: RequestInit = {}): Promise<any> {
@@ -155,7 +167,7 @@ export default function AdminMusicPage() {
         credentials: 'include',
       });
       const data = await res.json();
-      console.log('[AdminMusic] fetchTracks:', res.status, data);
+      debug('fetchTracks:', res.status);
       setTracks(data.data || []);
     } catch (err) {
       console.error('[AdminMusic] fetchTracks error:', err);
@@ -263,10 +275,10 @@ export default function AdminMusicPage() {
       // ── Step 0: Upload cover image to Cloudinary (small, no 4.5MB risk) ──
       let coverImageUrl: string | null = null;
       if (coverFile) {
-        console.log('[AdminMusic] Step 0: Uploading cover image to Cloudinary...');
+        debug('Step 0: Uploading cover image to Cloudinary...');
         try {
           const coverRes = await fileApi.upload(coverFile, 'music-covers');
-          console.log('[AdminMusic] Cover upload raw response:', coverRes);
+          debug('Cover upload raw response:', coverRes);
           // Backend wraps in ApiResponse -> ApiResponse.data.url
           const rawData = (coverRes as any);
           coverImageUrl =
@@ -274,7 +286,7 @@ export default function AdminMusicPage() {
             rawData?.url ||              // direct
             rawData?.data?.data?.url ||   // double-nested
             null;
-          console.log('[AdminMusic] Cover URL extracted:', coverImageUrl);
+          debug('Cover URL extracted:', coverImageUrl);
           if (!coverImageUrl) {
             console.warn('[AdminMusic] Cover upload returned no URL — continuing without cover');
             toast.warning('Upload ảnh bìa thất bại — tiếp tục không có ảnh');
@@ -322,7 +334,7 @@ export default function AdminMusicPage() {
         });
 
         const signedData = await signedRes.json();
-        console.log('[AdminMusic] Signed URL response:', signedRes.status, signedData);
+        debug('Signed URL response:', signedRes.status);
 
         if (!signedRes.ok || !signedData.success) {
           const msg = signedData.message || `HTTP ${signedRes.status}`;
@@ -336,7 +348,7 @@ export default function AdminMusicPage() {
           uploadUrl: string;
           publicUrl: string;
         };
-        console.log('[AdminMusic] Got signed URL, starting direct upload to Supabase...');
+        debug('Got signed URL, starting direct upload to Supabase...');
 
         // ── Step 2 — Upload audio DIRECTLY from browser to Supabase via XHR ──
         // Using XMLHttpRequest (not fetch) because fetch doesn't support upload progress events.
@@ -356,7 +368,7 @@ export default function AdminMusicPage() {
           return;
         }
 
-        console.log('[AdminMusic] Direct upload to Supabase SUCCEEDED');
+        debug('Direct upload to Supabase SUCCEEDED');
 
         // ── Step 3 — Save track metadata to DB ──
         const metadataRes = await apiFetch('/admin/tracks', {
@@ -370,7 +382,7 @@ export default function AdminMusicPage() {
             audioUrl: signedData.data.publicUrl,
           }),
         });
-        console.log('[AdminMusic] Track created:', metadataRes);
+        debug('Track created:', metadataRes?.success ? 'OK' : 'FAIL');
 
         if (!metadataRes.success) {
           const msg = (metadataRes as any)?.message || 'Lưu thông tin thất bại';

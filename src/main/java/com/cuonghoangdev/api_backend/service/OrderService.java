@@ -179,6 +179,15 @@ public class OrderService {
         return toDto(order);
     }
 
+    public OrderDto getOrderById(Long id, Long userId) {
+        ShopOrder order = orderRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Order not found"));
+        if (!order.getUser().getId().equals(userId)) {
+            throw new RuntimeException("You do not have permission to view this order");
+        }
+        return toDto(order);
+    }
+
     @Transactional
     public OrderDto updateOrderStatus(Long id, String status) {
         ShopOrder order = orderRepository.findById(id)

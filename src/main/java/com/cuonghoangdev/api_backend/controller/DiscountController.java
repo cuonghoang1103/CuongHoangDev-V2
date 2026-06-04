@@ -4,6 +4,7 @@ import com.cuonghoangdev.api_backend.entity.DiscountCode;
 import com.cuonghoangdev.api_backend.service.DiscountService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
@@ -17,6 +18,7 @@ public class DiscountController {
     private DiscountService discountService;
 
     @GetMapping("/admin")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getAllCodes() {
         return ResponseEntity.ok(Map.of(
             "success", true,
@@ -24,6 +26,7 @@ public class DiscountController {
         ));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/admin")
     public ResponseEntity<?> createCode(@RequestBody DiscountCode code) {
         return ResponseEntity.ok(Map.of(
@@ -32,6 +35,7 @@ public class DiscountController {
         ));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PutMapping("/admin/{id}")
     public ResponseEntity<?> updateCode(@PathVariable Long id, @RequestBody DiscountCode code) {
         try {
@@ -47,12 +51,14 @@ public class DiscountController {
         }
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @DeleteMapping("/admin/{id}")
     public ResponseEntity<?> deleteCode(@PathVariable Long id) {
         discountService.deleteCode(id);
         return ResponseEntity.ok(Map.of("success", true));
     }
 
+    @PreAuthorize("hasRole('ADMIN')")
     @PostMapping("/seed")
     public ResponseEntity<?> seedDemo() {
         discountService.seedDemoCodes();

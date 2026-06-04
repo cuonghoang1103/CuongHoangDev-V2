@@ -18,7 +18,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 /**
  * Service chạy khi ứng dụng khởi động để:
  * 1. Seed AI config mặc định
- * 2. Index dữ liệu ban đầu vào vector database
+ * 2. Seed admin user từ biến môi trường (không hardcode credentials)
  */
 @Configuration
 public class DataSeedingService {
@@ -85,13 +85,22 @@ public class DataSeedingService {
     }
 
     /**
-     * Seed default users (admin & testuser) on startup
+     * Seed admin user from environment variables.
+     *
+     * IMPORTANT: Set SEED_ADMIN_USERNAME and SEED_ADMIN_PASSWORD in .env before first run.
+     * These credentials are REQUIRED — if not set, no admin account is created.
+     *
+     * Example .env:
+     *   SEED_ADMIN_USERNAME=admin
+     *   SEED_ADMIN_PASSWORD=YourSecurePassword123!
      */
     @Bean
     @Order(0)
     public CommandLineRunner seedUsers(UserRepository userRepository,
                                       RoleRepository roleRepository,
-                                      PasswordEncoder passwordEncoder) {
+                                      PasswordEncoder passwordEncoder,
+                                      @Value("${seed.admin.username:}") String adminUsername,
+                                      @Value("${seed.admin.password:}") String adminPassword) {
         return args -> {
             Role adminRole = roleRepository.findByName("ROLE_ADMIN")
                     .orElseGet(() -> {
@@ -100,48 +109,35 @@ public class DataSeedingService {
                         return roleRepository.save(r);
                     });
 
-            Role userRole = roleRepository.findByName("ROLE_USER")
+            roleRepository.findByName("ROLE_USER")
                     .orElseGet(() -> {
                         Role r = new Role();
                         r.setName("ROLE_USER");
                         return roleRepository.save(r);
                     });
 
-            // Tạo hoặc update admin
-            User admin = userRepository.findByUsername("admin").orElse(null);
+            // Only create admin if both env vars are explicitly set
+            if (adminUsername == null || adminUsername.isBlank()
+                    || adminPassword == null || adminPassword.isBlank()) {
+                log.warn("Seed admin credentials not configured. Set SEED_ADMIN_USERNAME and SEED_ADMIN_PASSWORD in .env to create an admin account on startup.");
+                return;
+            }
+
+            User admin = userRepository.findByUsername(adminUsername).orElse(null);
             if (admin == null) {
-                admin = new User("admin", passwordEncoder.encode("admin123"), "admin@test.com");
+                admin = new User(adminUsername, passwordEncoder.encode(adminPassword), "admin@local");
                 admin.setFullName("Admin");
                 admin.getRoles().add(adminRole);
                 userRepository.save(admin);
-                log.info("Da tao tai khoan admin/admin123");
+                log.info("Da tao tai khoan admin: {}", adminUsername);
             } else {
-                // Upgrade existing admin: đảm bảo có ROLE_ADMIN
                 boolean hasAdmin = admin.getRoles().stream()
                         .anyMatch(r -> r.getName().equals("ROLE_ADMIN"));
                 if (!hasAdmin) {
                     admin.getRoles().add(adminRole);
                     userRepository.save(admin);
-                    log.info("Da gan quyen ADMIN cho tai khoan admin hien co");
+                    log.info("Da gan quyen ADMIN cho tai khoan: {}", adminUsername);
                 }
-            }
-
-            // Tạo testuser nếu chưa có
-            if (!userRepository.existsByUsername("testuser")) {
-                User user = new User("testuser", passwordEncoder.encode("test123"), "test@test.com");
-                user.setFullName("Test User");
-                user.getRoles().add(userRole);
-                userRepository.save(user);
-                log.info("Da tao tai khoan testuser/test123");
-            }
-
-            // Tạo cuong03dx nếu chưa có
-            if (!userRepository.existsByUsername("cuong03dx")) {
-                User admin2 = new User("cuong03dx", passwordEncoder.encode("cuong123"), "cuong03dx@gmail.com");
-                admin2.setFullName("Cuong Admin");
-                admin2.getRoles().add(adminRole);
-                userRepository.save(admin2);
-                log.info("Da tao tai khoan cuong03dx/cuong123 voi quyen ADMIN");
             }
         };
     }

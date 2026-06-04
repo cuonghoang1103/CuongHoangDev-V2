@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import ImageCarousel from '@/components/projects/ImageCarousel';
+import { sanitizeHtml } from '@/lib/utils';
 import type { Project } from '@/types';
 
 function extractYouTubeId(url: string): string | null {
@@ -447,7 +448,7 @@ export default function ProjectDetailPage() {
                 borderColor: c.border,
               }}
             >
-              <div dangerouslySetInnerHTML={{ __html: renderContent(project.content) }} />
+              <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderContent(project.content)) }} />
             </div>
           </motion.div>
         )}

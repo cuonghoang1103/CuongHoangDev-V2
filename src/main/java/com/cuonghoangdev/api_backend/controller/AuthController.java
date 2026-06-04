@@ -136,4 +136,39 @@ public class AuthController {
         response.setRoleVersion(user.getRoleVersion() != null ? user.getRoleVersion() : 0L);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
+
+    /**
+     * POST /api/v1/auth/refresh
+     *
+     * Refreshes the JWT for an authenticated user. Issues a NEW token with a fresh
+     * expiry, keeping the user logged in without re-entering credentials.
+     * The frontend calls this before the current token expires.
+     */
+    @PostMapping("/refresh")
+    @Operation(summary = "Refresh JWT token", description = "Issues a new JWT for an authenticated user, extending their session without re-login")
+    public ResponseEntity<ApiResponse<AuthResponse>> refreshToken(
+            @AuthenticationPrincipal UserPrincipal currentUser) {
+        if (currentUser == null) {
+            return new ResponseEntity<>(
+                    ApiResponse.error("Authentication required"),
+                    HttpStatus.UNAUTHORIZED
+            );
+        }
+        User user = userRepository.findByUsername(currentUser.getUsername())
+                .orElseThrow(() -> new ResourceNotFoundException("User not found"));
+        String newToken = tokenProvider.generateTokenFromUsername(user.getUsername());
+        String role = user.getRoles().stream()
+                .findFirst()
+                .map(Role::getName)
+                .orElse("ROLE_USER");
+        AuthResponse response = new AuthResponse(
+                newToken,
+                user.getId(),
+                user.getUsername(),
+                user.getEmail(),
+                role
+        );
+        response.setRoleVersion(user.getRoleVersion() != null ? user.getRoleVersion() : 0L);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
 }

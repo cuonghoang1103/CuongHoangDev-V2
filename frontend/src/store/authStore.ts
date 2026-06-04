@@ -37,11 +37,10 @@ export const useAuthStore = create<AuthState>()(
         };
 
         if (typeof window !== 'undefined') {
-          localStorage.setItem('token', auth.token);
-          localStorage.setItem('auth_token', auth.token);
+          // Store only user info in localStorage via Zustand persist.
+          // The JWT itself lives in an httpOnly cookie — never in localStorage.
           localStorage.setItem('user', JSON.stringify(userObj));
-          // Signal ALL tabs/windows that auth changed
-          window.dispatchEvent(new CustomEvent('auth-changed', { detail: { action: 'login', user: userObj, token: auth.token } }));
+          window.dispatchEvent(new CustomEvent('auth-changed', { detail: { action: 'login', user: userObj } }));
         }
 
         set({ user: userObj, token: auth.token, isAuthenticated: true, isLoading: false });
@@ -71,10 +70,10 @@ export const useAuthStore = create<AuthState>()(
         localStorage.removeItem('auth_token');
         localStorage.removeItem('user');
         localStorage.removeItem('userId');
+        // Clear the httpOnly cookie — backend_token is the primary auth token
         document.cookie = '__auth__=; path=/; max-age=0';
         document.cookie = 'backend_token=; path=/; max-age=0';
 
-        // Notify every component and every open tab
         window.dispatchEvent(new CustomEvent('auth-changed', { detail: { action: 'logout' } }));
 
         set({ user: null, token: null, isAuthenticated: false, isLoading: false, isHydrated: true });
@@ -87,9 +86,11 @@ export const useAuthStore = create<AuthState>()(
       storage: createJSONStorage(() => ssrSafeStorage),
       partialize: (state) => ({
         user: state.user,
-        token: state.token,
+        // NOTE: token is NOT persisted to localStorage.
+        // The JWT lives only in the httpOnly backend_token cookie.
+        // API calls are authenticated via the cookie through the /api/v1 proxy route.
+        // Persisting the token in localStorage is an XSS attack vector.
         isAuthenticated: state.isAuthenticated,
-        isLoading: state.isLoading,
       }),
       onRehydrateStorage: () => (state) => {
         state?.set({ isHydrated: true });

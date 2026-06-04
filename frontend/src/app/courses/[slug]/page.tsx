@@ -11,6 +11,7 @@ import { coursesApi } from '@/lib/api';
 import { useAuthStore } from '@/store/authStore';
 import { useSession } from 'next-auth/react';
 import { toast } from 'sonner';
+import { sanitizeHtml } from '@/lib/utils';
 import type { Course, CourseReview } from '@/types';
 
 function formatDuration(seconds: number): string {
@@ -294,7 +295,7 @@ export default function CourseDetailPage() {
             {course.description && (
               <section className="bg-darkcard border border-darkborder/50 rounded-2xl p-6">
                 <h2 className="text-xl font-heading font-bold text-text-primary mb-4">Course Description</h2>
-                <div className="text-text-secondary leading-relaxed prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: course.description }} />
+                <div className="text-text-secondary leading-relaxed prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHtml(course.description) }} />
               </section>
             )}
 

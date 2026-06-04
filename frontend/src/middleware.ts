@@ -2,28 +2,34 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getToken } from 'next-auth/jwt';
 
 const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8082';
+const isDebug = process.env.NODE_ENV !== 'production';
+
+function debugLog(...args: unknown[]) {
+  if (isDebug) console.log('[middleware]', ...args);
+}
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  console.log('[middleware] pathname:', pathname, 'cookies:', request.cookies.getAll().map(c => c.name));
+
+  debugLog('pathname:', pathname);
 
   if (pathname.startsWith('/admin')) {
     const backendToken = request.cookies.get('backend_token')?.value;
-    console.log('[middleware] backendToken:', backendToken ? 'present' : 'MISSING');
+    debugLog('backendToken:', backendToken ? 'present' : 'MISSING');
 
     // ── Case 1: Credentials user (has backend_token) ──
     if (backendToken) {
       try {
-        console.log('[middleware] verifying backend_token via /api/v1/profile');
+        debugLog('verifying backend_token via /api/v1/profile');
         const res = await fetch(`/api/v1/profile`, {
           headers: { Authorization: `Bearer ${backendToken}` },
           credentials: 'include',
           cache: 'no-store',
         });
-        console.log('[middleware] profile res.status:', res.status);
+        debugLog('profile res.status:', res.status);
 
         if (!res.ok) {
-          console.log('[middleware] profile check failed, redirect to /login');
+          debugLog('profile check failed, redirect to /login');
           const loginUrl = new URL('/login', request.url);
           loginUrl.searchParams.set('redirect', pathname);
           const response = NextResponse.redirect(loginUrl);
@@ -33,18 +39,17 @@ export async function middleware(request: NextRequest) {
 
         const data = await res.json();
         const roles: string[] = data.data?.roles || [];
-        console.log('[middleware] roles:', roles);
         const isAdmin = roles.some(
           (r: string) => r.replace('ROLE_', '').toUpperCase() === 'ADMIN'
         );
-        console.log('[middleware] isAdmin:', isAdmin);
+        debugLog('isAdmin:', isAdmin);
 
         if (!isAdmin) {
-          console.log('[middleware] not admin, redirect to /');
+          debugLog('not admin, redirect to /');
           return NextResponse.redirect(new URL('/', request.url));
         }
       } catch (e) {
-        console.log('[middleware] fetch error:', e);
+        debugLog('fetch error:', e);
         // Backend unreachable — allow through; API calls will fail gracefully
       }
       return NextResponse.next();
@@ -55,28 +60,26 @@ export async function middleware(request: NextRequest) {
       req: request,
       secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
     });
-    console.log('[middleware] nextauthToken:', nextauthToken ? 'present' : 'MISSING');
+    debugLog('nextauthToken:', nextauthToken ? 'present' : 'MISSING');
 
     if (!nextauthToken) {
-      console.log('[middleware] no session, redirect to /login');
+      debugLog('no session, redirect to /login');
       const loginUrl = new URL('/login', request.url);
       loginUrl.searchParams.set('redirect', pathname);
       return NextResponse.redirect(loginUrl);
     }
 
     // ── OAuth + has backend_token: ALWAYS verify role from backend (not cached NextAuth JWT) ──
-    // This ensures admin role changes take effect IMMEDIATELY — no waiting for JWT expiry.
     if (backendToken) {
-      console.log('[middleware] OAuth user has backend_token — fetching FRESH profile from backend');
+      debugLog('OAuth user has backend_token — fetching FRESH profile from backend');
       try {
         const res = await fetch(`/api/v1/profile`, {
           headers: { Authorization: `Bearer ${backendToken}` },
           credentials: 'include',
           cache: 'no-store',
         });
-        console.log('[middleware] backend profile status:', res.status);
+        debugLog('backend profile status:', res.status);
         if (!res.ok) {
-          // Token invalid/expired — clear cookie and redirect
           const loginUrl = new URL('/login', request.url);
           loginUrl.searchParams.set('redirect', pathname);
           const response = NextResponse.redirect(loginUrl);
@@ -88,17 +91,16 @@ export async function middleware(request: NextRequest) {
         const isAdmin = roles.some(
           (r: string) => r.replace('ROLE_', '').toUpperCase() === 'ADMIN'
         );
-        console.log('[middleware] OAuth+backend_token fresh roles:', roles, 'isAdmin:', isAdmin);
+        debugLog('OAuth+backend_token fresh isAdmin:', isAdmin);
         if (isAdmin) return NextResponse.next();
         return NextResponse.redirect(new URL('/', request.url));
       } catch (e) {
-        console.log('[middleware] backend fetch error:', e);
+        debugLog('backend fetch error:', e);
       }
       return NextResponse.next();
     }
 
     // ── OAuth only (no backend_token): fetch FRESH role from backend by email ──
-    // Even without a backend_token, we can look up the user's role from the DB using their email.
     try {
       const email = nextauthToken.email as string;
       const res = await fetch(
@@ -109,17 +111,17 @@ export async function middleware(request: NextRequest) {
         const data = await res.json();
         const freshRole = normalizeRole(data.data?.role ?? 'USER');
         const isAdmin = freshRole === 'ADMIN';
-        console.log('[middleware] OAuth fresh role from backend:', freshRole, 'isAdmin:', isAdmin);
+        debugLog('OAuth fresh role from backend:', freshRole, 'isAdmin:', isAdmin);
         if (isAdmin) return NextResponse.next();
         return NextResponse.redirect(new URL('/', request.url));
       }
     } catch (e) {
-      console.log('[middleware] OAuth role fetch failed:', e);
+      debugLog('OAuth role fetch failed:', e);
     }
     // Fallback: trust NextAuth JWT role if backend is unreachable
     const role: string = (nextauthToken.role as string) ?? 'USER';
     const isAdmin = role.replace('ROLE_', '').toUpperCase() === 'ADMIN';
-    console.log('[middleware] OAuth fallback to NextAuth JWT role:', role, 'isAdmin:', isAdmin);
+    debugLog('OAuth fallback to NextAuth JWT role:', role, 'isAdmin:', isAdmin);
     if (!isAdmin) {
       return NextResponse.redirect(new URL('/', request.url));
     }

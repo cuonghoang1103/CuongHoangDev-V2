@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import type { Product, ProductSpec } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
+import { sanitizeHtml } from '@/lib/utils';
 
 type TabId = 'overview' | 'specs' | 'guidance';
 
@@ -201,7 +202,7 @@ export default function ProductDetailTabs({ product }: ProductDetailTabsProps) {
               <div
                 className="text-sm leading-relaxed"
                 style={{ color: c.textSecondary }}
-                dangerouslySetInnerHTML={{ __html: product.description || '' }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(product.description || '') }}
               />
             </div>
 
@@ -330,7 +331,7 @@ export default function ProductDetailTabs({ product }: ProductDetailTabsProps) {
               >
                 <div
                   className="text-sm"
-                  dangerouslySetInnerHTML={{ __html: renderGuidance(product.guidance) }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderGuidance(product.guidance)) }}
                 />
               </div>
             ) : (

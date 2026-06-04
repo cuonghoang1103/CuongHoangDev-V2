@@ -109,6 +109,11 @@ server:
           user-info-uri: https://api.github.com/user
           user-name-attribute: login
 
+seed:
+  admin:
+    username: ${SEED_ADMIN_USERNAME:}
+    password: ${SEED_ADMIN_PASSWORD:}
+
 app:
   jwt:
     secret: ${JWT_SECRET:CuongHoangDevV2SecretKeyNangCao2026NheMaNayCanItNhat256BitNhe}

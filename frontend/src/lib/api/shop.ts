@@ -4,9 +4,14 @@ import type { ApiResponse, PageResponse } from '@/types';
 
 const API_BASE = '/api/v1';
 
+/**
+ * Read the backend JWT from the httpOnly cookie set by /api/auth/login.
+ * The token is never stored in localStorage — only the httpOnly cookie.
+ */
 function getToken(): string {
-  if (typeof window === 'undefined') return '';
-  return localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
+  if (typeof document === 'undefined') return '';
+  const match = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/);
+  return match ? match[1] : '';
 }
 
 async function request<T>(
@@ -27,6 +32,8 @@ async function request<T>(
   const res = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers,
+    // credentials: 'include' forwards the httpOnly cookie for same-origin proxy calls
+    credentials: 'include',
   });
 
   if (!res.ok) {

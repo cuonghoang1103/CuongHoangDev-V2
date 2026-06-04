@@ -9,6 +9,7 @@ import {
   Clock, ChevronRight, BookOpen, Layers, Play,
 } from 'lucide-react';
 import ImageCarousel from './ImageCarousel';
+import { sanitizeHtml } from '@/lib/utils';
 import type { Project } from '@/types';
 
 function extractYouTubeId(url: string): string | null {
@@ -314,7 +315,7 @@ export default function ProjectDetailDrawer({
                     >
                       <div
                         className="text-sm"
-                        dangerouslySetInnerHTML={{ __html: renderContent(project.content) }}
+                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(renderContent(project.content)) }}
                       />
                     </div>
                   </div>

@@ -37,10 +37,12 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     const checkAuth = async () => {
-      // Read token from localStorage (set by credentials login) OR from cookie (set by API route)
-      const localToken = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-      const cookieToken = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] ?? '';
-      const token = localToken || cookieToken;
+      // Read token from the httpOnly backend_token cookie (set by /api/auth/login).
+      // Token is NEVER in localStorage — this avoids XSS token theft.
+      const cookieToken = typeof document !== 'undefined'
+        ? document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] ?? ''
+        : '';
+      const token = cookieToken;
 
       // ── Credentials user: verify via backend token ──
       if (token) {
