@@ -357,7 +357,8 @@ export default function AdminMusicPage() {
         console.log('[AdminMusic] Track created:', metadataRes);
 
         if (!metadataRes.success) {
-          toast.error(metadataRes.message || 'Lưu thông tin thất bại');
+          const msg = (metadataRes as any)?.message || 'Lưu thông tin thất bại';
+          toast.error(msg);
           return;
         }
 
@@ -368,12 +369,9 @@ export default function AdminMusicPage() {
       resetForm();
       fetchTracks();
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[AdminMusic] handleSave error:', msg);
-      // Only show error toast if we haven't already shown a specific one
-      toast.error(msg.includes('Storage') || msg.includes('RLS')
-        ? 'Tải file trực tiếp lên Storage thất bại, vui lòng kiểm tra lại cấu hình RLS!'
-        : msg);
+      const msg = (err as { message?: string })?.message || 'Lưu thất bại';
+      console.error('[AdminMusic] handleSave error:', msg, err);
+      toast.error(msg);
     } finally {
       setSaving(false);
       setUploading(false);
