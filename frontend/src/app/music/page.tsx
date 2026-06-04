@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Headphones, MoonStar, CloudSun } from 'lucide-react';
+import { Headphones, MoonStar, CloudSun, RefreshCw } from 'lucide-react';
 import ClientOnly from '@/components/providers/ClientOnly';
 import PremiumBackground from '@/components/music/PremiumBackground';
 import PremiumNowPlaying from '@/components/music/PremiumNowPlaying';
@@ -20,15 +20,6 @@ import MiniPlayer from '@/components/music/MiniPlayer';
 import { useMousePosition } from '@/components/music/useMousePosition';
 import type { Track } from '@/types';
 
-function getToken(): string {
-  if (typeof window === 'undefined') return '';
-  try {
-    return localStorage.getItem('auth_token') || localStorage.getItem('token') || '';
-  } catch {
-    return '';
-  }
-}
-
 function formatSeconds(seconds?: number): string {
   if (!seconds || !Number.isFinite(seconds)) return '0:00';
   return `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
@@ -36,23 +27,32 @@ function formatSeconds(seconds?: number): string {
 
 function isValidAudioUrl(url: unknown): url is string {
   if (typeof url !== 'string' || !url.trim()) return false;
-  const exts = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.opus', '.webm'];
-  if (exts.some((e) => url.toLowerCase().includes(e))) return true;
-  return url.startsWith('http');
+  // Accept any http/https URL — covers Supabase Storage, Cloudinary, S3, CDNs
+  // These are all audio-hosting services even without file extension in URL
+  if (url.startsWith('http')) return true;
+  return false;
 }
 
 async function fetchBackendTracks(): Promise<Track[]> {
   try {
-    const token = getToken();
     const res = await fetch('/api/v1/music/tracks', {
-      ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
+      credentials: 'include',
       signal: AbortSignal.timeout(8000),
     });
 
-    if (!res.ok) return [];
+    if (!res.ok) {
+      console.warn('[MusicPage] fetchBackendTracks: HTTP', res.status, res.statusText);
+      return [];
+    }
 
     const data = await res.json();
     const raw = Array.isArray(data.data) ? data.data : [];
+
+    if (raw.length === 0) {
+      console.info('[MusicPage] fetchBackendTracks: no tracks from API, data=', data);
+    } else {
+      console.info(`[MusicPage] fetchBackendTracks: ${raw.length} tracks loaded`);
+    }
 
     return raw
       .filter((t: any) => Boolean(t?.id))
@@ -64,7 +64,8 @@ async function fetchBackendTracks(): Promise<Track[]> {
         audioUrl: isValidAudioUrl(t.audioUrl) ? t.audioUrl : '',
         coverImage: typeof t.coverImage === 'string' ? t.coverImage : '',
       }));
-  } catch {
+  } catch (err) {
+    console.error('[MusicPage] fetchBackendTracks error:', err);
     return [];
   }
 }
