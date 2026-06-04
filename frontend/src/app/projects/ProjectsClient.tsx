@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { Search, ExternalLink, Github, Calendar, Users, Code2, Plus } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Search, ExternalLink, Github, Calendar, Users, Code2, Eye, Star, GitFork, SlidersHorizontal } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { projectsApi } from '@/lib/api';
 import type { Project } from '@/types';
@@ -17,12 +17,36 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  COMPLETED: 'bg-green-500/20 text-green-400 border-green-500/30',
+  COMPLETED: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
   IN_PROGRESS: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   PLANNING: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
   MAINTENANCE: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
   ON_HOLD: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
 };
+
+const MOCK_STATS: Record<number, { views: number; stars: number; forks: number }> = {
+  1: { views: 1420, stars: 89, forks: 24 },
+  2: { views: 890, stars: 45, forks: 12 },
+  3: { views: 670, stars: 38, forks: 9 },
+  4: { views: 450, stars: 22, forks: 6 },
+  5: { views: 320, stars: 15, forks: 4 },
+  6: { views: 280, stars: 18, forks: 3 },
+  7: { views: 150, stars: 8, forks: 2 },
+  8: { views: 520, stars: 31, forks: 7 },
+  9: { views: 390, stars: 19, forks: 5 },
+};
+
+const TECH_BADGES: string[] = [
+  'Next.js', 'React', 'TypeScript', 'Vue.js', 'Angular',
+  'Node.js', 'Spring Boot', 'Python', 'FastAPI', 'Django',
+  'PostgreSQL', 'MongoDB', 'MySQL', 'Tailwind CSS',
+  'Docker', 'AWS', 'Firebase',
+];
+
+function formatCount(n: number): string {
+  if (n >= 1000) return `${(n / 1000).toFixed(1)}k`;
+  return String(n);
+}
 
 function SkeletonGrid() {
   return (
@@ -43,14 +67,176 @@ function SkeletonGrid() {
   );
 }
 
+function ProjectCard({
+  project,
+  starred,
+  onToggleStar,
+}: {
+  project: Project;
+  starred: boolean;
+  onToggleStar: () => void;
+}) {
+  const stats = MOCK_STATS[project.id] ?? { views: 0, stars: 0, forks: 0 };
+
+  return (
+    <motion.article
+      layout
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.95 }}
+      transition={{ duration: 0.3 }}
+      whileHover={{ scale: 1.02 }}
+      className="group flex flex-col bg-darkcard rounded-2xl border border-darkborder/50 hover:border-neon-violet/40 transition-all duration-300 overflow-hidden shadow-lg hover:shadow-neon-violet/10"
+    >
+      {/* Thumbnail */}
+      <div className="relative h-48 bg-gradient-to-br from-neon-indigo/30 via-neon-violet/20 to-neon-fuchsia/20 flex items-center justify-center overflow-hidden shrink-0">
+        {project.thumbnailUrl ? (
+          <img
+            src={project.thumbnailUrl}
+            alt={project.title}
+            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          />
+        ) : (
+          <Code2 className="w-16 h-16 text-neon-violet/40" />
+        )}
+
+        {/* Featured badge */}
+        {project.featured && (
+          <div className="absolute top-3 left-3 px-2.5 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-bold rounded-lg shadow-lg">
+            NỔI BẬT
+          </div>
+        )}
+
+        {/* Status badge */}
+        {project.status && (
+          <div className={`absolute top-3 right-3 px-2.5 py-1 text-xs font-medium rounded-lg border ${STATUS_COLORS[project.status] || ''}`}>
+            {STATUS_LABELS[project.status] || project.status}
+          </div>
+        )}
+      </div>
+
+      {/* Body — flex-grow ensures all cards match height */}
+      <div className="flex flex-col flex-1 p-6">
+        {/* Title */}
+        <h3 className="text-lg font-heading font-bold text-text-primary mb-2 group-hover:text-neon-violet transition-colors line-clamp-1">
+          {project.title}
+        </h3>
+
+        {/* Description */}
+        <p className="text-sm text-text-secondary line-clamp-2 mb-4 flex-shrink-0">
+          {project.description}
+        </p>
+
+        {/* Stats bar */}
+        <div className="flex items-center gap-4 mb-4 flex-shrink-0">
+          <span className="flex items-center gap-1 text-xs text-text-muted">
+            <Eye className="w-3.5 h-3.5" />
+            {formatCount(stats.views)}
+          </span>
+
+          {/* Star — fully interactive */}
+          <button
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggleStar(); }}
+            className={`flex items-center gap-1 text-xs transition-all hover:scale-110 ${starred ? 'text-yellow-400' : 'text-text-muted hover:text-yellow-400'}`}
+          >
+            <motion.span
+              animate={starred ? { scale: [1, 1.4, 1] } : { scale: 1 }}
+              transition={{ duration: 0.25 }}
+            >
+              <Star className="w-3.5 h-3.5" fill={starred ? 'currentColor' : 'none'} />
+            </motion.span>
+            {formatCount(stats.stars + (starred ? 1 : 0))}
+          </button>
+
+          <span className="flex items-center gap-1 text-xs text-text-muted">
+            <GitFork className="w-3.5 h-3.5" />
+            {formatCount(stats.forks)}
+          </span>
+        </div>
+
+        {/* Tech stack tags */}
+        {project.technologies && project.technologies.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mb-4 flex-shrink-0">
+            {project.technologies.slice(0, 4).map((tech) => (
+              <span
+                key={tech}
+                className="px-2 py-0.5 bg-neon-indigo/10 text-neon-indigo/80 text-xs rounded-md border border-neon-indigo/20"
+              >
+                {tech}
+              </span>
+            ))}
+            {project.technologies.length > 4 && (
+              <span className="px-2 py-0.5 text-text-muted text-xs">
+                +{project.technologies.length - 4}
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Meta info */}
+        <div className="flex items-center gap-4 text-xs text-text-muted mb-4 flex-shrink-0">
+          {project.role && (
+            <span className="flex items-center gap-1">
+              <Users className="w-3.5 h-3.5" />
+              {project.role}
+            </span>
+          )}
+          {project.duration && (
+            <span className="flex items-center gap-1">
+              <Calendar className="w-3.5 h-3.5" />
+              {project.duration}
+            </span>
+          )}
+        </div>
+
+        {/* Actions — always visible at bottom via flex-grow */}
+        <div className="flex gap-3 mt-auto pt-4 border-t border-darkborder/50">
+          <Link
+            href={`/projects/${project.slug}`}
+            className="flex-1 py-2 text-center text-sm bg-gradient-to-r from-neon-indigo/20 to-neon-violet/20 border border-neon-violet/30 text-neon-violet rounded-lg hover:from-neon-indigo/30 hover:to-neon-violet/30 transition-all font-medium"
+          >
+            Chi tiết
+          </Link>
+          {project.projectUrl && (
+            <a
+              href={project.projectUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 bg-darkbg border border-darkborder rounded-lg text-text-muted hover:text-neon-emerald hover:border-neon-emerald/30 transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <ExternalLink className="w-4 h-4" />
+            </a>
+          )}
+          {project.githubUrl && (
+            <a
+              href={project.githubUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="p-2 bg-darkbg border border-darkborder rounded-lg text-text-muted hover:text-text-primary hover:border-darkborder transition-colors"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Github className="w-4 h-4" />
+            </a>
+          )}
+        </div>
+      </div>
+    </motion.article>
+  );
+}
+
 export default function ProjectsClient() {
   const { projects, setProjects } = useProjectStore();
+
+  // Starred state tracked locally per session
+  const [starredIds, setStarredIds] = useState<Set<number>>(() => new Set());
+
   const [searchInput, setSearchInput] = useState('');
   const [searchKeyword, setSearchKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
+  const [techFilter, setTechFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
 
-  // Fetch projects from backend on mount
   useEffect(() => {
     const loadProjects = async () => {
       try {
@@ -60,11 +246,17 @@ export default function ProjectsClient() {
           setProjects(backendProjects);
         }
       } catch {
-        // Silently fall back to seed data from store
+        // fall back to seed data from store
       }
     };
     loadProjects();
   }, [setProjects]);
+
+  const allTechs = useMemo(() => {
+    const set = new Set<string>();
+    projects.forEach((p) => p.technologies?.forEach((t) => set.add(t)));
+    return Array.from(set).sort();
+  }, [projects]);
 
   const pageSize = 9;
 
@@ -77,7 +269,7 @@ export default function ProjectsClient() {
         (p) =>
           p.title.toLowerCase().includes(q) ||
           (p.description || '').toLowerCase().includes(q) ||
-          p.technologies?.some((t) => t.toLowerCase().includes(q))
+          (p.technologies ?? []).some((t) => t.toLowerCase().includes(q))
       );
     }
 
@@ -85,8 +277,14 @@ export default function ProjectsClient() {
       result = result.filter((p) => p.status === statusFilter);
     }
 
+    if (techFilter) {
+      result = result.filter(
+        (p) => (p.technologies ?? []).some((t) => t.toLowerCase() === techFilter.toLowerCase())
+      );
+    }
+
     return result;
-  }, [projects, searchKeyword, statusFilter]);
+  }, [projects, searchKeyword, statusFilter, techFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginated = filtered.slice((currentPage - 1) * pageSize, currentPage * pageSize);
@@ -98,14 +296,29 @@ export default function ProjectsClient() {
   };
 
   const handleStatusFilter = (status: string) => {
-    setStatusFilter(status);
+    setStatusFilter(status === statusFilter ? '' : status);
     setCurrentPage(1);
+  };
+
+  const handleTechFilter = (tech: string) => {
+    setTechFilter(tech === techFilter ? '' : tech);
+    setCurrentPage(1);
+  };
+
+  const toggleStar = (id: number) => {
+    setStarredIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
   return (
     <>
       {/* Filters */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-10">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8 space-y-3">
+        {/* Search + Status row */}
         <div className="flex flex-col sm:flex-row gap-4">
           <form onSubmit={handleSearch} className="flex-1 flex gap-2">
             <div className="relative flex-1">
@@ -137,12 +350,68 @@ export default function ProjectsClient() {
                     : 'bg-darkcard border-darkborder text-text-secondary hover:border-neon-violet/30 hover:text-text-primary'
                 }`}
               >
-                {status === '' ? 'Tất cả' : STATUS_LABELS[status] || status}
+                {status === '' ? 'Tất cả' : STATUS_LABELS[status] ?? status}
               </button>
             ))}
           </div>
         </div>
+
+        {/* Tech-stack filter row */}
+        {allTechs.length > 0 && (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <div className="flex items-center gap-1.5 text-xs text-text-muted shrink-0 pr-1">
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              <span>Lọc:</span>
+            </div>
+            <div className="flex gap-1.5 flex-wrap">
+              {allTechs.map((tech) => (
+                <button
+                  key={tech}
+                  onClick={() => handleTechFilter(tech)}
+                  className={`px-3 py-1 rounded-full text-xs font-medium border transition-all shrink-0 ${
+                    techFilter === tech
+                      ? 'bg-neon-indigo/20 border-neon-indigo text-neon-indigo'
+                      : 'bg-darkcard border-darkborder/60 text-text-secondary hover:border-neon-indigo/30 hover:text-neon-indigo/80'
+                  }`}
+                >
+                  {tech}
+                </button>
+              ))}
+              {techFilter && (
+                <button
+                  onClick={() => setTechFilter('')}
+                  className="px-3 py-1 rounded-full text-xs font-medium border border-red-500/30 text-red-400 hover:bg-red-500/10 transition-all shrink-0"
+                >
+                  × Clear
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </section>
+
+      {/* Active filter chips */}
+      {(statusFilter || techFilter) && (
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-2 mb-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            {statusFilter && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-neon-violet/10 border border-neon-violet/30 text-neon-violet text-xs rounded-full">
+                {STATUS_LABELS[statusFilter] ?? statusFilter}
+                <button onClick={() => setStatusFilter('')} className="hover:text-white transition-colors font-bold">×</button>
+              </span>
+            )}
+            {techFilter && (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-neon-indigo/10 border border-neon-indigo/30 text-neon-indigo text-xs rounded-full">
+                {techFilter}
+                <button onClick={() => setTechFilter('')} className="hover:text-white transition-colors font-bold">×</button>
+              </span>
+            )}
+            <span className="text-xs text-text-muted">
+              {filtered.length} kết quả
+            </span>
+          </div>
+        </div>
+      )}
 
       {/* Content */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -158,110 +427,21 @@ export default function ProjectsClient() {
           </div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {paginated.map((project, i) => (
-                <motion.article
-                  key={project.id}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: i * 0.05, duration: 0.4 }}
-                  className="group bg-darkcard rounded-2xl border border-darkborder/50 hover:border-neon-violet/40 transition-all duration-300 overflow-hidden"
-                >
-                  <div className="relative h-48 bg-gradient-to-br from-neon-indigo/30 via-neon-violet/20 to-neon-fuchsia/20 flex items-center justify-center overflow-hidden">
-                    {project.thumbnailUrl ? (
-                      <img
-                        src={project.thumbnailUrl}
-                        alt={project.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <Code2 className="w-16 h-16 text-neon-violet/40" />
-                    )}
-                    {project.featured && (
-                      <div className="absolute top-3 left-3 px-2.5 py-1 bg-gradient-to-r from-neon-indigo to-neon-violet text-white text-xs font-bold rounded-lg">
-                        NỔI BẬT
-                      </div>
-                    )}
-                    {project.status && (
-                      <div className={`absolute top-3 right-3 px-2.5 py-1 text-xs font-medium rounded-lg border ${STATUS_COLORS[project.status] || ''}`}>
-                        {STATUS_LABELS[project.status] || project.status}
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="p-6">
-                    <h3 className="text-lg font-heading font-bold text-text-primary mb-2 group-hover:text-neon-violet transition-colors line-clamp-1">
-                      {project.title}
-                    </h3>
-                    <p className="text-sm text-text-secondary line-clamp-2 mb-4">
-                      {project.description}
-                    </p>
-
-                    {project.technologies && project.technologies.length > 0 && (
-                      <div className="flex flex-wrap gap-1.5 mb-4">
-                        {project.technologies.slice(0, 4).map((tech) => (
-                          <span
-                            key={tech}
-                            className="px-2 py-0.5 bg-darkbg text-text-muted text-xs rounded-md border border-darkborder"
-                          >
-                            {tech}
-                          </span>
-                        ))}
-                        {project.technologies.length > 4 && (
-                          <span className="px-2 py-0.5 text-text-muted text-xs">
-                            +{project.technologies.length - 4}
-                          </span>
-                        )}
-                      </div>
-                    )}
-
-                    <div className="flex items-center gap-4 text-xs text-text-muted mb-4">
-                      {project.role && (
-                        <span className="flex items-center gap-1">
-                          <Users className="w-3.5 h-3.5" />
-                          {project.role}
-                        </span>
-                      )}
-                      {project.duration && (
-                        <span className="flex items-center gap-1">
-                          <Calendar className="w-3.5 h-3.5" />
-                          {project.duration}
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="flex gap-3 pt-4 border-t border-darkborder">
-                      <Link
-                        href={`/projects/${project.slug}`}
-                        className="flex-1 py-2 text-center text-sm bg-gradient-to-r from-neon-indigo/20 to-neon-violet/20 border border-neon-violet/30 text-neon-violet rounded-lg hover:from-neon-indigo/30 hover:to-neon-violet/30 transition-all font-medium"
-                      >
-                        Chi tiết
-                      </Link>
-                      {project.projectUrl && (
-                        <a
-                          href={project.projectUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-2 bg-darkbg border border-darkborder rounded-lg text-text-muted hover:text-neon-violet hover:border-neon-violet/30 transition-colors"
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                        </a>
-                      )}
-                      {project.githubUrl && (
-                        <a
-                          href={project.githubUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="p-2 bg-darkbg border border-darkborder rounded-lg text-text-muted hover:text-text-primary hover:border-darkborder transition-colors"
-                        >
-                          <Github className="w-4 h-4" />
-                        </a>
-                      )}
-                    </div>
-                  </div>
-                </motion.article>
-              ))}
-            </div>
+            <motion.div
+              layout
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+            >
+              <AnimatePresence mode="popLayout">
+                {paginated.map((project) => (
+                  <ProjectCard
+                    key={project.id}
+                    project={project}
+                    starred={starredIds.has(project.id)}
+                    onToggleStar={() => toggleStar(project.id)}
+                  />
+                ))}
+              </AnimatePresence>
+            </motion.div>
 
             {totalPages > 1 && (
               <div className="flex justify-center gap-2 mt-12">
