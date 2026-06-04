@@ -11,6 +11,12 @@ import {
 import { useMusicStore } from '@/store/musicStore';
 import WaveformVisualizer from './WaveformVisualizer';
 
+import type { Track } from '@/types';
+
+function isSafeCoverUrl(url: unknown): url is string {
+  return typeof url === 'string' && url.trim().length > 0 && url.startsWith('http');
+}
+
 interface CinematicPlayerProps {
   isNight?: boolean;
 }
@@ -98,7 +104,7 @@ export default function CinematicPlayer({ isNight = true }: CinematicPlayerProps
                     },
                   }}
                 >
-                  {currentTrack.coverImage ? (
+                  {isSafeCoverUrl(currentTrack.coverImage) ? (
                     <Image
                       src={currentTrack.coverImage}
                       alt={currentTrack.title}
@@ -290,7 +296,7 @@ export default function CinematicPlayer({ isNight = true }: CinematicPlayerProps
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
-                {currentTrack.coverImage ? (
+                {isSafeCoverUrl(currentTrack.coverImage) ? (
                   <Image
                     src={currentTrack.coverImage}
                     alt={currentTrack.title}

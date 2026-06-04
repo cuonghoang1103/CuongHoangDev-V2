@@ -7,6 +7,10 @@ import { Play, Pause, Search, ChevronRight, Music, Loader2 } from 'lucide-react'
 import { useMusicStore } from '@/store/musicStore';
 import type { Track } from '@/types';
 
+function isSafeCoverUrl(url: unknown): url is string {
+  return typeof url === 'string' && url.trim().length > 0 && url.startsWith('http');
+}
+
 interface CinematicPlaylistProps {
   isNight?: boolean;
 }
@@ -97,7 +101,7 @@ export default function CinematicPlaylist({ isNight = true }: CinematicPlaylistP
             }}
             whileHover={{ scale: 1.05, rotate: 2 }}
           >
-            {tracks[0]?.coverImage ? (
+            {isSafeCoverUrl(tracks[0]?.coverImage) ? (
               <Image
                 src={tracks[0].coverImage}
                 alt="Playlist Cover"
@@ -225,7 +229,7 @@ export default function CinematicPlaylist({ isNight = true }: CinematicPlaylistP
             animate={{ boxShadow: isPlaying ? [neonColors.glow, `0 0 20px ${neonColors.primary}`, neonColors.glow] : neonColors.glow }}
             transition={{ duration: isPlaying ? 2 : 0, repeat: isPlaying ? Infinity : 0 }}
           >
-            {currentTrack.coverImage ? (
+            {isSafeCoverUrl(currentTrack.coverImage) ? (
               <Image
                 src={currentTrack.coverImage}
                 alt="Now Playing"
@@ -328,7 +332,7 @@ function TrackItem({
         className="relative w-11 h-11 rounded-lg overflow-hidden shrink-0"
         whileHover={{ scale: 1.05 }}
       >
-        {track.coverImage ? (
+        {isSafeCoverUrl(track.coverImage) ? (
           <Image
             src={track.coverImage}
             alt={track.title}

@@ -7,6 +7,10 @@ import { Play, Pause, Search, Music, Loader2, ListMusic } from 'lucide-react';
 import { useMusicStore } from '@/store/musicStore';
 import type { Track } from '@/types';
 
+function isSafeCoverUrl(url: unknown): url is string {
+  return typeof url === 'string' && url.trim().length > 0 && url.startsWith('http');
+}
+
 interface PremiumPlaylistProps {
   isNight?: boolean;
 }
@@ -94,7 +98,7 @@ export default function PremiumPlaylist({ isNight = true }: PremiumPlaylistProps
             }}
             whileHover={{ scale: 1.05, rotate: 2 }}
           >
-            {tracks[0]?.coverImage ? (
+            {isSafeCoverUrl(tracks[0]?.coverImage) ? (
               <Image
                 src={tracks[0].coverImage}
                 alt="Playlist"
@@ -307,7 +311,7 @@ function PremiumTrackItem({
         className="relative w-11 h-11 rounded-lg overflow-hidden shrink-0 shadow-md"
         whileHover={{ scale: 1.08 }}
       >
-        {track.coverImage ? (
+        {isSafeCoverUrl(track.coverImage) ? (
           <Image
             src={track.coverImage}
             alt={track.title}

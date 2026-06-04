@@ -5,6 +5,10 @@ import { motion } from 'framer-motion';
 import { Play, Pause, SkipForward, SkipBack } from 'lucide-react';
 import { useMusicStore } from '@/store/musicStore';
 
+function isSafeCoverUrl(url: unknown): url is string {
+  return typeof url === 'string' && url.trim().length > 0 && url.startsWith('http');
+}
+
 interface MiniPlayerProps {
   isNight?: boolean;
 }
@@ -12,8 +16,7 @@ interface MiniPlayerProps {
 export default function MiniPlayer({ isNight = true }: MiniPlayerProps) {
   const { currentTrack, isPlaying, currentTime, duration, next, previous, togglePlay } = useMusicStore();
 
-  // Guard: null track or empty coverImage causes next/image to crash
-  if (!currentTrack || !currentTrack.coverImage) return null;
+  if (!currentTrack) return null;
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
 
@@ -61,7 +64,7 @@ export default function MiniPlayer({ isNight = true }: MiniPlayerProps) {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
           >
-            {currentTrack.coverImage ? (
+            {isSafeCoverUrl(currentTrack.coverImage) ? (
               <Image
                 src={currentTrack.coverImage}
                 alt={currentTrack.title}

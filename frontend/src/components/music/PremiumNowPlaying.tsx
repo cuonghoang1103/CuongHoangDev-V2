@@ -10,6 +10,10 @@ import {
 } from 'lucide-react';
 import { useMusicStore } from '@/store/musicStore';
 
+function isSafeCoverUrl(url: unknown): url is string {
+  return typeof url === 'string' && url.trim().length > 0 && url.startsWith('http');
+}
+
 interface PremiumNowPlayingProps {
   isNight?: boolean;
 }
@@ -179,7 +183,7 @@ export default function PremiumNowPlaying({ isNight = true }: PremiumNowPlayingP
                 boxShadow: `0 0 40px ${c.glow}, 0 0 80px ${c.glowStrong}`,
               }}
             >
-              {currentTrack.coverImage ? (
+              {isSafeCoverUrl(currentTrack.coverImage) ? (
                 <Image
                   src={currentTrack.coverImage}
                   alt={currentTrack.title}

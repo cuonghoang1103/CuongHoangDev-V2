@@ -13,6 +13,10 @@ import { usePathname } from 'next/navigation';
 
 const AUTO_HIDE_DELAY = 5000; // 5 seconds
 
+function isSafeCoverUrl(url: unknown): url is string {
+  return typeof url === 'string' && url.trim().length > 0 && url.startsWith('http');
+}
+
 // ============================================================
 // ExpandedPlayer — full-width player view
 // ============================================================
@@ -59,7 +63,7 @@ function ExpandedPlayer({ onCollapse, onClose, onActivity }: {
           {/* Cover + Info */}
           <div className="flex items-center gap-3 flex-1 min-w-0">
             <div className="relative w-14 h-14 rounded-xl overflow-hidden shadow-lg shrink-0">
-              {currentTrack?.coverImage ? (
+              {isSafeCoverUrl(currentTrack?.coverImage) ? (
                 <Image
                   src={currentTrack.coverImage}
                   alt={currentTrack.title}
@@ -181,7 +185,7 @@ function MiniBar({ onExpand, onClose }: { onExpand: () => void; onClose: () => v
       <div className="max-w-7xl mx-auto px-4">
         <div className="flex items-center gap-3 py-2.5">
           <button onClick={onExpand} className="relative w-9 h-9 rounded-lg overflow-hidden shadow-md shrink-0">
-            {currentTrack.coverImage ? (
+            {isSafeCoverUrl(currentTrack.coverImage) ? (
               <Image src={currentTrack.coverImage} alt={currentTrack.title} fill className="object-cover" />
             ) : (
               <div className="w-full h-full bg-gradient-to-br from-neon-indigo to-neon-violet flex items-center justify-center">
@@ -225,9 +229,6 @@ export default function GlobalMusicPlayer() {
   const [expanded, setExpanded] = useState(false);
   const [hidden, setHidden] = useState(false);
   const { currentTrack, tracks, isPlaying } = useMusicStore();
-
-  // Hide when on /music page — CinematicPlayer takes over there
-  if (pathname === '/music') return null;
 
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -282,6 +283,7 @@ export default function GlobalMusicPlayer() {
   }, [expanded, currentTrack, tracks.length, hidden, scheduleCollapse, clearAllTimers]);
 
   if (!currentTrack || tracks.length === 0) return null;
+  if (!pathname || pathname === '/music') return null;
   if (hidden) return null;
 
   return (

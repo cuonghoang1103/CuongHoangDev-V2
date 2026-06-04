@@ -51,8 +51,8 @@ export default function RootLayout({
               <CartDrawer />
             </ClientOnly>
             {children}
-            <MusicAudioController />
             <ClientOnly>
+              <MusicAudioController />
               <GlobalMusicPlayer />
               <FloatingAIAssistant />
             </ClientOnly>
