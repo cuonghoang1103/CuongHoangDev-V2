@@ -332,7 +332,7 @@ function SceneIllustration({ isNight }: { isNight: boolean }) {
         {isNight && (
           <g opacity="0.4">
             {[30, 80, 140, 190, 280, 330, 400, 450].map((x, i) => (
-              <line key={`rain-${i}`} x1={x} y1="8" x2={x - 2} y2="100 + (i * 20) % 100" stroke={n.cyan} strokeWidth="0.8" opacity={0.3 + (i % 3) * 0.15} />
+              <line key={`rain-${i}`} x1={x} y1={8} x2={x - 2} y2={100 + (i * 20) % 100} stroke={n.cyan} strokeWidth={0.8} opacity={0.3 + (i % 3) * 0.15} />
             ))}
           </g>
         )}
