@@ -14,7 +14,10 @@ export async function middleware(request: NextRequest) {
   debugLog('pathname:', pathname);
 
   if (pathname.startsWith('/admin')) {
-    const backendToken = request.cookies.get('backend_token')?.value;
+    // Use request.headers to get cookies — more reliable in Edge runtime (Vercel)
+    const cookieHeader = request.headers.get('cookie') ?? '';
+    const backendTokenMatch = cookieHeader.match(/(?:^|;\s*)backend_token=([^;]*)/);
+    const backendToken = backendTokenMatch ? backendTokenMatch[1] : undefined;
     debugLog('backendToken:', backendToken ? 'present' : 'MISSING');
 
     // ── Case 1: Credentials user (has backend_token) ──
