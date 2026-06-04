@@ -1,12 +1,16 @@
 package com.cuonghoangdev.api_backend.dto;
 
 import com.cuonghoangdev.api_backend.entity.Project;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import java.time.LocalDate;
 import java.util.List;
 import java.util.stream.Collectors;
 
 public class ProjectDto {
+    private static final ObjectMapper mapper = new ObjectMapper();
+
     private Long id;
     private String title;
     private String slug;
@@ -23,6 +27,7 @@ public class ProjectDto {
     private LocalDate startDate;
     private LocalDate endDate;
     private List<String> skillNames;
+    private List<String> images;
     private String createdAt;
 
     public static ProjectDto fromEntity(Project p) {
@@ -50,6 +55,15 @@ public class ProjectDto {
             d.setSkillNames(p.getSkills().stream()
                     .map(s -> s.getName())
                     .collect(Collectors.toList()));
+        }
+        if (p.getImages() != null && !p.getImages().isBlank()) {
+            try {
+                d.setImages(mapper.readValue(p.getImages(), new TypeReference<List<String>>() {}));
+            } catch (Exception e) {
+                d.setImages(List.of());
+            }
+        } else {
+            d.setImages(List.of());
         }
         return d;
     }
@@ -86,6 +100,8 @@ public class ProjectDto {
     public void setEndDate(LocalDate endDate) { this.endDate = endDate; }
     public List<String> getSkillNames() { return skillNames; }
     public void setSkillNames(List<String> skillNames) { this.skillNames = skillNames; }
+    public List<String> getImages() { return images; }
+    public void setImages(List<String> images) { this.images = images; }
     public String getCreatedAt() { return createdAt; }
     public void setCreatedAt(String createdAt) { this.createdAt = createdAt; }
 }

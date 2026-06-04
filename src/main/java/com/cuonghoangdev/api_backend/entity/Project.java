@@ -31,6 +31,13 @@ public class Project {
     @Column(columnDefinition = "TEXT")
     private String content;
 
+    /**
+     * JSON array of image URLs for the project gallery.
+     * Format: ["url1","url2","url3"]
+     */
+    @Column(columnDefinition = "TEXT")
+    private String images;
+
     @Column(name = "thumbnail_url", length = 500)
     private String thumbnailUrl;
 
@@ -115,4 +122,6 @@ public class Project {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
+    public String getImages() { return images; }
+    public void setImages(String images) { this.images = images; }
 }

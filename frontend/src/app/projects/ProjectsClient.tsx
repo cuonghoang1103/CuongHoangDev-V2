@@ -7,6 +7,7 @@ import { Search, ExternalLink, Github, Calendar, Users, Code2, Eye, Star, GitFor
 import { useProjectStore } from '@/store/projectStore';
 import { projectsApi } from '@/lib/api';
 import type { Project } from '@/types';
+import ProjectDetailDrawer from '@/components/projects/ProjectDetailDrawer';
 
 const STATUS_LABELS: Record<string, string> = {
   COMPLETED: 'Completed',
@@ -71,10 +72,12 @@ function ProjectCard({
   project,
   starred,
   onToggleStar,
+  onOpenDrawer,
 }: {
   project: Project;
   starred: boolean;
   onToggleStar: () => void;
+  onOpenDrawer?: () => void;
 }) {
   const stats = MOCK_STATS[project.id] ?? { views: 0, stars: 0, forks: 0 };
 
@@ -191,12 +194,12 @@ function ProjectCard({
 
         {/* Actions — always visible at bottom via flex-grow */}
         <div className="flex gap-3 mt-auto pt-4 border-t border-darkborder/50">
-          <Link
-            href={`/projects/${project.slug}`}
+          <button
+            onClick={() => onOpenDrawer?.()}
             className="flex-1 py-2 text-center text-sm bg-gradient-to-r from-neon-indigo/20 to-neon-violet/20 border border-neon-violet/30 text-neon-violet rounded-lg hover:from-neon-indigo/30 hover:to-neon-violet/30 transition-all font-medium"
           >
             Chi tiết
-          </Link>
+          </button>
           {project.projectUrl && (
             <a
               href={project.projectUrl}
@@ -313,6 +316,8 @@ export default function ProjectsClient() {
       return next;
     });
   };
+
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
 
   return (
     <>
@@ -438,6 +443,7 @@ export default function ProjectsClient() {
                     project={project}
                     starred={starredIds.has(project.id)}
                     onToggleStar={() => toggleStar(project.id)}
+                    onOpenDrawer={() => setSelectedProject(project)}
                   />
                 ))}
               </AnimatePresence>
@@ -467,6 +473,14 @@ export default function ProjectsClient() {
           </>
         )}
       </section>
+
+      {/* Project Detail Drawer */}
+      <ProjectDetailDrawer
+        project={selectedProject}
+        onClose={() => setSelectedProject(null)}
+        starred={selectedProject ? starredIds.has(selectedProject.id) : false}
+        onToggleStar={selectedProject ? () => toggleStar(selectedProject.id) : undefined}
+      />
     </>
   );
 }

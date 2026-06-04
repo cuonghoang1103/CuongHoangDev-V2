@@ -81,6 +81,7 @@ public class ProjectController {
         project.setIsFeatured(request.getFeatured() != null ? request.getFeatured() : false);
         project.setStartDate(request.getStartDate());
         project.setEndDate(request.getEndDate());
+        project.setImages(request.getImages());
         Project saved = projectRepository.save(project);
         return ResponseEntity.ok(ApiResponse.ok("Tao du an thanh cong", ProjectDto.fromEntity(saved)));
     }
@@ -111,6 +112,7 @@ public class ProjectController {
         if (request.getFeatured() != null) project.setIsFeatured(request.getFeatured());
         if (request.getStartDate() != null) project.setStartDate(request.getStartDate());
         if (request.getEndDate() != null) project.setEndDate(request.getEndDate());
+        if (request.getImages() != null) project.setImages(request.getImages());
         Project saved = projectRepository.save(project);
         return ResponseEntity.ok(ApiResponse.ok("Cap nhat du an thanh cong", ProjectDto.fromEntity(saved)));
     }
@@ -141,6 +143,8 @@ public class ProjectController {
         private Boolean featured;
         private java.time.LocalDate startDate;
         private java.time.LocalDate endDate;
+        /** JSON array string of image URLs, e.g. '["url1","url2"]' */
+        private String images;
 
         public String getTitle() { return title; }
         public void setTitle(String title) { this.title = title; }
@@ -170,5 +174,7 @@ public class ProjectController {
         public void setStartDate(java.time.LocalDate startDate) { this.startDate = startDate; }
         public java.time.LocalDate getEndDate() { return endDate; }
         public void setEndDate(java.time.LocalDate endDate) { this.endDate = endDate; }
+        public String getImages() { return images; }
+        public void setImages(String images) { this.images = images; }
     }
 }

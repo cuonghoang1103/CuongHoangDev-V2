@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { toast } from 'sonner';
 import {
   Plus,
@@ -17,6 +17,8 @@ import {
 import { useProjectStore } from '@/store/projectStore';
 import { projectsApi } from '@/lib/api';
 import type { Project } from '@/types';
+import MultiImageUploader from '@/components/admin/MultiImageUploader';
+import RichTextEditor from '@/components/admin/RichTextEditor';
 
 const STATUS_OPTIONS = ['PLANNING', 'IN_PROGRESS', 'COMPLETED', 'MAINTENANCE'];
 
@@ -116,7 +118,9 @@ function ProjectFormModal({
   const [form, setForm] = useState({
     title: project?.title ?? '',
     description: project?.description ?? '',
+    content: project?.content ?? '',
     technologies: Array.isArray(project?.technologies) ? [...project.technologies] : [] as string[],
+    images: Array.isArray(project?.images) ? [...project.images] : [] as string[],
     status: project?.status ?? 'IN_PROGRESS',
     projectUrl: project?.projectUrl ?? '',
     githubUrl: project?.githubUrl ?? '',
@@ -132,7 +136,9 @@ function ProjectFormModal({
     title: form.title,
     slug: slugify(form.title),
     description: form.description,
+    content: form.content,
     techStack: form.technologies.join(', '),
+    images: JSON.stringify(form.images),
     status: form.status,
     projectUrl: form.projectUrl || null,
     githubUrl: form.githubUrl || null,
@@ -269,15 +275,41 @@ function ProjectFormModal({
             </div>
           </div>
 
-          {/* Thumbnail */}
+          {/* Thumbnail / Gallery */}
           <div>
-            <label className="block text-sm font-medium text-text-primary mb-1.5">Thumbnail URL</label>
-            <input
-              type="url"
-              value={form.thumbnailUrl}
-              onChange={(e) => set({ thumbnailUrl: e.target.value })}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full px-4 py-2.5 bg-darkcard border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
+            <label className="block text-sm font-medium text-text-primary mb-1.5">
+              Hình ảnh dự án
+            </label>
+            <MultiImageUploader
+              images={form.images}
+              onChange={(images) => {
+                set({ images });
+                // auto-set first image as thumbnail
+                if (images.length > 0 && !form.thumbnailUrl) {
+                  set({ thumbnailUrl: images[0] });
+                }
+              }}
+            />
+            {form.images.length === 0 && (
+              <input
+                type="url"
+                value={form.thumbnailUrl}
+                onChange={(e) => set({ thumbnailUrl: e.target.value })}
+                placeholder="Hoặc dán URL ảnh thumbnail..."
+                className="w-full mt-2 px-4 py-2.5 bg-darkcard border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
+              />
+            )}
+          </div>
+
+          {/* Rich-Text Case Study */}
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1.5">
+              Case Study / Hành trình phát triển
+            </label>
+            <RichTextEditor
+              value={form.content}
+              onChange={(content) => set({ content })}
+              placeholder="Viết chi tiết về quá trình phát triển dự án, thách thức, giải pháp, và kết quả..."
             />
           </div>
         </div>

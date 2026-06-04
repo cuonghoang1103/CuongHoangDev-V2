@@ -88,6 +88,7 @@ export interface Project {
   projectUrl?: string;
   githubUrl?: string;
   technologies?: string[];
+  images?: string[];
   role?: string;
   duration?: string;
   status: string;
