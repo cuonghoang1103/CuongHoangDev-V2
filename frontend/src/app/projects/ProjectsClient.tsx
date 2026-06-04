@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, ExternalLink, Github, Calendar, Users, Code2, Eye, Star, GitFork, SlidersHorizontal } from 'lucide-react';
+import { Search, ExternalLink, Github, Calendar, Users, Code2, Eye, Star, GitFork, SlidersHorizontal, Play } from 'lucide-react';
 import { useProjectStore } from '@/store/projectStore';
 import { projectsApi } from '@/lib/api';
 import type { Project } from '@/types';
@@ -353,6 +353,23 @@ function ProjectCard({
             >
               <Github className="w-4 h-4" />
             </a>
+          )}
+          {(project as any).videoUrl && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onVideoClick?.((project as any).videoUrl);
+              }}
+              className="p-2 rounded-lg transition-colors"
+              style={{
+                background: 'linear-gradient(135deg, rgba(255,0,0,0.15), rgba(200,0,0,0.1))',
+                border: '1px solid rgba(255,0,0,0.25)',
+                color: '#ff4444',
+              }}
+              title="Xem Video Demo"
+            >
+              <Play className="w-4 h-4 fill-current" />
+            </button>
           )}
         </div>
       </div>

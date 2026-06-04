@@ -3,19 +3,22 @@
 import { useState, useRef, useCallback } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, X, ImagePlus, Loader2, GripVertical } from 'lucide-react';
+import { Upload, X, ImagePlus, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { fileApi } from '@/lib/api';
 
 interface MultiImageUploaderProps {
   images: string[];
   onChange: (images: string[]) => void;
   maxImages?: number;
+  disabled?: boolean;
 }
 
 export default function MultiImageUploader({
   images,
   onChange,
   maxImages = 10,
+  disabled = false,
 }: MultiImageUploaderProps) {
   const [uploading, setUploading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
@@ -23,22 +26,17 @@ export default function MultiImageUploader({
 
   const uploadFile = useCallback(
     async (file: File): Promise<string | null> => {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('category', 'thumbnails');
-
       try {
-        const res = await fetch('/api/v1/files/upload', {
-          method: 'POST',
-          credentials: 'include',
-          body: fd,
-        });
-        const data = await res.json();
-        if (data.success && data.data?.downloadUrl) {
-          return data.data.downloadUrl as string;
-        }
+        const res = await fileApi.upload(file, 'thumbnails');
+        const url = res.data?.data?.downloadUrl as string | undefined;
+        if (url) return url;
+        toast.error(res.data?.message || 'Upload thất bại.');
         return null;
-      } catch {
+      } catch (err: unknown) {
+        const msg = (err as any)?.response?.data?.message
+          ?? (err as any)?.message
+          ?? 'Upload thất bại. Vui lòng thử lại.';
+        toast.error(msg);
         return null;
       }
     },
@@ -53,17 +51,33 @@ export default function MultiImageUploader({
         return;
       }
 
+      const imageFiles = fileArray.filter((f) => f.type.startsWith('image/'));
+      if (imageFiles.length === 0) {
+        toast.error('Không có file ảnh nào được chọn.');
+        return;
+      }
+
       setUploading(true);
       const uploaded: string[] = [];
+      const failed: string[] = [];
 
-      for (const file of fileArray) {
-        if (!file.type.startsWith('image/')) continue;
+      for (const file of imageFiles) {
         const url = await uploadFile(file);
-        if (url) uploaded.push(url);
+        if (url) {
+          uploaded.push(url);
+        } else {
+          failed.push(file.name);
+        }
       }
 
       if (uploaded.length > 0) {
         onChange([...images, ...uploaded]);
+      }
+
+      if (failed.length > 0) {
+        toast.error(`${failed.length} ảnh upload thất bại: ${failed.join(', ')}`);
+      } else if (uploaded.length > 0) {
+        toast.success(`Upload thành công ${uploaded.length} ảnh!`);
       }
 
       setUploading(false);
@@ -106,19 +120,23 @@ export default function MultiImageUploader({
     cardBg: 'rgba(255,255,255,0.03)',
   };
 
+  const isBusy = uploading || disabled;
+
   return (
     <div className="space-y-3">
       {/* Drop zone */}
       <div
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragOver={(e) => { e.preventDefault(); if (!isBusy) setDragOver(true); }}
         onDragLeave={() => setDragOver(false)}
-        onDrop={handleDrop}
-        onClick={() => inputRef.current?.click()}
-        className="relative flex flex-col items-center justify-center gap-3 py-8 rounded-xl border-2 border-dashed cursor-pointer transition-all"
+        onDrop={(e) => { e.preventDefault(); if (!isBusy) handleDrop(e); }}
+        onClick={() => { if (!isBusy) inputRef.current?.click(); }}
+        className="relative flex flex-col items-center justify-center gap-3 py-8 rounded-xl border-2 border-dashed transition-all"
         style={{
-          borderColor: dragOver ? c.borderActive : c.border,
+          borderColor: isBusy ? 'rgba(168,85,247,0.1)' : dragOver ? c.borderActive : c.border,
           background: dragOver ? `${c.primary}08` : c.cardBg,
           transform: dragOver ? 'scale(1.01)' : 'scale(1)',
+          cursor: isBusy ? 'not-allowed' : 'pointer',
+          opacity: isBusy ? 0.6 : 1,
         }}
       >
         <input
@@ -127,6 +145,7 @@ export default function MultiImageUploader({
           accept="image/*"
           multiple
           className="hidden"
+          disabled={disabled}
           onChange={(e) => { if (e.target.files) handleFiles(e.target.files); }}
         />
 
@@ -134,6 +153,11 @@ export default function MultiImageUploader({
           <>
             <Loader2 className="w-8 h-8 animate-spin" style={{ color: c.primary }} />
             <p className="text-sm" style={{ color: c.textMuted }}>Đang upload...</p>
+          </>
+        ) : disabled ? (
+          <>
+            <Loader2 className="w-8 h-8 animate-spin" style={{ color: c.primary }} />
+            <p className="text-sm" style={{ color: c.textMuted }}>Đang xử lý...</p>
           </>
         ) : (
           <>
@@ -185,7 +209,8 @@ export default function MultiImageUploader({
                   <button
                     type="button"
                     onClick={() => handleRemove(i)}
-                    className="w-7 h-7 rounded-full bg-red-500/80 flex items-center justify-center hover:bg-red-500 transition-colors"
+                    disabled={disabled}
+                    className="w-7 h-7 rounded-full bg-red-500/80 flex items-center justify-center hover:bg-red-500 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     title="Xoá ảnh"
                   >
                     <X className="w-3.5 h-3.5 text-white" />

@@ -1,15 +1,26 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
   X, ExternalLink, Github, Calendar, Code2, Eye, Star, GitFork,
-  Clock, ChevronRight, BookOpen, Layers,
+  Clock, ChevronRight, BookOpen, Layers, Play,
 } from 'lucide-react';
 import ImageCarousel from './ImageCarousel';
 import type { Project } from '@/types';
+
+function extractYouTubeId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
 
 const STATUS_LABELS: Record<string, string> = {
   COMPLETED: 'Hoàn thành',
@@ -100,6 +111,11 @@ export default function ProjectDetailDrawer({
   starred = false,
   onToggleStar,
 }: ProjectDetailDrawerProps) {
+  const [showVideo, setShowVideo] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => { setIsMounted(true); }, []);
+
   const c = {
     primary: '#a855f7',
     secondary: '#ec4899',
@@ -306,6 +322,19 @@ export default function ProjectDetailDrawer({
 
                 {/* CTA Buttons */}
                 <div className="flex gap-3 pt-2">
+                  {(project as any).videoUrl && (
+                    <button
+                      onClick={() => setShowVideo(true)}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-white transition-opacity hover:opacity-90"
+                      style={{
+                        background: 'linear-gradient(135deg, #FF0000 0%, #CC0000 100%)',
+                        boxShadow: '0 4px 16px rgba(255,0,0,0.3)',
+                      }}
+                    >
+                      <Play className="w-4 h-4 fill-current" />
+                      Xem Video Demo
+                    </button>
+                  )}
                   {project.projectUrl && (
                     <a
                       href={project.projectUrl}
@@ -345,6 +374,45 @@ export default function ProjectDetailDrawer({
                     Trang chi tiết →
                   </Link>
                 </div>
+
+                {/* ── YouTube Modal ── */}
+                {isMounted && showVideo && (project as any).videoUrl && (
+                  <motion.div
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="fixed inset-0 z-[60] flex items-center justify-center p-4"
+                    style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
+                    onClick={() => setShowVideo(false)}
+                  >
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      exit={{ scale: 0.9, opacity: 0 }}
+                      transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                      className="relative w-full max-w-4xl"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      <button
+                        onClick={() => setShowVideo(false)}
+                        className="absolute -top-10 right-0 text-white/70 hover:text-white text-sm font-medium transition-colors"
+                      >
+                        Đóng
+                      </button>
+                      <div style={{ aspectRatio: '16/9' }}>
+                        <iframe
+                          src={`https://www.youtube.com/embed/${extractYouTubeId((project as any).videoUrl!)}?autoplay=1`}
+                          title="Project Demo Video"
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                          allowFullScreen
+                          className="w-full h-full rounded-2xl border"
+                          style={{ borderColor: c.border }}
+                        />
+                      </div>
+                    </motion.div>
+                  </motion.div>
+                )}
               </div>
             </div>
           </motion.div>

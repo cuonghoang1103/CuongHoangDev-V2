@@ -319,6 +319,7 @@ function ProjectFormModal({
           <ThumbnailUploader
             value={form.thumbnailUrl}
             onChange={(url) => set({ thumbnailUrl: url })}
+            disabled={saving}
           />
 
           {/* ── ADVANCED SECTION ───────────────────────────────────────── */}
@@ -347,6 +348,7 @@ function ProjectFormModal({
                   images={form.images}
                   onChange={(images) => set({ images })}
                   maxImages={10}
+                  disabled={saving}
                 />
 
                 {/* Rich-Text Editor */}
