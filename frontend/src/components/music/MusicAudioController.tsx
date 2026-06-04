@@ -10,11 +10,9 @@ import { useMusicStore } from '@/store/musicStore';
  * Keeps ONE <audio> element alive for the full lifetime of the app.
  * This is what makes playback survive across page navigations.
  *
- * Architecture:
- * - Module-level ref ensures the Audio element is created only once.
- * - Subscribes to Zustand store and drives <audio> based on store state.
- * - GlobalMusicPlayer (MiniBar / ExpandedPlayer) only writes store actions —
- *   it never touches <audio> directly.
+ * Strict URL validation: only loads audio when the URL is a confirmed
+ * audio file path (ends with known extension) or a valid http/https URL.
+ * Never sets audio.src to empty string or base page URL.
  */
 export default function MusicAudioController() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
@@ -30,12 +28,20 @@ export default function MusicAudioController() {
     next,
   } = useMusicStore();
 
-  // Create audio element exactly once (singleton pattern)
+  function isValidAudioUrl(url: unknown): url is string {
+    if (typeof url !== 'string' || !url.trim()) return false;
+    const audioExts = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.opus', '.webm'];
+    const hasExt = audioExts.some((ext) => url.toLowerCase().includes(ext));
+    if (hasExt) return true;
+    // Cloudinary, Supabase Storage, CDN — any http/https audio URL is valid
+    return url.startsWith('http');
+  }
+
+  // Create audio element exactly once
   useEffect(() => {
     if (audioRef.current) return;
 
     const audio = new Audio();
-    // Required for Cloudinary CORS audio streaming
     audio.crossOrigin = 'anonymous';
     audio.preload = 'auto';
 
@@ -43,7 +49,8 @@ export default function MusicAudioController() {
     const handleLoadedMetadata = () => setDuration(audio.duration);
     const handleEnded = () => next();
     const handleError = () => {
-      console.warn('[MusicAudioController] Audio load error for:', audio.src);
+      // Log only — never let error crash the app
+      console.warn('[MusicAudioController] Audio error:', audio.src, audio.error?.message);
     };
 
     audio.addEventListener('timeupdate', handleTimeUpdate);
@@ -64,50 +71,47 @@ export default function MusicAudioController() {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load new track when currentTrack or its audioUrl changes
+  // Load new track — strict URL validation prevents base-URL resolution
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    // Guard: require a non-empty audioUrl that looks like a URL
-    // preveting empty-string src from resolving to base URL
-    const audioUrl = currentTrack?.audioUrl;
-    const isValidUrl = audioUrl && audioUrl.startsWith('http');
+    const rawUrl = currentTrack?.audioUrl;
 
-    if (!isValidUrl) {
+    // Only proceed with a confirmed valid audio URL
+    if (!isValidAudioUrl(rawUrl)) {
       audio.pause();
-      // Only clear src if we had a real URL loaded — prevents browser
-      // resolving '' to the page base URL (e.g. vercel.app/)
-      if (audio.src && audio.src.startsWith('http')) {
-        audio.src = '';
+      return;
+    }
+
+    // Skip if already loaded
+    if (audio.src === rawUrl) {
+      if (isPlaying) {
+        audio.play().catch(() => {});
+      } else {
+        audio.pause();
       }
       return;
     }
 
-    // Load the track if src changed
-    const srcChanged = audio.src !== audioUrl;
-    if (srcChanged) {
-      audio.src = audioUrl;
-    }
+    audio.src = rawUrl;
+    audio.load();
 
-    // Sync play/pause state
     if (isPlaying) {
-      audio.play().catch(() => {
-        // Autoplay blocked — browser requires user gesture first
-      });
+      audio.play().catch(() => {});
     } else {
       audio.pause();
     }
   }, [currentTrack?.id, currentTrack?.audioUrl, isPlaying]);
 
-  // Sync volume changes
+  // Sync volume
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio) return;
-    audio.volume = isMuted ? 0 : volume;
+    audio.volume = isMuted ? 0 : Math.max(0, Math.min(1, volume));
   }, [volume, isMuted]);
 
-  // Sync seek (progress bar dragging)
+  // Sync seek
   useEffect(() => {
     const audio = audioRef.current;
     if (!audio || !currentTrack) return;
