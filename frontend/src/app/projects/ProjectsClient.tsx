@@ -42,7 +42,13 @@ function formatCount(n: number): string {
 }
 
 // ─── Mini Carousel for Project Cards ──────────────────────────────────────────
-function CardCarousel({ project }: { project: Project }) {
+function CardCarousel({
+  project,
+  onVideoClick,
+}: {
+  project: Project;
+  onVideoClick?: (url: string) => void;
+}) {
   const [current, setCurrent] = useState(0);
 
   const allImages = [
@@ -50,87 +56,145 @@ function CardCarousel({ project }: { project: Project }) {
     ...(project.images ?? []),
   ].filter((u): u is string => typeof u === 'string' && u.trim().length > 0 && u.startsWith('http'));
 
-  if (allImages.length === 0) return null;
-
+  const hasImages = allImages.length > 0;
   const hasMultiple = allImages.length > 1;
 
   return (
     <div className="relative h-48 overflow-hidden" style={{ borderRadius: '0' }}>
-      <AnimatePresence mode="wait">
-        {allImages[current] && (
-          <motion.img
-            key={current}
-            src={allImages[current]}
-            alt={project.title}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="absolute inset-0 w-full h-full object-cover"
-          />
-        )}
-      </AnimatePresence>
-
-      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
-
-      {project.featured && (
-        <div className="absolute top-3 left-3 px-2.5 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-bold rounded-lg shadow-lg">
-          NOI BAT
-        </div>
-      )}
-
-      {project.status && (
-        <div className={`absolute top-3 right-3 px-2.5 py-1 text-xs font-medium rounded-lg border ${STATUS_COLORS[project.status] || ''}`}>
-          {STATUS_LABELS[project.status] || project.status}
-        </div>
-      )}
-
-      {hasMultiple && (
-        <>
-          <button
-            onClick={(e) => { e.stopPropagation(); setCurrent((c) => c === 0 ? allImages.length - 1 : c - 1); }}
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center transition-all hover:scale-110 z-10"
-            style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}
-          >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-              <path d="M7 2L4 5L7 8" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-          <button
-            onClick={(e) => { e.stopPropagation(); setCurrent((c) => c === allImages.length - 1 ? 0 : c + 1); }}
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center transition-all hover:scale-110 z-10"
-            style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}
-          >
-            <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-              <path d="M3 2L6 5L3 8" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
-        </>
-      )}
-
-      {hasMultiple && (
-        <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10">
-          {allImages.map((_, i) => (
-            <button
-              key={i}
-              onClick={(e) => { e.stopPropagation(); setCurrent(i); }}
-              className="h-1.5 rounded-full transition-all"
-              style={{
-                width: i === current ? '16px' : '4px',
-                background: i === current ? '#a855f7' : 'rgba(255,255,255,0.4)',
-              }}
-            />
-          ))}
-        </div>
-      )}
-
-      {hasMultiple && (
+      {/* ── No images: gradient placeholder ── */}
+      {!hasImages ? (
         <div
-          className="absolute top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] font-medium z-10"
-          style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', color: '#fff' }}
+          className="absolute inset-0 flex flex-col items-center justify-center gap-2"
+          style={{
+            background: `linear-gradient(135deg, #1a1040 0%, #0f0a20 50%, #1e0a30 100%)`,
+          }}
         >
-          {current + 1}/{allImages.length}
+          <div
+            className="absolute inset-0 opacity-20"
+            style={{
+              background: `radial-gradient(ellipse 60% 60% at 30% 50%, rgba(168,85,247,0.4) 0%, transparent 70%)`,
+            }}
+          />
+          <div
+            className="absolute inset-0 opacity-15"
+            style={{
+              background: `radial-gradient(ellipse 50% 50% at 70% 50%, rgba(236,72,153,0.4) 0%, transparent 70%)`,
+            }}
+          />
+          <div
+            className="relative z-10 w-12 h-12 rounded-xl flex items-center justify-center"
+            style={{
+              background: 'rgba(168,85,247,0.15)',
+              border: '1px solid rgba(168,85,247,0.3)',
+            }}
+          >
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M23 7l-7 5 7 5V7z" stroke="#a855f7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <rect x="1" y="5" width="15" height="14" rx="2" stroke="#a855f7" strokeWidth="2" />
+            </svg>
+          </div>
         </div>
+      ) : (
+        <>
+          <AnimatePresence mode="wait">
+            {allImages[current] && (
+              <motion.img
+                key={current}
+                src={allImages[current]}
+                alt={project.title}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            )}
+          </AnimatePresence>
+
+          <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent" />
+
+          {/* ── YouTube badge ── */}
+          {(project as any).videoUrl && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onVideoClick?.((project as any).videoUrl);
+              }}
+              className="absolute top-3 left-3 z-10 flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold text-white transition-all hover:scale-105"
+              style={{
+                background: 'rgba(0,0,0,0.6)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,0.2)',
+              }}
+            >
+              <svg width="10" height="10" viewBox="0 0 24 24" fill="#FF0000">
+                <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8z" />
+                <path d="M9.75 15.5V8.5l6.5 3.5-6.5 3.5z" fill="#fff" />
+              </svg>
+              Demo
+            </button>
+          )}
+
+          {project.featured && (
+            <div className="absolute top-3 left-3 px-2.5 py-1 bg-gradient-to-r from-yellow-400 to-orange-400 text-white text-xs font-bold rounded-lg shadow-lg z-20">
+              NOI BAT
+            </div>
+          )}
+
+          {project.status && !project.featured && (
+            <div className={`absolute top-3 right-3 px-2.5 py-1 text-xs font-medium rounded-lg border z-20 ${STATUS_COLORS[project.status] || ''}`}>
+              {STATUS_LABELS[project.status] || project.status}
+            </div>
+          )}
+
+          {hasMultiple && (
+            <>
+              <button
+                onClick={(e) => { e.stopPropagation(); setCurrent((c) => c === 0 ? allImages.length - 1 : c - 1); }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center transition-all hover:scale-110 z-10"
+                style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M7 2L4 5L7 8" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setCurrent((c) => c === allImages.length - 1 ? 0 : c + 1); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full flex items-center justify-center transition-all hover:scale-110 z-10"
+                style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)' }}
+              >
+                <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                  <path d="M3 2L6 5L3 8" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </>
+          )}
+
+          {hasMultiple && (
+            <div className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1 z-10">
+              {allImages.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={(e) => { e.stopPropagation(); setCurrent(i); }}
+                  className="h-1.5 rounded-full transition-all"
+                  style={{
+                    width: i === current ? '16px' : '4px',
+                    background: i === current ? '#a855f7' : 'rgba(255,255,255,0.4)',
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {hasMultiple && (
+            <div
+              className="absolute top-3 left-1/2 -translate-x-1/2 px-2 py-0.5 rounded-full text-[10px] font-medium z-10"
+              style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)', color: '#fff' }}
+            >
+              {current + 1}/{allImages.length}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
@@ -161,11 +225,13 @@ function ProjectCard({
   starred,
   onToggleStar,
   onOpenPanel,
+  onVideoClick,
 }: {
   project: Project;
   starred: boolean;
   onToggleStar: () => void;
   onOpenPanel: () => void;
+  onVideoClick?: (url: string) => void;
 }) {
   const stats = MOCK_STATS[project.id] ?? { views: 0, stars: 0, forks: 0 };
   const hasGallery = Array.isArray(project.images) && project.images.length > 0;
@@ -182,7 +248,7 @@ function ProjectCard({
       className="group flex flex-col bg-darkcard rounded-2xl border border-darkborder/50 hover:border-neon-violet/40 transition-all duration-300 overflow-hidden shadow-lg hover:shadow-neon-violet/10 cursor-pointer"
     >
       {/* Card Carousel */}
-      <CardCarousel project={project} />
+      <CardCarousel project={project} onVideoClick={onVideoClick} />
 
       {/* Body */}
       <div className="flex flex-col flex-1 p-6">
@@ -305,6 +371,24 @@ export default function ProjectsClient() {
   const [techFilter, setTechFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [videoModalUrl, setVideoModalUrl] = useState<string | null>(null);
+
+  const openVideoModal = (url: string) => {
+    const id = extractYouTubeId(url);
+    if (id) setVideoModalUrl(id);
+    else window.open(url, '_blank');
+  };
+
+  const extractYouTubeId = (url: string): string | null => {
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+    ];
+    for (const pattern of patterns) {
+      const match = url.match(pattern);
+      if (match) return match[1];
+    }
+    return null;
+  };
 
   useEffect(() => {
     const loadProjects = async () => {
@@ -513,6 +597,7 @@ export default function ProjectsClient() {
                     starred={starredIds.has(project.id)}
                     onToggleStar={() => toggleStar(project.id)}
                     onOpenPanel={() => openPanel(project)}
+                    onVideoClick={openVideoModal}
                   />
                 ))}
               </AnimatePresence>
@@ -542,6 +627,33 @@ export default function ProjectsClient() {
           </>
         )}
       </section>
+
+      {/* ── YouTube Modal ── */}
+      {videoModalUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setVideoModalUrl(null)}
+        >
+          <div className="relative w-full max-w-4xl" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setVideoModalUrl(null)}
+              className="absolute -top-10 right-0 text-white/70 hover:text-white text-sm font-medium"
+            >
+              Đóng
+            </button>
+            <div style={{ aspectRatio: '16/9' }}>
+              <iframe
+                src={`https://www.youtube.com/embed/${videoModalUrl}?autoplay=1`}
+                title="Project Demo Video"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full rounded-2xl"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

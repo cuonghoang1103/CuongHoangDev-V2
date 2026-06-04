@@ -44,6 +44,9 @@ public class Project {
     @Column(name = "project_url", length = 500)
     private String projectUrl;
 
+    @Column(name = "video_url", length = 500)
+    private String videoUrl;
+
     @Column(name = "github_url", length = 500)
     private String githubUrl;
 
@@ -100,6 +103,8 @@ public class Project {
     public void setThumbnailUrl(String thumbnailUrl) { this.thumbnailUrl = thumbnailUrl; }
     public String getProjectUrl() { return projectUrl; }
     public void setProjectUrl(String projectUrl) { this.projectUrl = projectUrl; }
+    public String getVideoUrl() { return videoUrl; }
+    public void setVideoUrl(String videoUrl) { this.videoUrl = videoUrl; }
     public String getGithubUrl() { return githubUrl; }
     public void setGithubUrl(String githubUrl) { this.githubUrl = githubUrl; }
     public String getTechStack() { return techStack; }

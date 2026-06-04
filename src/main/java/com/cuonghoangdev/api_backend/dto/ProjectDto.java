@@ -19,6 +19,7 @@ public class ProjectDto {
     private String thumbnailUrl;
     private String projectUrl;
     private String githubUrl;
+    private String videoUrl;
     private List<String> technologies;
     private String role;
     private String duration;
@@ -39,6 +40,7 @@ public class ProjectDto {
         d.setContent(p.getContent());
         d.setThumbnailUrl(p.getThumbnailUrl());
         d.setProjectUrl(p.getProjectUrl());
+        d.setVideoUrl(p.getVideoUrl());
         d.setGithubUrl(p.getGithubUrl());
         d.setRole(p.getRole());
         d.setDuration(p.getDuration());
@@ -84,6 +86,8 @@ public class ProjectDto {
     public void setProjectUrl(String projectUrl) { this.projectUrl = projectUrl; }
     public String getGithubUrl() { return githubUrl; }
     public void setGithubUrl(String githubUrl) { this.githubUrl = githubUrl; }
+    public String getVideoUrl() { return videoUrl; }
+    public void setVideoUrl(String videoUrl) { this.videoUrl = videoUrl; }
     public List<String> getTechnologies() { return technologies; }
     public void setTechnologies(List<String> technologies) { this.technologies = technologies; }
     public String getRole() { return role; }

@@ -67,6 +67,7 @@ public class ProjectService {
             if (updates.getContent() != null)           existing.setContent(updates.getContent());
             if (updates.getThumbnailUrl() != null)     existing.setThumbnailUrl(updates.getThumbnailUrl());
             if (updates.getProjectUrl() != null)       existing.setProjectUrl(updates.getProjectUrl());
+            if (updates.getVideoUrl() != null)        existing.setVideoUrl(updates.getVideoUrl());
             if (updates.getGithubUrl() != null)        existing.setGithubUrl(updates.getGithubUrl());
             if (updates.getTechStack() != null)        existing.setTechStack(updates.getTechStack());
             if (updates.getRole() != null)              existing.setRole(updates.getRole());

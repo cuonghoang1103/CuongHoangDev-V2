@@ -117,17 +117,32 @@ function ProjectFormModal({
 }) {
   const isEditing = Boolean(project);
 
-  const [form, setForm] = useState({
+  interface ProjectFormState {
+    title: string;
+    description: string;
+    technologies: string[];
+    status: string;
+    projectUrl: string;
+    githubUrl: string;
+    thumbnailUrl: string;
+    featured: boolean;
+    images: string[];
+    content: string;
+    videoUrl: string;
+  }
+
+  const [form, setForm] = useState<ProjectFormState>({
     title: project?.title ?? '',
     description: project?.description ?? '',
-    technologies: Array.isArray(project?.technologies) ? [...project.technologies] : [] as string[],
+    technologies: Array.isArray(project?.technologies) ? [...project.technologies] : [],
     status: project?.status ?? 'IN_PROGRESS',
     projectUrl: project?.projectUrl ?? '',
     githubUrl: project?.githubUrl ?? '',
     thumbnailUrl: project?.thumbnailUrl ?? '',
     featured: project?.featured ?? false,
-    images: Array.isArray(project?.images) ? [...project.images] : [] as string[],
+    images: Array.isArray(project?.images) ? [...project.images] : [],
     content: project?.content ?? '',
+    videoUrl: (project as Project)?.videoUrl ?? '',
   });
 
   const [showAdvanced, setShowAdvanced] = useState(false);
@@ -145,6 +160,7 @@ function ProjectFormModal({
     projectUrl: form.projectUrl || null,
     githubUrl: form.githubUrl || null,
     thumbnailUrl: form.thumbnailUrl || null,
+    videoUrl: form.videoUrl || null,
     featured: form.featured,
     images: form.images,
     content: form.content || null,
@@ -262,7 +278,7 @@ function ProjectFormModal({
           </div>
 
           {/* URLs */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-text-primary mb-1.5">Live URL</label>
               <input
@@ -270,6 +286,19 @@ function ProjectFormModal({
                 value={form.projectUrl}
                 onChange={(e) => set({ projectUrl: e.target.value })}
                 placeholder="https://..."
+                className="w-full px-4 py-2.5 bg-darkcard border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-primary mb-1.5">
+                YouTube Video URL
+                <span className="ml-1.5 text-[10px text-neon-emerald font-normal">(demo trực tiếp)</span>
+              </label>
+              <input
+                type="url"
+                value={form.videoUrl}
+                onChange={(e) => set({ videoUrl: e.target.value })}
+                placeholder="https://www.youtube.com/watch?v=... hoặc https://youtu.be/..."
                 className="w-full px-4 py-2.5 bg-darkcard border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
               />
             </div>

@@ -25,6 +25,17 @@ import { useProjectStore } from '@/store/projectStore';
 import ImageCarousel from '@/components/projects/ImageCarousel';
 import type { Project } from '@/types';
 
+function extractYouTubeId(url: string): string | null {
+  const patterns = [
+    /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})/,
+  ];
+  for (const pattern of patterns) {
+    const match = url.match(pattern);
+    if (match) return match[1];
+  }
+  return null;
+}
+
 const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   PLANNING: { label: 'Lên kế hoạch', color: 'text-blue-400', bg: 'bg-blue-500/15' },
   IN_PROGRESS: { label: 'Đang phát triển', color: 'text-yellow-400', bg: 'bg-yellow-500/15' },
@@ -138,6 +149,7 @@ export default function ProjectDetailPage() {
   const [project, setProject] = useState<Project | null>(null);
   const [loading, setLoading] = useState(true);
   const [relatedProjects, setRelatedProjects] = useState<Project[]>([]);
+  const [showVideo, setShowVideo] = useState(false);
 
   const slug = params?.slug as string;
 
@@ -228,6 +240,25 @@ export default function ProjectDetailPage() {
           </p>
 
           <div className="flex flex-wrap gap-3">
+            {(project as any).videoUrl && (
+              <button
+                onClick={() => {
+                  const id = extractYouTubeId((project as any).videoUrl!);
+                  if (id) setShowVideo(true);
+                }}
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-all hover:opacity-90"
+                style={{
+                  background: 'linear-gradient(135deg, #FF0000 0%, #CC0000 100%)',
+                  boxShadow: '0 4px 20px rgba(255,0,0,0.3)',
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+                  <path d="M23.5 6.2a3 3 0 0 0-2.1-2.1C19.5 3.5 12 3.5 12 3.5s-7.5 0-9.4.6A3 3 0 0 0 .5 6.2C0 8.1 0 12 0 12s0 3.9.5 5.8a3 3 0 0 0 2.1 2.1c1.9.6 9.4.6 9.4.6s7.5 0 9.4-.6a3 3 0 0 0 2.1-2.1C24 15.9 24 12 24 12s0-3.9-.5-5.8z" />
+                  <path d="M9.75 15.5V8.5l6.5 3.5-6.5 3.5z" fill="#FF0000" />
+                </svg>
+                Xem Demo
+              </button>
+            )}
             {project.projectUrl && (
               <a
                 href={project.projectUrl}
@@ -265,6 +296,12 @@ export default function ProjectDetailPage() {
             images={project.images ?? []}
             thumbnailUrl={project.thumbnailUrl}
             title={project.title}
+            videoUrl={(project as any).videoUrl}
+            onVideoClick={(url) => {
+              const id = extractYouTubeId(url);
+              if (id) setShowVideo(true);
+              else window.open(url, '_blank');
+            }}
           />
         </motion.div>
 
@@ -474,6 +511,33 @@ export default function ProjectDetailPage() {
           </motion.div>
         )}
       </div>
+
+      {/* ── YouTube Modal ── */}
+      {showVideo && project?.videoUrl && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)' }}
+          onClick={() => setShowVideo(false)}
+        >
+          <div className="relative w-full max-w-4xl" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={() => setShowVideo(false)}
+              className="absolute -top-10 right-0 text-white/70 hover:text-white text-sm font-medium"
+            >
+              Đóng
+            </button>
+            <div style={{ aspectRatio: '16/9' }}>
+              <iframe
+                src={`https://www.youtube.com/embed/${extractYouTubeId(project.videoUrl!)}?autoplay=1`}
+                title="Project Demo Video"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+                className="w-full h-full rounded-2xl"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -108,6 +108,8 @@ public class ProjectController {
         private String thumbnailUrl;
         private String projectUrl;
         private String githubUrl;
+        /** YouTube URL for demo video (e.g. https://www.youtube.com/watch?v=xxx or https://youtu.be/xxx) */
+        private String videoUrl;
         /** Comma-separated string, e.g. "React, Spring Boot, PostgreSQL" */
         private String techStack;
         private String role;
@@ -133,6 +135,8 @@ public class ProjectController {
         public void setProjectUrl(String u)  { this.projectUrl = u; }
         public String getGithubUrl()          { return githubUrl; }
         public void setGithubUrl(String u)   { this.githubUrl = u; }
+        public String getVideoUrl()          { return videoUrl; }
+        public void setVideoUrl(String v)    { this.videoUrl = v; }
         public String getTechStack()         { return techStack; }
         public void setTechStack(String t)   { this.techStack = t; }
         public String getRole()               { return role; }
@@ -158,6 +162,7 @@ public class ProjectController {
             p.setContent(content);
             p.setThumbnailUrl(thumbnailUrl);
             p.setProjectUrl(projectUrl);
+            p.setVideoUrl(videoUrl);
             p.setGithubUrl(githubUrl);
             p.setTechStack(techStack);
             p.setRole(role);

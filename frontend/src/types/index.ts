@@ -87,6 +87,7 @@ export interface Project {
   thumbnailUrl?: string;
   projectUrl?: string;
   githubUrl?: string;
+  videoUrl?: string;
   technologies?: string[];
   images?: string[];
   role?: string;
