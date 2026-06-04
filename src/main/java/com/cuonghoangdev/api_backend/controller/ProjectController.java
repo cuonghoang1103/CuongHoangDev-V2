@@ -88,8 +88,8 @@ public class ProjectController {
     public ResponseEntity<ApiResponse<ProjectDto>> updateProject(
             @PathVariable Long id,
             @RequestBody ProjectRequest request) {
-        // Slug uniqueness check is inside the service updateProject method
-        ProjectDto updated = projectService.updateProject(id, request);
+        Project updates = request.toEntity();
+        ProjectDto updated = projectService.updateProject(id, updates);
         return ResponseEntity.ok(ApiResponse.ok("Cập nhật dự án thành công", updated));
     }
 
