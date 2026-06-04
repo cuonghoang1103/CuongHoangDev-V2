@@ -52,8 +52,10 @@ export default function RootLayout({
             </ClientOnly>
             {children}
             <MusicAudioController />
-            <GlobalMusicPlayer />
-            <FloatingAIAssistant />
+            <ClientOnly>
+              <GlobalMusicPlayer />
+              <FloatingAIAssistant />
+            </ClientOnly>
           </LocaleWrapper>
         </AuthProvider>
       </body>

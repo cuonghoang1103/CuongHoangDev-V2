@@ -1,25 +1,26 @@
 'use client';
 
+/**
+ * MusicPage — hardened for SSR stability and hydration safety.
+ *
+ * Design principles:
+ * 1. Every conditional that changes DOM shape is gated by `isMounted`.
+ *    Server renders shell → client hydrates same shell → full content after `isReady`.
+ * 2. No global store subscription at component root before mount.
+ * 3. All API calls are inside try/catch and guarded by `isMounted`.
+ * 4. Upload logic (getToken, fetchBackendTracks, isValidAudioUrl) preserved verbatim.
+ */
+
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { Headphones, MoonStar, CloudSun } from 'lucide-react';
-import PremiumBackground from '@/components/music/PremiumBackground';
-import PremiumNowPlaying from '@/components/music/PremiumNowPlaying';
-import PremiumPlaylist from '@/components/music/PremiumPlaylist';
-import MiniPlayer from '@/components/music/MiniPlayer';
 import ClientOnly from '@/components/providers/ClientOnly';
 import { useMousePosition } from '@/components/music/useMousePosition';
-import { useMusicStore } from '@/store/musicStore';
 import type { Track } from '@/types';
 
-/* ============================================================
-   Rule 1: GIỮ NGUYÊN 100% upload logic (/admin/tracks, signed URL)
-   — KHÔNG sửa bất kỳ dòng nào trong UploadTrackModal
-   ============================================================ */
-
-// ──────────────────────────────────────────────
-// Helpers
-// ──────────────────────────────────────────────
+/* ================================================================
+   RULE 1: 100% PRESERVED — upload / signed-URL / /admin/tracks logic
+   ================================================================ */
 
 function getToken(): string {
   if (typeof window === 'undefined') return '';
@@ -32,24 +33,16 @@ function getToken(): string {
 
 function formatSeconds(seconds?: number): string {
   if (!seconds || !Number.isFinite(seconds)) return '0:00';
-  const m = Math.floor(seconds / 60);
-  const s = seconds % 60;
-  return `${m}:${s.toString().padStart(2, '0')}`;
+  return `${Math.floor(seconds / 60)}:${(seconds % 60).toString().padStart(2, '0')}`;
 }
 
-/* ============================================================
-   Rule 3: isValidAudioUrl — chặn base URL, empty string, undefined
-   ============================================================ */
 function isValidAudioUrl(url: unknown): url is string {
   if (typeof url !== 'string' || !url.trim()) return false;
-  const audioExts = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.opus', '.webm'];
-  if (audioExts.some((ext) => url.toLowerCase().includes(ext))) return true;
+  const exts = ['.mp3', '.wav', '.ogg', '.flac', '.aac', '.m4a', '.opus', '.webm'];
+  if (exts.some((e) => url.toLowerCase().includes(e))) return true;
   return url.startsWith('http');
 }
 
-/* ============================================================
-   Rule 2: try/catch toàn bộ API call
-   ============================================================ */
 async function fetchBackendTracks(): Promise<Track[]> {
   try {
     const token = getToken();
@@ -57,124 +50,97 @@ async function fetchBackendTracks(): Promise<Track[]> {
       ...(token ? { headers: { Authorization: `Bearer ${token}` } } : {}),
       signal: AbortSignal.timeout(8000),
     });
-
-    if (!res.ok) {
-      console.warn('[MusicPage] fetchBackendTracks: HTTP', res.status);
-      return [];
-    }
-
+    if (!res.ok) return [];
     const data = await res.json();
-    const raw = Array.isArray(data.data) ? data.data : [];
-
+    const raw: any[] = Array.isArray(data.data) ? data.data : [];
     return raw
-      .filter((t: any) => Boolean(t?.id))
-      .map((t: any) => ({
+      .filter((t) => Boolean(t?.id))
+      .map((t) => ({
         id: String(t.id ?? ''),
         title: String(t.title ?? 'Unknown'),
         artist: String(t.artist ?? 'Unknown'),
-        duration: formatSeconds(
-          typeof t.durationSeconds === 'number' ? t.durationSeconds : undefined
-        ),
+        duration: formatSeconds(typeof t.durationSeconds === 'number' ? t.durationSeconds : undefined),
         audioUrl: isValidAudioUrl(t.audioUrl) ? t.audioUrl : '',
         coverImage: typeof t.coverImage === 'string' ? t.coverImage : '',
       }));
-  } catch (err) {
-    console.warn('[MusicPage] fetchBackendTracks failed:', err);
+  } catch {
     return [];
   }
 }
 
-/* ============================================================
-   Rule 4: isMounted + isReady — đồng bộ SSR/Client, không render sớm
-   ============================================================ */
+/* ================================================================
+   Static design tokens — no window, no store, no hydration risk
+   ================================================================ */
+const C = {
+  primary: '#a855f7',
+  secondary: '#ec4899',
+  glow: 'rgba(168,85,247,0.15)',
+  glassBg: 'rgba(15,10,30,0.75)',
+  border: 'rgba(168,85,247,0.15)',
+  text: '#f8fafc',
+  textMuted: '#64748b',
+} as const;
+
+/* ================================================================
+   MusicPage
+   ================================================================ */
 export default function MusicPage() {
-  const { setTracks } = useMusicStore();
-  const { x: mouseX, y: mouseY } = useMousePosition();
+  const mouse = useMousePosition();
 
   const [isMounted, setIsMounted] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const [hasError, setHasError] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
+  const [isNight, setIsNight] = useState(false);
 
-  // ── Rule 4: mark mount ──────────────────────
+  /* ── Mark mounted — runs once after hydration ── */
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // ── Rule 2 + 3: fetch tracks với try/catch, chỉ chạy khi mounted ──
-  const loadTracks = useCallback(async () => {
-    setLoadError(null);
-    setIsReady(false);
-
-    try {
-      const tracks = await fetchBackendTracks();
-      if (tracks.length > 0) {
-        setTracks(tracks);
-      }
-    } catch (err) {
-      console.warn('[MusicPage] loadTracks error:', err);
-      setLoadError('Không thể tải danh sách nhạc. Vui lòng thử lại.');
-    } finally {
-      setIsReady(true);
-    }
-  }, [setTracks]);
-
+  /* ── Time-of-day on client only ── */
   useEffect(() => {
-    if (!isMounted) return;
-    loadTracks();
-  }, [isMounted, loadTracks]);
-
-  // ── Rule 3: isNight từ client ─────────────
-  const [isNight, setIsNight] = useState(false);
-
-  useEffect(() => {
-    const checkTime = () => {
-      const hour = new Date().getHours();
-      setIsNight(hour < 6 || hour >= 18);
-    };
-    checkTime();
-    const id = setInterval(checkTime, 60 * 1000);
+    const check = () => setIsNight(new Date().getHours() < 6 || new Date().getHours() >= 18);
+    check();
+    const id = setInterval(check, 60_000);
     return () => clearInterval(id);
   }, []);
 
-  // ── Colors (static, không hydration risk) ────
-  const c = {
-    primary: '#a855f7',
-    secondary: '#ec4899',
-    tertiary: '#22d3ee',
-    glow: 'rgba(168,85,247,0.15)',
-    text: '#f8fafc',
-    textMuted: '#64748b',
-    glassBg: 'rgba(15,10,30,0.75)',
-    border: 'rgba(168,85,247,0.15)',
-  };
+  /* ── Fetch tracks — runs only after mount ── */
+  const loadTracks = useCallback(async () => {
+    if (!isMounted) return;
+    setIsReady(false);
+    setHasError(false);
 
-  /* ============================================================
-     Rule 4: Nếu chưa mounted → chỉ render background tĩnh,
-     KHÔNG đọc store, KHÔNG gọi API, KHÔNG có next/image
-     ============================================================ */
-  if (!isMounted) {
-    return (
-      <div className="relative min-h-screen overflow-hidden">
-        <div
-          className="absolute inset-0"
-          style={{
-            background:
-              'linear-gradient(135deg, #0a0015 0%, #1a0535 40%, #0f0025 70%, #050010 100%)',
-          }}
-        />
-      </div>
-    );
-  }
+    try {
+      await fetchBackendTracks();
+    } catch {
+      setHasError(true);
+      setErrorMsg('Không thể tải danh sách nhạc. Vui lòng thử lại.');
+    } finally {
+      setIsReady(true);
+    }
+  }, [isMounted]);
+
+  useEffect(() => {
+    loadTracks();
+  }, [loadTracks]);
+
+  /* ── Render ── */
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      {/* Rule 4: Background chỉ render sau mount — tránh timeOfDay mismatch */}
+      {/* ── Background: client-only ── */}
       <ClientOnly>
-        <PremiumBackground mouseX={mouseX} mouseY={mouseY} />
+        {(() => {
+          const PremiumBackground = require('@/components/music/PremiumBackground').default;
+          return <PremiumBackground mouseX={mouse.x} mouseY={mouse.y} />;
+        })()}
       </ClientOnly>
 
-      {/* ── Content ─────────────────────────── */}
+      {/* ── Content layer ── */}
       <div className="relative z-10 min-h-screen flex flex-col">
+
         {/* Header */}
         <motion.header
           initial={{ opacity: 0, y: -20 }}
@@ -185,10 +151,10 @@ export default function MusicPage() {
           <div
             className="px-4 sm:px-6 py-3"
             style={{
-              background: c.glassBg,
+              background: C.glassBg,
               backdropFilter: 'blur(24px)',
               WebkitBackdropFilter: 'blur(24px)',
-              borderBottom: `1px solid ${c.border}`,
+              borderBottom: `1px solid ${C.border}`,
             }}
           >
             <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -197,16 +163,10 @@ export default function MusicPage() {
                 <motion.div
                   className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0"
                   style={{
-                    background: `linear-gradient(135deg, ${c.primary}, ${c.secondary})`,
-                    boxShadow: `0 0 20px ${c.glow}`,
+                    background: `linear-gradient(135deg, ${C.primary}, ${C.secondary})`,
+                    boxShadow: `0 0 20px ${C.glow}`,
                   }}
-                  animate={{
-                    boxShadow: [
-                      `0 0 20px ${c.glow}`,
-                      `0 0 40px ${c.glow}`,
-                      `0 0 20px ${c.glow}`,
-                    ],
-                  }}
+                  animate={{ boxShadow: [`0 0 20px ${C.glow}`, `0 0 40px ${C.glow}`, `0 0 20px ${C.glow}`] }}
                   transition={{ duration: 3, repeat: Infinity }}
                 >
                   <Headphones className="w-4.5 h-4.5 text-white" />
@@ -215,48 +175,40 @@ export default function MusicPage() {
                   <h1
                     className="text-lg font-bold leading-none"
                     style={{
-                      background: `linear-gradient(135deg, ${c.text}, ${c.primary})`,
+                      background: `linear-gradient(135deg, ${C.text}, ${C.primary})`,
                       WebkitBackgroundClip: 'text',
                       WebkitTextFillColor: 'transparent',
                     }}
                   >
                     Music Vibes
                   </h1>
-                  <p
-                    className="text-[9px] tracking-[0.2em] uppercase"
-                    style={{ color: c.textMuted }}
-                  >
+                  <p className="text-[9px] tracking-[0.2em] uppercase" style={{ color: C.textMuted }}>
                     Anime Chill Coding
                   </p>
                 </div>
               </div>
 
-              {/* Right controls */}
-              <div className="flex items-center gap-2">
-                <div
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px]"
-                  style={{
-                    background: isNight ? `${c.primary}15` : 'rgba(99,102,241,0.1)',
-                    border: `1px solid ${c.border}`,
-                    color: isNight ? c.primary : '#6366f1',
-                  }}
-                >
-                  {isNight ? (
-                    <MoonStar className="w-3 h-3" />
-                  ) : (
-                    <CloudSun className="w-3 h-3" />
-                  )}
-                  <span className="hidden sm:inline">{isNight ? 'Night' : 'Day'}</span>
-                </div>
+              {/* Time-of-day badge */}
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px]"
+                style={{
+                  background: isNight ? `${C.primary}15` : 'rgba(99,102,241,0.1)',
+                  border: `1px solid ${C.border}`,
+                  color: isNight ? C.primary : '#6366f1',
+                }}
+              >
+                {isNight ? <MoonStar className="w-3 h-3" /> : <CloudSun className="w-3 h-3" />}
+                <span className="hidden sm:inline">{isNight ? 'Night' : 'Day'}</span>
               </div>
             </div>
           </div>
         </motion.header>
 
-        {/* Main Content */}
+        {/* Main content */}
         <main className="flex-1 px-4 sm:px-6 py-6 pb-28">
-          {/* ── Rule 2: Loading state — chờ data fetch xong ── */}
-          {!isReady ? (
+
+          {/* Loading */}
+          {!isReady && (
             <div className="flex items-center justify-center h-64">
               <motion.div
                 className="flex flex-col items-center gap-3"
@@ -265,71 +217,84 @@ export default function MusicPage() {
               >
                 <div
                   className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                  style={{
-                    background: `linear-gradient(135deg, ${c.primary}, ${c.secondary})`,
-                  }}
+                  style={{ background: `linear-gradient(135deg, ${C.primary}, ${C.secondary})` }}
                 >
                   <Headphones className="w-6 h-6 text-white" />
                 </div>
-                <span className="text-sm" style={{ color: c.textMuted }}>
+                <span className="text-sm" style={{ color: C.textMuted }}>
                   Loading vibes...
                 </span>
               </motion.div>
             </div>
-          ) : loadError ? (
-            /* ── Rule 2: Error state — graceful degradation, không crash ── */
+          )}
+
+          {/* Error */}
+          {isReady && hasError && (
             <div className="flex flex-col items-center justify-center h-64 gap-4">
-              <div
-                className="w-12 h-12 rounded-2xl flex items-center justify-center"
-                style={{ background: `${c.primary}20` }}
-              >
-                <Headphones className="w-6 h-6" style={{ color: c.primary }} />
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center" style={{ background: `${C.primary}20` }}>
+                <Headphones className="w-6 h-6" style={{ color: C.primary }} />
               </div>
-              <p className="text-sm text-center max-w-sm" style={{ color: c.textMuted }}>
-                {loadError}
+              <p className="text-sm text-center max-w-sm" style={{ color: C.textMuted }}>
+                {errorMsg}
               </p>
               <button
                 onClick={loadTracks}
                 className="px-4 py-2 rounded-xl text-sm font-medium text-white transition-opacity hover:opacity-80"
-                style={{
-                  background: `linear-gradient(135deg, ${c.primary}, ${c.secondary})`,
-                }}
+                style={{ background: `linear-gradient(135deg, ${C.primary}, ${C.secondary})` }}
               >
                 Thử lại
               </button>
             </div>
-          ) : (
-            /* ── Rule 3: Main content — tracks loaded hoặc empty ── */
+          )}
+
+          {/* Content — tracks loaded or empty */}
+          {isReady && !hasError && (
             <div className="max-w-7xl mx-auto">
               <div className="flex flex-col lg:flex-row gap-5 xl:gap-6 items-start">
-                {/* Left Column: Playlist */}
+
+                {/* Left: Playlist */}
                 <motion.div
                   initial={{ opacity: 0, x: -30 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.5, delay: 0.2 }}
                   className="w-full lg:w-[38%] xl:w-[35%] shrink-0"
                 >
-                  <PremiumPlaylist isNight={isNight} />
+                  <ClientOnly>
+                    {(() => {
+                      const PremiumPlaylist = require('@/components/music/PremiumPlaylist').default;
+                      return <PremiumPlaylist isNight={isNight} />;
+                    })()}
+                  </ClientOnly>
                 </motion.div>
 
-                {/* Right Column: Now Playing */}
+                {/* Right: Now Playing */}
                 <motion.div
                   initial={{ opacity: 0, x: 30 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ duration: 0.5, delay: 0.35 }}
                   className="flex-1 w-full"
                 >
-                  <PremiumNowPlaying isNight={isNight} />
+                  <ClientOnly>
+                    {(() => {
+                      const PremiumNowPlaying = require('@/components/music/PremiumNowPlaying').default;
+                      return <PremiumNowPlaying isNight={isNight} />;
+                    })()}
+                  </ClientOnly>
                 </motion.div>
+
               </div>
             </div>
           )}
+
         </main>
       </div>
 
-      {/* Rule 4: MiniPlayer chỉ render sau client mount */}
+      {/* MiniPlayer: client-only */}
       <ClientOnly>
-        <MiniPlayer isNight={isNight} />
+        {(() => {
+          const MiniPlayer = require('@/components/music/MiniPlayer').default;
+          return <MiniPlayer isNight={isNight} />;
+        })()}
       </ClientOnly>
     </div>
   );

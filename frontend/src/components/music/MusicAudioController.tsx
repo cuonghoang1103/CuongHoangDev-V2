@@ -37,9 +37,10 @@ export default function MusicAudioController() {
     return url.startsWith('http');
   }
 
-  // Create audio element exactly once
+  // Create audio element exactly once — SSR-safe
   useEffect(() => {
     if (audioRef.current) return;
+    if (typeof window === 'undefined') return;
 
     const audio = new Audio();
     audio.crossOrigin = 'anonymous';
