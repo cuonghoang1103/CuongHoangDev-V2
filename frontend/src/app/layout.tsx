@@ -7,7 +7,7 @@ import AuthProvider from '@/components/providers/AuthProvider'
 import ToasterProvider from '@/components/providers/ToasterProvider'
 import MusicAudioController from '@/components/music/MusicAudioController'
 import LocaleWrapper from '@/components/providers/LocaleWrapper'
-import { useRehydrateStores } from '@/store/useRehydrateStores'
+import ClientOnly from '@/components/providers/ClientOnly'
 
 // GlobalMusicPlayer reads from localStorage — never runs on the server.
 const GlobalMusicPlayer = dynamic(
@@ -15,7 +15,7 @@ const GlobalMusicPlayer = dynamic(
   { ssr: false }
 )
 
-// FloatingAIAssistant reads from Zustand + localStorage - never runs on the server.
+// FloatingAIAssistant reads from Zustand + localStorage — never runs on the server.
 const FloatingAIAssistant = dynamic(
   () => import('@/components/chat/FloatingAIAssistant'),
   { ssr: false }
@@ -30,11 +30,6 @@ export const metadata: Metadata = {
   },
 }
 
-function RehydrateWrapper({ children }: { children: React.ReactNode }) {
-  useRehydrateStores();
-  return <>{children}</>;
-}
-
 export default function RootLayout({
   children,
 }: {
@@ -46,14 +41,19 @@ export default function RootLayout({
         <AuthProvider>
           <ToasterProvider />
           <LocaleWrapper>
-            <RehydrateWrapper>
+            {/*
+              Navbar reads authStore + cartStore (persisted Zustand stores).
+              Wrap in ClientOnly so it only renders after hydration — prevents
+              React #300 hydration mismatch when navigating between pages.
+            */}
+            <ClientOnly>
               <Navbar />
-              {children}
               <CartDrawer />
-              <MusicAudioController />
-              <GlobalMusicPlayer />
-              <FloatingAIAssistant />
-            </RehydrateWrapper>
+            </ClientOnly>
+            {children}
+            <MusicAudioController />
+            <GlobalMusicPlayer />
+            <FloatingAIAssistant />
           </LocaleWrapper>
         </AuthProvider>
       </body>

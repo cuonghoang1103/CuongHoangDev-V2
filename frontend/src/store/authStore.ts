@@ -101,7 +101,6 @@ export const useAuthStore = create<AuthState>()(
       onRehydrateStorage: () => (state) => {
         state?.setLoading(false);
       },
-      skipHydration: true,
     }
   )
 );
