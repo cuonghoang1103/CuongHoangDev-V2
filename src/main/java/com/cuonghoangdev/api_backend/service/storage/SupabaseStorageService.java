@@ -303,6 +303,10 @@ public class SupabaseStorageService implements StorageService {
         if (effectiveApikey == null || effectiveApikey.isBlank()) {
             throw new IOException("No Supabase key available — SUPABASE_ANON_KEY and SUPABASE_SERVICE_ROLE_KEY are both unset");
         }
+        log.info("[Supabase] Using apikey: anonKey set={}, serviceRoleKey set={}, effectiveKey={}...",
+                anonKey != null && !anonKey.isBlank(),
+                serviceRoleKey != null && !serviceRoleKey.isBlank(),
+                effectiveApikey.length() > 8 ? effectiveApikey.substring(0, 8) : effectiveApikey);
 
         // Use anon key for the /upload/sign endpoint
         // (this endpoint requires anon-level auth, not service role)
@@ -335,40 +339,35 @@ public class SupabaseStorageService implements StorageService {
                 String signedPath = (String) response.getBody().get("url");
                 String token = (String) response.getBody().get("token");
 
+                log.info("[Supabase] Sign response fields — signedPath={}, token={}", signedPath, token);
+
                 if (signedPath == null) {
                     throw new IOException("Supabase returned null signed URL path. Body: " + response.getBody());
                 }
 
-                // Build base URL: signedPath from Supabase may be absolute or relative
-                // Supabase v1 returns "/object/upload/sign/..." but the full API endpoint
-                // requires "/storage/v1/object/upload/sign/..." — normalize it here
-                String signedPathToUse = signedPath;
-                if (!signedPathToUse.startsWith("http")) {
-                    // Supabase returns relative paths without /storage/v1 prefix
-                    if (signedPathToUse.startsWith("/object")) {
-                        signedPathToUse = "/storage/v1" + signedPathToUse;
+                // Build upload URL: prepend storage/v1 path if signedPath is just a token
+                String uploadUrl;
+                if (signedPath.startsWith("http")) {
+                    // signedPath is already a full URL — just append apikey
+                    uploadUrl = signedPath;
+                    if (!uploadUrl.contains("apikey=")) {
+                        String sep = uploadUrl.contains("?") ? "&" : "?";
+                        uploadUrl += sep + "apikey=" + URLEncoder.encode(effectiveApikey, StandardCharsets.UTF_8);
                     }
-                    signedPathToUse = supabaseUrl + signedPathToUse;
-                } else if (signedPathToUse.contains(".supabase.co/object/") && !signedPathToUse.contains("/storage/v1/")) {
-                    // Absolute URL but missing /storage/v1 segment — fix it
-                    signedPathToUse = signedPathToUse.replace("/object/", "/storage/v1/object/");
-                }
-                String baseUrl = signedPathToUse;
-
-                // Append query params — both apikey AND token are REQUIRED
-                String separator = baseUrl.contains("?") ? "&" : "?";
-
-                // apikey: URL-encode to handle special chars (_ -) in anon keys
-                String encodedApikey = URLEncoder.encode(effectiveApikey, StandardCharsets.UTF_8);
-                String uploadUrl = baseUrl + separator + "apikey=" + encodedApikey;
-
-                // token: HMAC signature from Supabase — without this, PUT will be rejected
-                if (token != null && !token.isBlank()) {
-                    String encodedToken = URLEncoder.encode(token, StandardCharsets.UTF_8);
-                    uploadUrl += "&token=" + encodedToken;
+                } else {
+                    // signedPath is just a token — construct full URL
+                    String pathPart = signedPath.startsWith("/")
+                        ? "/storage/v1" + signedPath
+                        : "/storage/v1/object/upload/sign/" + bucketName + "/" + signedPath;
+                    String baseUrl = supabaseUrl + pathPart;
+                    String sep = baseUrl.contains("?") ? "&" : "?";
+                    uploadUrl = baseUrl + sep + "apikey=" + URLEncoder.encode(effectiveApikey, StandardCharsets.UTF_8);
+                    if (token != null && !token.isBlank() && !uploadUrl.contains("token=")) {
+                        uploadUrl += "&token=" + URLEncoder.encode(token, StandardCharsets.UTF_8);
+                    }
                 }
 
-                log.info("[Supabase] Signed URL ready — final URL has {} chars", uploadUrl.length());
+                log.info("[Supabase] Final upload URL ({} chars): {}", uploadUrl.length(), uploadUrl);
                 return uploadUrl;
             } else {
                 throw new IOException("Failed to create signed URL: HTTP " + response.getStatusCode() +

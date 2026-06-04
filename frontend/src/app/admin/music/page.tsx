@@ -209,6 +209,9 @@ export default function AdminMusicPage() {
         supabasePath = sigInner.path as string;
         audioUrl = sigInner.publicUrl as string;
 
+        console.log('[MusicUpload] uploadUrl from backend:', uploadUrl);
+        console.log('[MusicUpload] full URL (first 200):', (uploadUrl || '').slice(0, 200));
+
         if (!uploadUrl || !supabasePath) {
           toast.error('Signed URL khong hop le tu backend');
           return;
