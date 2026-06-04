@@ -94,11 +94,16 @@ export default function Navbar() {
   const [verifiedAdmin, setVerifiedAdmin] = useState(false);
 
   const verifyAdmin = useCallback(async () => {
-    const token = useAuthStore.getState().token;
-    if (token) {
+    // Read token from httpOnly cookie — not from Zustand/localStorage (token was removed for security)
+    const cookieToken = typeof document !== 'undefined'
+      ? (document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] ?? '')
+      : '';
+
+    if (cookieToken) {
       try {
         const res = await fetch('/api/v1/profile', {
-          headers: { Authorization: `Bearer ${token}` },
+          credentials: 'include',
+          headers: { Authorization: `Bearer ${cookieToken}` },
         });
         if (res.ok) {
           const data = await res.json();
