@@ -65,8 +65,9 @@ export default function MusicPage() {
     if (!isHydrated || initialized) return;
 
     const init = async () => {
+      // Always fetch from backend as source of truth — uploaded tracks may not be in localStorage
       const backendTracks = await fetchBackendTracks();
-      if (tracks.length === 0 && backendTracks.length > 0) {
+      if (backendTracks.length > 0) {
         setTracks(backendTracks);
       }
       setInitialized(true);
