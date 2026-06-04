@@ -18,6 +18,7 @@ import PremiumNowPlaying from '@/components/music/PremiumNowPlaying';
 import PremiumPlaylist from '@/components/music/PremiumPlaylist';
 import MiniPlayer from '@/components/music/MiniPlayer';
 import { useMousePosition } from '@/components/music/useMousePosition';
+import { useMusicStore } from '@/store/musicStore';
 import type { Track } from '@/types';
 
 function formatSeconds(seconds?: number): string {
@@ -148,6 +149,7 @@ export default function MusicPage() {
   const [hasError, setHasError] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [isNight, setIsNight] = useState(false);
+  const storeSetTracks = useMusicStore((s) => s.setTracks);
   const [tracks, setTracks] = useState<Track[]>([]);
 
   useEffect(() => {
@@ -170,6 +172,8 @@ export default function MusicPage() {
     try {
       const result = await fetchBackendTracks();
       setTracks(result);
+      // Sync into Zustand store so PremiumPlaylist/MiniPlayer see the tracks
+      storeSetTracks(result);
     } catch {
       setHasError(true);
       setErrorMsg('Không thể tải danh sách nhạc. Vui lòng thử lại.');
@@ -177,7 +181,7 @@ export default function MusicPage() {
     } finally {
       setIsReady(true);
     }
-  }, [isMounted]);
+  }, [isMounted, storeSetTracks]);
 
   useEffect(() => {
     loadTracks();
