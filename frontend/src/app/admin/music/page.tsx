@@ -263,9 +263,25 @@ export default function AdminMusicPage() {
       // ── Step 0: Upload cover image to Cloudinary (small, no 4.5MB risk) ──
       let coverImageUrl: string | null = null;
       if (coverFile) {
-        const coverRes = await fileApi.upload(coverFile, 'music-covers');
-        coverImageUrl = (coverRes as any)?.data?.url || null;
-        if (!coverImageUrl) {
+        console.log('[AdminMusic] Step 0: Uploading cover image to Cloudinary...');
+        try {
+          const coverRes = await fileApi.upload(coverFile, 'music-covers');
+          console.log('[AdminMusic] Cover upload raw response:', coverRes);
+          // Backend wraps in ApiResponse -> ApiResponse.data.url
+          const rawData = (coverRes as any);
+          coverImageUrl =
+            rawData?.data?.url ||        // ApiResponse<{url}>.data.url
+            rawData?.url ||              // direct
+            rawData?.data?.data?.url ||   // double-nested
+            null;
+          console.log('[AdminMusic] Cover URL extracted:', coverImageUrl);
+          if (!coverImageUrl) {
+            console.warn('[AdminMusic] Cover upload returned no URL — continuing without cover');
+            toast.warning('Upload ảnh bìa thất bại — tiếp tục không có ảnh');
+          }
+        } catch (coverErr: unknown) {
+          const errMsg = (coverErr as { message?: string })?.message || String(coverErr);
+          console.error('[AdminMusic] Cover upload error:', errMsg, coverErr);
           toast.warning('Upload ảnh bìa thất bại — tiếp tục không có ảnh');
         }
       } else if (coverImage && !coverImage.startsWith('blob:')) {

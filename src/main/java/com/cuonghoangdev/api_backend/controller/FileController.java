@@ -6,6 +6,8 @@ import com.cuonghoangdev.api_backend.repository.FileAttachmentRepository;
 import com.cuonghoangdev.api_backend.security.UserPrincipal;
 import com.cuonghoangdev.api_backend.service.storage.CloudinaryStorageService;
 import com.cuonghoangdev.api_backend.service.storage.StorageResult;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -21,6 +23,8 @@ import java.util.Map;
 @RequestMapping("/api/v1/files")
 public class FileController {
 
+    private static final Logger log = LoggerFactory.getLogger(FileController.class);
+
     @Autowired
     private CloudinaryStorageService cloudinaryService;
 
@@ -33,8 +37,20 @@ public class FileController {
             @RequestParam(value = "category", required = false, defaultValue = "misc") String category,
             @AuthenticationPrincipal UserPrincipal currentUser) {
 
+        log.info("[FileController] ===== uploadFile ENTRY =====");
+        log.info("[FileController]   file.name        = {}", file.getOriginalFilename());
+        log.info("[FileController]   file.size        = {} bytes", file.getSize());
+        log.info("[FileController]   file.contentType = {}", file.getContentType());
+        log.info("[FileController]   category         = {}", category);
+        log.info("[FileController]   currentUser     = {}", currentUser);
+
         try {
+            log.info("[FileController] Calling cloudinaryService.upload...");
             StorageResult result = cloudinaryService.upload(file, category);
+            log.info("[FileController] cloudinaryService.upload SUCCESS");
+            log.info("[FileController]   result.url              = {}", result.getUrl());
+            log.info("[FileController]   result.publicId         = {}", result.getPublicId());
+            log.info("[FileController]   result.originalFileName = {}", result.getOriginalFileName());
 
             FileAttachment attachment = new FileAttachment();
             attachment.setOriginalName(result.getOriginalFileName());
@@ -60,6 +76,16 @@ public class FileController {
 
             return ResponseEntity.ok(ApiResponse.ok("Upload thanh cong", response));
         } catch (IOException e) {
+            log.error("[FileController] ===== uploadFile FAILED =====", e);
+            log.error("[FileController]   Exception class : {}", e.getClass().getName());
+            log.error("[FileController]   Exception message: {}", e.getMessage());
+            log.error("[FileController]   Root cause      : {}", e.getCause());
+            return ResponseEntity.internalServerError()
+                    .body(ApiResponse.<Map<String, Object>>error("Upload that bai: " + e.getMessage()));
+        } catch (Exception e) {
+            log.error("[FileController] ===== uploadFile UNEXPECTED ERROR =====", e);
+            log.error("[FileController]   Exception class : {}", e.getClass().getName());
+            log.error("[FileController]   Exception message: {}", e.getMessage());
             return ResponseEntity.internalServerError()
                     .body(ApiResponse.<Map<String, Object>>error("Upload that bai: " + e.getMessage()));
         }
