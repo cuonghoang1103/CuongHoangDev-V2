@@ -275,11 +275,12 @@ public class MusicController {
             @RequestParam(value = "cover", required = false) MultipartFile cover,
             @RequestParam(value = "title", defaultValue = "") String title,
             @RequestParam(value = "artist", defaultValue = "") String artist,
-            @RequestParam(value = "durationSeconds", defaultValue = "0") int durationSeconds
+            @RequestParam(value = "durationSeconds", defaultValue = "0") int durationSeconds,
+            @RequestParam(value = "coverImageUrl", required = false) String coverImageUrl
     ) {
         String audioUrl = null;
         String supabasePath = null;
-        String coverUrl = null;
+        String coverUrl = coverImageUrl;
         Long fileSize = null;
 
         try {
