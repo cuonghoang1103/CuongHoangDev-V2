@@ -1,8 +1,9 @@
 package com.cuonghoangdev.api_backend.entity;
 
-import io.hypersistence.utils.hibernate.type.json.JsonType;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.persistence.*;
-import org.hibernate.annotations.Type;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -16,6 +17,8 @@ import java.util.List;
 @Table(name = "products")
 @EntityListeners(AuditingEntityListener.class)
 public class Product {
+
+    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -68,16 +71,14 @@ public class Product {
     private String fileUrl;
 
     /**
-     * Dynamic specification key-value pairs — serialized as JSON.
+     * Dynamic specification key-value pairs — stored as JSON TEXT in PostgreSQL.
      * Examples:
-     *   AI Account:  [{ "label": "Loại tài khoản", "value": "ChatGPT Plus" }, { "label": "Bộ nhớ", "value": "32K tokens" }]
-     *   Tool/Script: [{ "label": "Phiên bản", "value": "v2.3.1" }, { "label": "Tương thích", "value": "Node 18+" }]
-     *   IoT:         [{ "label": "Chipset", "value": "ESP32" }, { "label": "Wifi", "value": "2.4GHz 802.11n" }]
-     *   Second-hand: [{ "label": "Tình trạng", "value": "Đã qua sử dụng - 9/10" }, { "label": "Phụ kiện", "value": "Đầy đủ" }]
+     *   AI Account:  [{ "label": "Loại tài khoản", "value": "ChatGPT Plus" }, ...]
+     *   Tool/Script: [{ "label": "Phiên bản", "value": "v2.3.1" }, ...]
+     * Serialized/deserialized manually via Jackson ObjectMapper — no Hibernate version dependency.
      */
-    @Type(JsonType.class)
-    @Column(name = "specs", columnDefinition = "jsonb")
-    private List<ProductSpec> specs = new ArrayList<>();
+    @Column(name = "specs", columnDefinition = "TEXT")
+    private String specsJson = "[]";
 
     /**
      * Markdown/HTML guidance text for deployment instructions, warranty, and FAQ.
@@ -95,6 +96,45 @@ public class Product {
     private LocalDateTime updatedAt;
 
     public Product() {}
+
+    // ══════════════════════════════════════════════════════════════════════════════
+    // Specs — serialized as JSON TEXT, not a Hibernate JSON type
+    // ══════════════════════════════════════════════════════════════════════════════
+
+    /**
+     * Returns the specs list, deserialized from the stored JSON.
+     * Returns an empty list on parse error or if the stored value is null/blank.
+     */
+    @Transient
+    public List<ProductSpec> getSpecs() {
+        if (specsJson == null || specsJson.isBlank()) {
+            return new ArrayList<>();
+        }
+        try {
+            return MAPPER.readValue(specsJson, new TypeReference<List<ProductSpec>>() {});
+        } catch (JsonProcessingException e) {
+            return new ArrayList<>();
+        }
+    }
+
+    /**
+     * Serializes the given specs list and stores it as JSON in the TEXT column.
+     */
+    public void setSpecs(List<ProductSpec> specs) {
+        if (specs == null || specs.isEmpty()) {
+            this.specsJson = "[]";
+            return;
+        }
+        try {
+            this.specsJson = MAPPER.writeValueAsString(specs);
+        } catch (JsonProcessingException e) {
+            this.specsJson = "[]";
+        }
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════════
+    // Accessors for fields managed by JPA / manual setters
+    // ══════════════════════════════════════════════════════════════════════════════
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
@@ -128,8 +168,6 @@ public class Product {
     public void setType(String type) { this.type = type; }
     public String getFileUrl() { return fileUrl; }
     public void setFileUrl(String fileUrl) { this.fileUrl = fileUrl; }
-    public List<ProductSpec> getSpecs() { return specs; }
-    public void setSpecs(List<ProductSpec> specs) { this.specs = specs; }
     public String getGuidance() { return guidance; }
     public void setGuidance(String guidance) { this.guidance = guidance; }
     public LocalDateTime getCreatedAt() { return createdAt; }
@@ -137,13 +175,12 @@ public class Product {
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
-    // ─── Nested embeddable: specification key-value pair ─────────────────────
-    @Embeddable
-    public static class ProductSpec {
-        @Column(length = 200)
-        private String label;
+    // ══════════════════════════════════════════════════════════════════════════════
+    // Nested embeddable: specification key-value pair (POJO, no JPA annotations)
+    // ══════════════════════════════════════════════════════════════════════════════
 
-        @Column(length = 1000)
+    public static class ProductSpec {
+        private String label;
         private String value;
 
         public ProductSpec() {}

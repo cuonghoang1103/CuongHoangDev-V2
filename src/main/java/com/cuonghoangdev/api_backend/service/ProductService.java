@@ -72,9 +72,8 @@ public class ProductService {
 
     @Transactional
     public ProductDto createProduct(Product product) {
-        Product saved = productRepository.save(product);
-        Hibernate.initialize(saved.getSpecs());
-        return toDto(saved);
+        // setSpecs() serializes to JSON before saving
+        return toDto(productRepository.save(product));
     }
 
     @Transactional
@@ -93,9 +92,9 @@ public class ProductService {
         product.setCategory(updated.getCategory());
         product.setType(updated.getType());
         product.setFileUrl(updated.getFileUrl());
+        // setSpecs() serializes the list to JSON string
         product.setSpecs(updated.getSpecs());
         product.setGuidance(updated.getGuidance());
-        Hibernate.initialize(product.getSpecs());
         return toDto(productRepository.save(product));
     }
 
@@ -114,7 +113,7 @@ public class ProductService {
     }
 
     private ProductDto toDto(Product p) {
-        Hibernate.initialize(p.getSpecs());
+        // Only category is a lazy entity — specs is a @Transient method backed by JSON TEXT
         Hibernate.initialize(p.getCategory());
         ProductDto dto = new ProductDto();
         dto.setId(p.getId());
@@ -139,6 +138,7 @@ public class ProductService {
         dto.setActive(p.getActive());
         dto.setType(p.getType());
         dto.setFileUrl(p.getFileUrl());
+        // getSpecs() deserializes from JSON — no Hibernate involvement
         dto.setSpecs(p.getSpecs());
         dto.setGuidance(p.getGuidance());
         if (p.getCategory() != null) {
