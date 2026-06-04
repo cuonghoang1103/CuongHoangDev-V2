@@ -61,20 +61,24 @@ export default function DashboardPage() {
 
   const [statsOpen, setStatsOpen] = useState(false);
 
-  // ── Real-time clock ──
-  const [clock, setClock] = useState({ hour: new Date().getHours(), minute: new Date().getMinutes() });
+  // ── Real-time clock — safe: useState with default, set inside useEffect ──
+  const [clock, setClock] = useState({ hour: -1, minute: -1 });
   useEffect(() => {
-    const id = setInterval(() => {
+    const update = () => {
       const now = new Date();
       setClock({ hour: now.getHours(), minute: now.getMinutes() });
-    }, 1000);
+    };
+    update(); // set immediately on mount
+    const id = setInterval(update, 1000);
     return () => clearInterval(id);
   }, []);
 
-  const timeStr = `${String(clock.hour).padStart(2, '0')}:${String(clock.minute).padStart(2, '0')}`;
+  const timeStr = clock.hour >= 0
+    ? `${String(clock.hour).padStart(2, '0')}:${String(clock.minute).padStart(2, '0')}`
+    : '--:--';
 
-  // ── Current activity from timeline ──
-  const currentHour = new Date().getHours();
+  // ── Current activity from timeline — clock.hour starts at -1 (SSR-safe) ──
+  const currentHour = clock.hour >= 0 ? clock.hour : 12;
   const currentSlot = timeline[currentHour];
   const currentActivity = currentSlot?.activity?.type ?? null;
   const currentActivityMeta = currentActivity ? (ACTIVITY_META as any)[currentActivity] : null;

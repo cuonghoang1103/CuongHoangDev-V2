@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Link from 'next/link';
 import { MessageCircle, Sparkles } from 'lucide-react';
@@ -9,14 +9,25 @@ export default function FloatingRobot() {
   const [isHovered, setIsHovered] = useState(false);
   const [isBlinking, setIsBlinking] = useState(false);
 
-  // Random blinking effect
-  useState(() => {
-    const interval = setInterval(() => {
-      setIsBlinking(true);
-      setTimeout(() => setIsBlinking(false), 150);
-    }, 3000 + Math.random() * 2000);
-    return () => clearInterval(interval);
-  });
+  const blinkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Random blinking — only runs on client after mount
+  useEffect(() => {
+    const scheduleNext = () => {
+      const delay = 3000 + Math.random() * 2000;
+      blinkTimerRef.current = setTimeout(() => {
+        setIsBlinking(true);
+        blinkTimerRef.current = setTimeout(() => {
+          setIsBlinking(false);
+          scheduleNext();
+        }, 150);
+      }, delay);
+    };
+    scheduleNext();
+    return () => {
+      if (blinkTimerRef.current) clearTimeout(blinkTimerRef.current);
+    };
+  }, []);
 
   return (
     <motion.div

@@ -50,6 +50,7 @@ export default function StatsModal({
   onCelebrate,
 }: Props) {
   const planInputsRef = useRef<HTMLInputElement[]>([]);
+  const confettiIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const done = todayTasks.filter((t) => t.done);
   const pct = todayTasks.length ? Math.round((done.length / todayTasks.length) * 100) : 0;
@@ -63,10 +64,22 @@ export default function StatsModal({
     .filter(Boolean);
   const hasPlan = plans.length >= 1;
 
+  // Cleanup confetti interval when modal closes or component unmounts
+  useEffect(() => {
+    return () => {
+      if (confettiIntervalRef.current) {
+        clearInterval(confettiIntervalRef.current);
+        confettiIntervalRef.current = null;
+      }
+    };
+  }, []);
+
   const handleOpen = () => {
+    if (confettiIntervalRef.current) {
+      clearInterval(confettiIntervalRef.current);
+    }
     if (isPerfect) {
-      // Big confetti celebration
-      const interval = setInterval(() => {
+      confettiIntervalRef.current = setInterval(() => {
         confetti({
           particleCount: 140,
           spread: 110,
@@ -78,11 +91,20 @@ export default function StatsModal({
           ticks: 200,
         });
       }, 400);
-      setTimeout(() => clearInterval(interval), 2800);
+      setTimeout(() => {
+        if (confettiIntervalRef.current) {
+          clearInterval(confettiIntervalRef.current);
+          confettiIntervalRef.current = null;
+        }
+      }, 2800);
     }
   };
 
   const handleClose = () => {
+    if (confettiIntervalRef.current) {
+      clearInterval(confettiIntervalRef.current);
+      confettiIntervalRef.current = null;
+    }
     if (hasPlan) {
       onPlanTomorrow(plans);
       onCelebrate();
