@@ -171,41 +171,87 @@ export default function AdminMusicPage() {
 
     setSaving(true);
     try {
-      // Step 1: upload audio (if provided) via /api/admin/music/upload
-      // Backend POST /admin/upload does: upload to Supabase + create DB record in one shot.
-      // Returns { success: true, data: { track, audioUrl, coverUrl, supabasePath } }
-      let uploadedTrack: Track | null = null;
+      let supabasePath: string | null = null;
+      let audioUrl: string | null = null;
+
+      // Step 1: Upload audio DIRECTLY to Supabase via signed URL — bypasses Vercel 4.5MB limit
       if (audioFile) {
-        const result = await uploadViaVercel(audioFile);
-        if (!result) {
-          toast.error('Upload nhac that bai — kiem tra console');
+        const token = getToken();
+        if (!token) {
+          toast.error('Khong co token xac thuc');
           return;
         }
-        // Parse the created track from the backend response
-        uploadedTrack = result;
+
+        // 1a. Get signed upload URL from backend
+        toast.info('Dang lay link upload...');
+        const sigRes = await fetch('/api/v1/music/admin/upload/supabase', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({ fileName: audioFile.name, contentType: audioFile.type || 'audio/mpeg' }),
+        });
+
+        const sigText = await sigRes.text();
+        let sigData: Record<string, unknown> = {};
+        try { sigData = JSON.parse(sigText) as Record<string, unknown>; } catch { /* noop */ }
+
+        if (!sigRes.ok || sigData.success !== true) {
+          const msg = (sigData.message as string) || `Lỗi ${sigRes.status}`;
+          toast.error('Lỗi lay signed URL: ' + msg);
+          console.error('[MusicUpload] Signed URL error:', sigText);
+          return;
+        }
+
+        const sigInner = (sigData.data || {}) as Record<string, unknown>;
+        const uploadUrl = sigInner.uploadUrl as string;
+        supabasePath = sigInner.path as string;
+        audioUrl = sigInner.publicUrl as string;
+
+        if (!uploadUrl || !supabasePath) {
+          toast.error('Signed URL khong hop le tu backend');
+          return;
+        }
+
+        // 1b. PUT file directly to Supabase (browser → Supabase, no Vercel in between)
+        toast.info('Dang upload nhac len Supabase...');
+        const putRes = await fetch(uploadUrl, {
+          method: 'PUT',
+          body: audioFile,
+          headers: { 'Content-Type': audioFile.type || 'audio/mpeg' },
+        });
+
+        if (!putRes.ok) {
+          const body = await putRes.text();
+          toast.error('Upload Supabase that bai: ' + putRes.status);
+          console.error('[MusicUpload] Supabase PUT failed:', putRes.status, body);
+          return;
+        }
+        toast.success('Upload nhac thanh cong!');
+        console.log('[MusicUpload] Supabase upload OK — audioUrl:', audioUrl, '| path:', supabasePath);
       }
 
-      // Step 2: upload cover image (if provided) via existing fileApi
+      // Step 2: Upload cover image via fileApi
       let finalCover: string | null = null;
       if (coverFile) {
+        toast.info('Dang upload anh bia...');
         const coverRes = await fileApi.upload(coverFile, 'music-covers');
         finalCover = coverRes.data?.data?.url || null;
+        if (!finalCover) toast.warning('Upload anh bia that bai — tiep tuc khong co anh');
       } else if (coverImage && !coverImage.startsWith('blob:')) {
         finalCover = coverImage;
       }
 
-      // Step 3: persist metadata to DB
+      // Step 3: Create DB record
       if (editingId) {
-        // UPDATE existing track
         const body: Record<string, unknown> = {
           title: title.trim(),
           artist: artist.trim(),
           durationSeconds,
         };
-        if (uploadedTrack) {
-          body.audioUrl = uploadedTrack.audioUrl;
-          body.supabasePath = (uploadedTrack as any).supabasePath;
-        }
+        if (audioUrl) body.audioUrl = audioUrl;
+        if (supabasePath) body.supabasePath = supabasePath;
         if (finalCover) body.coverImageUrl = finalCover;
 
         await apiFetch(`/admin/tracks/${editingId}`, {
@@ -214,20 +260,24 @@ export default function AdminMusicPage() {
         });
         toast.success('Cap nhat thanh cong');
       } else {
-        // CREATE new track — the backend already created the DB record during upload.
-        // Just refresh the list. No need to call POST /admin/tracks again (would duplicate).
-        if (!uploadedTrack) {
-          toast.error('Khong co audio de tao track');
+        if (!audioUrl || !supabasePath) {
+          toast.error('Khong co audio — can upload file nhac truoc');
           return;
         }
-        // If cover was uploaded separately, update the track with the cover URL
-        if (finalCover) {
-          await apiFetch(`/admin/tracks/${uploadedTrack.id}`, {
-            method: 'PUT',
-            body: JSON.stringify({ coverImageUrl: finalCover }),
-          });
-        }
-        toast.success('Tao track thanh cong');
+        const body = {
+          title: title.trim(),
+          artist: artist.trim(),
+          audioUrl,
+          supabasePath,
+          coverImageUrl: finalCover,
+          durationSeconds,
+          active: true,
+        };
+        await apiFetch('/admin/tracks', {
+          method: 'POST',
+          body: JSON.stringify(body),
+        });
+        toast.success('Tao track thanh cong!');
       }
 
       setShowForm(false);
@@ -238,101 +288,6 @@ export default function AdminMusicPage() {
       toast.error(err.message || 'Luu that bai');
     } finally {
       setSaving(false);
-    }
-  };
-
-  /**
-   * Upload audio via Vercel Node API route → Backend → Supabase.
-   * Backend POST /api/v1/music/admin/upload does two things in one call:
-   *   1. Upload audio bytes to Supabase Storage
-   *   2. Create DB record (music_tracks table)
-   * Returns the created track or throws on error.
-   *
-   * Backend response shape:
-   *   { success: true, data: { track: MusicTrackDto, audioUrl, coverUrl, supabasePath } }
-   */
-  const uploadViaVercel = async (file: File): Promise<Track | null> => {
-    setUploading(true);
-    try {
-      const token = getToken();
-      if (!token) throw new Error('Khong co token xac thuc');
-
-      console.log('[MusicUpload] Uploading via Vercel route /api/admin/music/upload');
-      console.log('[MusicUpload] File:', file.name, file.size, 'bytes');
-
-      const formData = new FormData();
-      formData.append('audio', file);
-      formData.append('title', title.trim());
-      formData.append('artist', artist.trim());
-      formData.append('durationSeconds', String(durationSeconds));
-
-      const res = await fetch('/api/admin/music/upload', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-        body: formData,
-      });
-
-      const rawText = await res.text();
-      console.log('[MusicUpload] Vercel route response status:', res.status);
-      console.log('[MusicUpload] Vercel route raw text:', rawText.slice(0, 800));
-
-      let data: Record<string, unknown> = {};
-      try { data = JSON.parse(rawText) as Record<string, unknown>; } catch { /* not JSON */ }
-
-      const isSuccess = res.ok && data.success === true;
-      if (!isSuccess) {
-        const msg = (data.message as string) || `Lỗi HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-
-      // Backend returns:
-      // { success: true, data: { track: {...}, audioUrl, coverUrl, supabasePath } }
-      const inner = (data.data || {}) as Record<string, unknown>;
-      const track = inner.track as Record<string, unknown> | undefined;
-
-      if (!track) {
-        throw new Error('Backend khong tra ve track: ' + rawText.slice(0, 200));
-      }
-
-      const audioUrl = (track.audioUrl || inner.audioUrl) as string | undefined;
-      if (!audioUrl) {
-        throw new Error('Backend tra ve audioUrl rong — kiem tra Supabase config. Response: ' + rawText.slice(0, 200));
-      }
-
-        // Parse the track the backend just created and saved to DB
-      const createdTrack: Track = {
-        id: Number(track.id || 0),
-        title: String(track.title || title.trim()),
-        artist: String(track.artist || artist.trim()),
-        audioUrl: String(audioUrl),
-        coverImage: (track.coverImage as string) || (inner.coverUrl as string) || '',
-        durationSeconds: (track.durationSeconds as number) || durationSeconds,
-        fileSize: (track.fileSize as number) || file.size,
-        active: track.active !== undefined ? Boolean(track.active) : true,
-        createdAt: (track.createdAt as string) || new Date().toISOString(),
-        // Include supabasePath so handleSave can update the cover later
-        ...((track.supabasePath || inner.supabasePath) ? { supabasePath: String(track.supabasePath || inner.supabasePath) } : {}),
-      };
-
-      console.log('[MusicUpload] SUCCESS — track created: id=' + createdTrack.id + ', audioUrl=' + audioUrl);
-      return createdTrack;
-    } catch (err: any) {
-      console.error('[MusicUpload] uploadViaVercel error:', err);
-      throw new Error(err.message || 'Upload that bai');
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  // Legacy function — kept for any other callers
-  const uploadViaProxy = async (file: File): Promise<{ audioUrl: string | null; supabasePath: string | null }> => {
-    try {
-      const r = await uploadViaVercel(file);
-      return r ? { audioUrl: r.audioUrl, supabasePath: (r as any).supabasePath || null } : { audioUrl: null, supabasePath: null };
-    } catch {
-      return { audioUrl: null, supabasePath: null };
     }
   };
 
