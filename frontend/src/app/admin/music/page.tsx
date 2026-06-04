@@ -36,6 +36,53 @@ function formatSize(bytes?: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
+/**
+ * Upload a file directly to Supabase Storage using a signed URL.
+ * Uses XMLHttpRequest (not fetch) so we can track real upload progress.
+ *
+ * @returns true on success, false on failure
+ */
+function uploadToSupabaseWithProgress(
+  signedUrl: string,
+  file: File,
+  onProgress: (percent: number) => void
+): Promise<boolean> {
+  return new Promise((resolve) => {
+    const xhr = new XMLHttpRequest();
+
+    xhr.upload.addEventListener('progress', (e) => {
+      if (e.lengthComputable) {
+        const percent = Math.round((e.loaded / e.total) * 100);
+        onProgress(percent);
+      }
+    });
+
+    xhr.addEventListener('load', () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        onProgress(100);
+        resolve(true);
+      } else {
+        console.error('[uploadToSupabaseWithProgress] Failed:', xhr.status, xhr.responseText);
+        resolve(false);
+      }
+    });
+
+    xhr.addEventListener('error', () => {
+      console.error('[uploadToSupabaseWithProgress] Network error');
+      resolve(false);
+    });
+
+    xhr.addEventListener('abort', () => {
+      console.warn('[uploadToSupabaseWithProgress] Upload aborted');
+      resolve(false);
+    });
+
+    xhr.open('PUT', signedUrl);
+    xhr.setRequestHeader('Content-Type', file.type || 'audio/mpeg');
+    xhr.send(file);
+  });
+}
+
 const API = '/api/v1/music';
 
 function getToken(): string {
@@ -87,6 +134,7 @@ export default function AdminMusicPage() {
   const [editingId, setEditingId] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
 
   // Form state
   const [title, setTitle] = useState('');
@@ -136,6 +184,7 @@ export default function AdminMusicPage() {
     setCoverFile(null);
     setAudioPreviewUrl('');
     if (audioPreviewUrl) URL.revokeObjectURL(audioPreviewUrl);
+    setUploadProgress(0);
   };
 
   const openCreate = () => {
@@ -181,10 +230,19 @@ export default function AdminMusicPage() {
   };
 
   // ──────────────────────────────────────────────────────────────
-  // handleSave: two-step flow
-  //   Step 1: POST /api/v1/music/admin/upload  (audio file → backend → Supabase)
-  //   Step 2: POST /api/v1/music/admin/tracks    (JSON body → DB record)
-  //   Cover: upload to Cloudinary separately first → pass URL as coverImageUrl
+  // handleSave: three-step direct upload (bypasses Vercel body limit)
+  //
+  //   Step 1: POST /api/v1/music/admin/upload/supabase
+  //           → Backend returns a signed Supabase upload URL.
+  //
+  //   Step 2: Browser PUTs the audio file DIRECTLY to Supabase
+  //           via the signed URL (XMLHttpRequest for progress tracking).
+  //           No Vercel/serverless in this hop — goes browser → Supabase.
+  //
+  //   Step 3: POST /api/v1/music/admin/tracks (JSON metadata → DB).
+  //
+  //   Cover image: uploaded to Cloudinary separately via /api/v1/files/upload
+  //   (small images, no 4.5MB issue, goes through backend proxy as before).
   // ──────────────────────────────────────────────────────────────
   const handleSave = async () => {
     if (!title.trim() || !artist.trim()) {
@@ -199,110 +257,127 @@ export default function AdminMusicPage() {
 
     setSaving(true);
     setUploading(true);
+    setUploadProgress(0);
+
     try {
-      // Step 0: Upload cover image to Cloudinary (returns URL string)
+      // ── Step 0: Upload cover image to Cloudinary (small, no 4.5MB risk) ──
       let coverImageUrl: string | null = null;
       if (coverFile) {
-        toast.info('Đang upload ảnh bìa...');
         const coverRes = await fileApi.upload(coverFile, 'music-covers');
-        coverImageUrl = coverRes.data?.data?.url || null;
+        coverImageUrl = (coverRes as any)?.data?.url || null;
         if (!coverImageUrl) {
           toast.warning('Upload ảnh bìa thất bại — tiếp tục không có ảnh');
-        } else {
-          console.log('[AdminMusic] Cover URL:', coverImageUrl);
         }
       } else if (coverImage && !coverImage.startsWith('blob:')) {
         coverImageUrl = coverImage;
       }
 
-        if (editingId) {
-          // ── Editing: PUT JSON with optional new audioUrl ──
-          const body: Record<string, unknown> = {
+      if (editingId) {
+        // ── Editing: PUT JSON with optional new audioUrl ──
+        const body: Record<string, unknown> = {
+          title: title.trim(),
+          artist: artist.trim(),
+          durationSeconds,
+          coverImageUrl: coverImageUrl || undefined,
+        };
+        if (audioUrl) body.audioUrl = audioUrl;
+
+        await apiFetch(`/admin/tracks/${editingId}`, {
+          method: 'PUT',
+          body: JSON.stringify(body),
+        });
+        toast.success('Cập nhật thành công');
+      } else {
+        // ── Creating: Step 1 — Request a signed Supabase upload URL ──
+        toast.info('Đang xin link upload...');
+        const token = getToken();
+
+        const signedRes = await fetch('/api/v1/music/admin/upload/supabase', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          credentials: 'include',
+          body: JSON.stringify({
+            fileName: audioFile!.name,
+            contentType: audioFile!.type || 'audio/mpeg',
+          }),
+        });
+
+        const signedData = await signedRes.json();
+        console.log('[AdminMusic] Signed URL response:', signedRes.status, signedData);
+
+        if (!signedRes.ok || !signedData.success) {
+          const msg = signedData.message || `HTTP ${signedRes.status}`;
+          console.error('[AdminMusic] Signed URL FAILED:', msg);
+          toast.error('Không thể xin link upload: ' + msg);
+          return;
+        }
+
+        const { path: supabasePath, uploadUrl } = signedData.data as {
+          path: string;
+          uploadUrl: string;
+          publicUrl: string;
+        };
+        console.log('[AdminMusic] Got signed URL, starting direct upload to Supabase...');
+
+        // ── Step 2 — Upload audio DIRECTLY from browser to Supabase via XHR ──
+        // Using XMLHttpRequest (not fetch) because fetch doesn't support upload progress events.
+        const uploadOk = await uploadToSupabaseWithProgress(
+          uploadUrl,
+          audioFile!,
+          (percent) => {
+            setUploadProgress(percent);
+            if (percent === 100) {
+              toast.info('Đang lưu thông tin...');
+            }
+          }
+        );
+
+        if (!uploadOk) {
+          toast.error('Tải file trực tiếp lên Storage thất bại, vui lòng kiểm tra lại cấu hình RLS!');
+          return;
+        }
+
+        console.log('[AdminMusic] Direct upload to Supabase SUCCEEDED');
+
+        // ── Step 3 — Save track metadata to DB ──
+        const metadataRes = await apiFetch('/admin/tracks', {
+          method: 'POST',
+          body: JSON.stringify({
             title: title.trim(),
             artist: artist.trim(),
             durationSeconds,
             coverImageUrl: coverImageUrl || undefined,
-          };
-          if (audioUrl) body.audioUrl = audioUrl;
+            supabasePath,
+            audioUrl: signedData.data.publicUrl,
+          }),
+        });
+        console.log('[AdminMusic] Track created:', metadataRes);
 
-          console.log('[AdminMusic] PUT /admin/tracks/', editingId, body);
-          const res = await apiFetch(`/admin/tracks/${editingId}`, {
-            method: 'PUT',
-            body: JSON.stringify(body),
-          });
-          console.log('[AdminMusic] PUT response:', res);
-          toast.success('Cập nhật thành công');
-        } else {
-          // ── Creating: single-step upload — audio + coverImageUrl go to backend together
-          // Backend creates the DB record in one call (no duplicate Step 2 needed).
-          const formData = new FormData();
-          formData.append('audio', audioFile!);
-          formData.append('title', title.trim());
-          formData.append('artist', artist.trim());
-          formData.append('durationSeconds', String(durationSeconds));
-          if (coverImageUrl) formData.append('coverImageUrl', coverImageUrl);
-
-          const token = getToken();
-          console.log('[AdminMusic] ═══════════════════════════════════════');
-          console.log('[AdminMusic] Upload: POST /api/v1/music/admin/upload');
-          console.log('[AdminMusic]   file:', audioFile!.name, `${(audioFile!.size / 1024 / 1024).toFixed(2)} MB`);
-          console.log('[AdminMusic]   title:', title.trim(), '| artist:', artist.trim());
-          console.log('[AdminMusic]   coverImageUrl:', coverImageUrl || '(none)');
-          console.log('[AdminMusic]   token:', token ? `present (${token.length} chars)` : 'MISSING');
-
-          const uploadRes = await fetch('/api/v1/music/admin/upload', {
-            method: 'POST',
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            body: formData,
-            credentials: 'include',
-          });
-
-          const uploadRaw = await uploadRes.text();
-          console.log('[AdminMusic] Upload HTTP:', uploadRes.status, uploadRaw.slice(0, 500));
-
-          let uploadData: Record<string, unknown> = {};
-          try { uploadData = JSON.parse(uploadRaw); } catch { /* raw used below */ }
-
-          if (!uploadRes.ok || uploadData.success === false) {
-            const msg = (uploadData.message as string) || `HTTP ${uploadRes.status}: ${uploadRaw.slice(0, 200)}`;
-            console.error('[AdminMusic] Upload FAILED:', msg);
-            toast.error(msg);
-            return;
-          }
-
-          const uploadData_ = uploadData.data as Record<string, unknown>;
-          const createdTrack = (uploadData_.track as Record<string, unknown>) || {};
-          const trackId = createdTrack.id as number | undefined;
-          const backendCoverImage = (createdTrack.coverImage as string) || null;
-
-          // If backend returned a track with no cover but we have coverImageUrl from Cloudinary,
-          // patch the cover via PUT so the record has the correct image.
-          if (coverImageUrl && !backendCoverImage && trackId) {
-            console.log('[AdminMusic] Patching cover image for track id:', trackId);
-            await fetch(`/api/v1/music/admin/tracks/${trackId}`, {
-              method: 'PUT',
-              headers: {
-                'Content-Type': 'application/json',
-                ...(token ? { Authorization: `Bearer ${token}` } : {}),
-              },
-              body: JSON.stringify({ coverImageUrl }),
-              credentials: 'include',
-            });
-          }
-
-          console.log('[AdminMusic] ✓ Upload succeeded — track id:', trackId);
-          toast.success('Tạo track thành công!');
+        if (!metadataRes.success) {
+          toast.error(metadataRes.message || 'Lưu thông tin thất bại');
+          return;
         }
+
+        toast.success('Tạo track thành công!');
+      }
 
       setShowForm(false);
       resetForm();
       fetchTracks();
-    } catch (err: any) {
-      console.error('[AdminMusic] handleSave error:', err);
-      toast.error(err.message || 'Lưu thất bại');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[AdminMusic] handleSave error:', msg);
+      // Only show error toast if we haven't already shown a specific one
+      toast.error(msg.includes('Storage') || msg.includes('RLS')
+        ? 'Tải file trực tiếp lên Storage thất bại, vui lòng kiểm tra lại cấu hình RLS!'
+        : msg);
     } finally {
       setSaving(false);
       setUploading(false);
+      setUploadProgress(0);
     }
   };
 
@@ -525,16 +600,21 @@ export default function AdminMusicPage() {
               {/* Actions */}
               <div className="flex items-center justify-end gap-3 pt-2">
                 <button onClick={() => setShowForm(false)}
-                  className="px-4 py-2.5 text-sm text-text-muted hover:text-text-primary transition-colors">
+                  className="px-4 py-2.5 text-sm text-text-muted hover:text-text-primary transition-colors"
+                  disabled={saving}>
                   Huy
                 </button>
                 <button
                   onClick={handleSave}
-                  disabled={saving || (uploading && !audioUrl)}
+                  disabled={saving || (!editingId && !audioFile)}
                   className="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-medium rounded-xl hover:opacity-90 transition-opacity disabled:opacity-50"
                 >
                   {(saving || uploading) && <Loader2 className="w-4 h-4 animate-spin" />}
-                  {saving ? 'Dang luu...' : 'Luu'}
+                  {saving
+                    ? uploading
+                      ? `Dang upload ${uploadProgress > 0 ? uploadProgress + '%' : '...'}`
+                      : 'Dang luu...'
+                    : 'Luu'}
                 </button>
               </div>
             </div>
