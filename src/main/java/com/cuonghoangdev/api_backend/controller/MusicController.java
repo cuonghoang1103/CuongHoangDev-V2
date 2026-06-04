@@ -59,10 +59,10 @@ public class MusicController {
     @Operation(summary = "Get all active tracks", description = "Public endpoint — anyone can view active music tracks")
     @GetMapping("/tracks")
     public ResponseEntity<?> getTracks() {
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "data", musicTrackService.getAllActiveTracks()
-        ));
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("success", true);
+        body.put("data", musicTrackService.getAllActiveTracks());
+        return ResponseEntity.ok(body);
     }
 
     // ========================================================================
@@ -75,10 +75,10 @@ public class MusicController {
     @GetMapping("/admin/tracks")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getAllTracksAdmin() {
-        return ResponseEntity.ok(Map.of(
-                "success", true,
-                "data", musicTrackService.getAllTracks()
-        ));
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("success", true);
+        body.put("data", musicTrackService.getAllTracks());
+        return ResponseEntity.ok(body);
     }
 
     @Operation(summary = "Get single track (admin)", description = "Admin only")
@@ -87,15 +87,15 @@ public class MusicController {
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> getTrackAdmin(@PathVariable Long id) {
         try {
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "data", musicTrackService.getTrackById(id)
-            ));
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("success", true);
+            body.put("data", musicTrackService.getTrackById(id));
+            return ResponseEntity.ok(body);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", e.getMessage()
-            ));
+            Map<String, Object> err = new LinkedHashMap<>();
+            err.put("success", false);
+            err.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(err);
         }
     }
 
@@ -180,28 +180,31 @@ public class MusicController {
             log.info("[MusicController] ===== createTrack SUCCESS ===== id={}, audioUrl={}", created.getId(), created.getAudioUrl());
             log.info("======================================================");
 
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "data", Map.of(
-                            "track", created,
-                            "audioUrl", created.getAudioUrl(),
-                            "supabasePath", created.getSupabasePath(),
-                            "coverUrl", created.getCoverImage()
-                    )
-            ));
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("track", created);
+            data.put("audioUrl", created.getAudioUrl());
+            data.put("supabasePath", created.getSupabasePath());
+            data.put("coverUrl", created.getCoverImage());
+
+            Map<String, Object> response = new LinkedHashMap<>();
+            response.put("success", true);
+            response.put("data", data);
+
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             log.error("[MusicController] ===== createTrack FAILED =====", e);
             log.error("[MusicController] Exception class : {}", e.getClass().getName());
             log.error("[MusicController] Exception message: {}", e.getMessage());
             log.error("[MusicController] Exception cause  : {}", e.getCause());
+            log.error("[MusicController] Exception stack: ", e);
             log.error("[MusicController] ==============================================");
+            Map<String, Object> errBody = new LinkedHashMap<>();
+            errBody.put("success", false);
             String userMessage = (e.getMessage() != null && !e.getMessage().isBlank())
                     ? e.getMessage()
-                    : ("Unknown DB/system error [" + e.getClass().getSimpleName() + "]. Check backend logs for details.");
-            return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", userMessage
-            ));
+                    : ("Unknown error [" + e.getClass().getSimpleName() + "]. Check backend logs.");
+            errBody.put("message", userMessage);
+            return ResponseEntity.badRequest().body(errBody);
         }
     }
 
@@ -228,15 +231,15 @@ public class MusicController {
             updated.setActive(request.getActive());
 
             MusicTrackDto result = musicTrackService.updateTrack(id, updated);
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "data", result
-            ));
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("success", true);
+            body.put("data", result);
+            return ResponseEntity.ok(body);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", e.getMessage()
-            ));
+            Map<String, Object> err = new LinkedHashMap<>();
+            err.put("success", false);
+            err.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(err);
         }
     }
 
@@ -246,17 +249,19 @@ public class MusicController {
     public ResponseEntity<?> deleteTrack(@PathVariable Long id) {
         try {
             musicTrackService.deleteTrack(id);
-            return ResponseEntity.ok(Map.of("success", true));
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("success", true);
+            return ResponseEntity.ok(body);
         } catch (IOException e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", "Delete failed: " + e.getMessage()
-            ));
+            Map<String, Object> err = new LinkedHashMap<>();
+            err.put("success", false);
+            err.put("message", "Delete failed: " + e.getMessage());
+            return ResponseEntity.badRequest().body(err);
         } catch (RuntimeException e) {
-            return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", e.getMessage()
-            ));
+            Map<String, Object> err = new LinkedHashMap<>();
+            err.put("success", false);
+            err.put("message", e.getMessage());
+            return ResponseEntity.badRequest().body(err);
         }
     }
 
@@ -356,10 +361,10 @@ public class MusicController {
             if (supabasePath != null) {
                 try { supabaseService.delete(supabasePath); } catch (Exception ignored) {}
             }
-            return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", "Upload failed: " + e.getMessage()
-            ));
+            Map<String, Object> err = new LinkedHashMap<>();
+            err.put("success", false);
+            err.put("message", "Upload failed: " + (e.getMessage() != null ? e.getMessage() : "Unknown IO error"));
+            return ResponseEntity.badRequest().body(err);
         }
     }
 
@@ -408,20 +413,21 @@ public class MusicController {
 
             log.info("[MusicController] Signed upload URL created: {}", uploadUrl);
 
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "data", Map.of(
-                            "path", path,
-                            "uploadUrl", uploadUrl,
-                            "publicUrl", supabaseService.buildPublicUrl(path)
-                    )
-            ));
+            Map<String, Object> data = new LinkedHashMap<>();
+            data.put("path", path);
+            data.put("uploadUrl", uploadUrl);
+            data.put("publicUrl", supabaseService.buildPublicUrl(path));
+
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("success", true);
+            body.put("data", data);
+            return ResponseEntity.ok(body);
         } catch (Exception e) {
             log.error("[MusicController] Failed to create Supabase upload URL", e);
-            return ResponseEntity.badRequest().body(Map.of(
-                    "success", false,
-                    "message", "Failed to create upload URL: " + e.getMessage()
-            ));
+            Map<String, Object> err = new LinkedHashMap<>();
+            err.put("success", false);
+            err.put("message", "Failed to create upload URL: " + (e.getMessage() != null ? e.getMessage() : e.getClass().getSimpleName()));
+            return ResponseEntity.badRequest().body(err);
         }
     }
 
