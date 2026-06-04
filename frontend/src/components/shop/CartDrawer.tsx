@@ -109,12 +109,18 @@ export default function CartDrawer() {
                               onClick={closeDrawer}
                               className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0"
                             >
-                              <Image
-                                src={item.product.thumbnail}
-                                alt={item.product.name}
-                                fill
-                                className="object-cover"
-                              />
+                              {item.product.thumbnail ? (
+                                <Image
+                                  src={item.product.thumbnail}
+                                  alt={item.product.name}
+                                  fill
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-darkcard flex items-center justify-center">
+                                  <ShoppingBag className="w-6 h-6 text-text-muted" />
+                                </div>
+                              )}
                             </Link>
 
                             <div className="flex-1 min-w-0">
@@ -186,12 +192,18 @@ export default function CartDrawer() {
                               onClick={closeDrawer}
                               className="relative w-20 h-20 rounded-lg overflow-hidden flex-shrink-0"
                             >
-                              <Image
-                                src={item.product.thumbnail}
-                                alt={item.course?.title || 'Khóa học'}
-                                fill
-                                className="object-cover"
-                              />
+                              {item.product.thumbnail ? (
+                                <Image
+                                  src={item.product.thumbnail}
+                                  alt={item.course?.title || 'Khóa học'}
+                                  fill
+                                  className="object-cover"
+                                />
+                              ) : (
+                                <div className="w-full h-full bg-darkcard flex items-center justify-center">
+                                  <BookOpen className="w-6 h-6 text-text-muted" />
+                                </div>
+                              )}
                             </Link>
 
                             <div className="flex-1 min-w-0">

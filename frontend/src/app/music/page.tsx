@@ -88,8 +88,10 @@ export default function MusicPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden">
-      {/* Background */}
-      <PremiumBackground mouseX={mouseX} mouseY={mouseY} />
+      {/* Background — wrapped in ClientOnly to prevent hydration mismatch from timeOfDay computation */}
+      <ClientOnly>
+        <PremiumBackground mouseX={mouseX} mouseY={mouseY} />
+      </ClientOnly>
 
       {/* Content */}
       <div className="relative z-10 min-h-screen flex flex-col">

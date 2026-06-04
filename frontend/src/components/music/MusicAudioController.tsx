@@ -69,18 +69,25 @@ export default function MusicAudioController() {
     const audio = audioRef.current;
     if (!audio) return;
 
-    // No track selected — pause and clear src
-    if (!currentTrack || !currentTrack.audioUrl) {
+    // Guard: require a non-empty audioUrl that looks like a URL
+    // preveting empty-string src from resolving to base URL
+    const audioUrl = currentTrack?.audioUrl;
+    const isValidUrl = audioUrl && audioUrl.startsWith('http');
+
+    if (!isValidUrl) {
       audio.pause();
-      audio.src = '';
+      // Only clear src if we had a real URL loaded — prevents browser
+      // resolving '' to the page base URL (e.g. vercel.app/)
+      if (audio.src && audio.src.startsWith('http')) {
+        audio.src = '';
+      }
       return;
     }
 
     // Load the track if src changed
-    const srcChanged = audio.src !== currentTrack.audioUrl;
+    const srcChanged = audio.src !== audioUrl;
     if (srcChanged) {
-      audio.src = currentTrack.audioUrl;
-      audio.load();
+      audio.src = audioUrl;
     }
 
     // Sync play/pause state
