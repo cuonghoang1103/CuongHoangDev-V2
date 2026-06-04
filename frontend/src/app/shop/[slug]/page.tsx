@@ -7,15 +7,14 @@ import {
   ShoppingCart,
   CheckCircle2,
   Star,
-  ChevronDown,
-  Share2,
-  Clock,
-  Users,
-  Tag,
   ShieldCheck,
   Download,
   ArrowLeft,
   Loader2,
+  Users,
+  Tag,
+  Package,
+  TrendingUp,
 } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -26,6 +25,7 @@ import { getProductBySlug, getProducts, mapProductFromBackend } from '@/lib/api/
 import StarRating from '@/components/shop/StarRating';
 import ProductCard from '@/components/shop/ProductCard';
 import CartDrawer from '@/components/shop/CartDrawer';
+import ProductDetailTabs from '@/components/shop/ProductDetailTabs';
 import type { Product } from '@/types';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -37,31 +37,15 @@ function formatPrice(price: number): string {
   }).format(price);
 }
 
-const MOCK_REVIEWS = [
-  {
-    id: '1',
-    userName: 'Nguyen Van A',
-    rating: 5,
-    title: 'Excellent product!',
-    content: 'This template is exactly what I needed. Clean code, beautiful design, and very easy to customize. Highly recommended!',
-    createdAt: '2025-01-15T10:00:00Z',
-  },
-  {
-    id: '2',
-    userName: 'Tran Thi B',
-    rating: 4,
-    title: 'Great value for money',
-    content: 'The quality is outstanding for the price. Documentation is clear and the support team responds quickly.',
-    createdAt: '2025-01-10T10:00:00Z',
-  },
-];
+function calcDiscount(original: number | undefined, current: number): number {
+  if (!original || original <= current) return 0;
+  return Math.round((1 - current / original) * 100);
+}
 
 export default function ProductDetailPage() {
   const { t } = useTranslation();
   const params = useParams();
   const slug = params.slug as string;
-  const [activeTab, setActiveTab] = useState<'description' | 'features' | 'reviews'>('description');
-  const [showAllReviews, setShowAllReviews] = useState(false);
   const [product, setProduct] = useState<Product | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -72,14 +56,11 @@ export default function ProductDetailPage() {
     async function load() {
       setLoading(true);
       try {
-        // Fetch product from backend
         const bp = await getProductBySlug(slug);
         setProduct(mapProductFromBackend(bp));
 
-        // Ensure products are loaded for related
         if (!isLoaded) await fetchProducts();
 
-        // Fetch all products to get related
         const allProds = await getProducts({ size: 100 });
         const mapped = allProds.content.map(mapProductFromBackend);
         const related = mapped
@@ -93,7 +74,7 @@ export default function ProductDetailPage() {
       }
     }
     load();
-  }, [slug]);
+  }, [slug, isLoaded, fetchProducts]);
 
   if (loading) {
     return (
@@ -107,12 +88,21 @@ export default function ProductDetailPage() {
     notFound();
   }
 
-  const discountPercent = product.originalPrice
-    ? Math.round((1 - product.price / product.originalPrice) * 100)
-    : 0;
+  const discountPercent = calcDiscount(product.originalPrice, product.price);
+  const totalSold = product.soldCount ?? 0;
 
-  const displayedReviews = showAllReviews ? MOCK_REVIEWS : MOCK_REVIEWS.slice(0, 2);
-  const totalSold = product.soldCount || 0;
+  const c = {
+    primary: '#a855f7',
+    secondary: '#ec4899',
+    tertiary: '#22d3ee',
+    border: 'rgba(168,85,247,0.2)',
+    borderLight: 'rgba(168,85,247,0.08)',
+    glassBg: 'rgba(10,6,25,0.85)',
+    glassBgLight: 'rgba(20,15,40,0.6)',
+    text: '#f8fafc',
+    textSecondary: '#94a3b8',
+    textMuted: '#64748b',
+  };
 
   return (
     <div className="min-h-screen bg-darkbg pt-20">
@@ -120,13 +110,13 @@ export default function ProductDetailPage() {
         {/* Back */}
         <Link
           href="/shop"
-          className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-neon-violet transition-colors mb-6"
+          className="inline-flex items-center gap-2 text-sm text-text-muted hover:text-neon-violet transition-colors mb-6 group"
         >
-          <ArrowLeft className="w-4 h-4" />
+          <ArrowLeft className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
           {t('shop.detail.backToShop')}
         </Link>
 
-        {/* Product main */}
+        {/* ── Product Hero ─────────────────────────────────────────── */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 mb-16">
           {/* Images */}
           <motion.div
@@ -149,22 +139,27 @@ export default function ProductDetailPage() {
                 </div>
               )}
 
-              {/* Badges */}
+              {/* Badges overlay */}
               <div className="absolute top-4 left-4 flex flex-col gap-2">
                 {product.isHot && (
                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-orange-500 to-red-500 text-white text-xs font-bold rounded-full shadow-lg">
-                    Hot
+                    🔥 Hot
                   </span>
                 )}
                 {product.isNew && (
                   <span className="inline-flex items-center gap-1 px-3 py-1 bg-gradient-to-r from-neon-cyan to-blue-500 text-white text-xs font-bold rounded-full shadow-lg">
-                    New
+                    ✨ New
                   </span>
                 )}
                 {discountPercent > 0 && (
-                  <span className="inline-flex items-center gap-1 px-3 py-1 bg-neon-violet text-white text-xs font-bold rounded-full shadow-lg">
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-neon-violet text-white text-xs font-bold rounded-full shadow-lg"
+                    style={{ boxShadow: `0 0 20px ${c.primary}60` }}
+                  >
                     -{discountPercent}%
-                  </span>
+                  </motion.span>
                 )}
               </div>
             </div>
@@ -186,195 +181,147 @@ export default function ProductDetailPage() {
               {product.name}
             </h1>
 
-            {/* Rating + Meta */}
+            {/* Rating + Social Proof */}
             <div className="flex flex-wrap items-center gap-4 mb-5">
               <StarRating rating={product.rating} reviewCount={product.reviewCount} size="md" />
-              <span className="text-text-muted text-sm flex items-center gap-1">
-                <Users className="w-4 h-4" />
-                {totalSold.toLocaleString()} {t('shop.detail.sold')}
-              </span>
-              {product.stock > 0 && (
-                <span className="text-text-muted text-sm flex items-center gap-1">
-                  <CheckCircle2 className="w-4 h-4 text-green-400" />
-                  {t('shop.detail.inStock')}
+              <div className="flex items-center gap-1.5 text-sm" style={{ color: c.textMuted }}>
+                <TrendingUp className="w-4 h-4" style={{ color: c.secondary }} />
+                <span className="font-medium" style={{ color: c.text }}>
+                  {totalSold.toLocaleString()}
                 </span>
+                đã bán
+              </div>
+              {product.stock > 0 && product.stock <= 20 && (
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold"
+                  style={{ background: 'rgba(250,204,21,0.15)', color: '#facc15' }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-yellow-400 animate-pulse" />
+                  Chỉ còn {product.stock} sản phẩm
+                </motion.div>
               )}
             </div>
 
-            {/* Price */}
-            <div className="bg-darkcard border border-darkborder rounded-2xl p-6 mb-6">
-              <div className="flex items-end gap-3 mb-3 flex-wrap">
-                <span className="text-4xl font-heading font-bold text-neon-violet">
+            {/* ── Price Card ─────────────────────────────────────────── */}
+            <div
+              className="rounded-2xl p-6 mb-6 border"
+              style={{ background: c.glassBgLight, borderColor: c.border }}
+            >
+              {discountPercent > 0 && (
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-4xl font-heading font-bold" style={{ color: c.primary }}>
+                    {formatPrice(product.price)}
+                  </span>
+                  <span className="text-lg line-through" style={{ color: c.textMuted }}>
+                    {formatPrice(product.originalPrice!)}
+                  </span>
+                </div>
+              )}
+
+              {discountPercent > 0 && (
+                <div className="flex items-center gap-3 mb-4">
+                  <div
+                    className="px-3 py-1.5 rounded-xl text-sm font-bold"
+                    style={{ background: `linear-gradient(135deg, ${c.primary}, ${c.secondary})`, color: '#fff' }}
+                  >
+                    -{discountPercent}% OFF
+                  </div>
+                  <div className="text-sm" style={{ color: '#4ade80' }}>
+                    Tiết kiệm {formatPrice(product.originalPrice! - product.price)}
+                  </div>
+                </div>
+              )}
+
+              {discountPercent === 0 && (
+                <span className="text-4xl font-heading font-bold" style={{ color: c.primary }}>
                   {formatPrice(product.price)}
                 </span>
-                {product.originalPrice && (
-                  <>
-                    <span className="text-lg text-text-muted line-through">
-                      {formatPrice(product.originalPrice)}
-                    </span>
-                    <span className="px-2 py-0.5 bg-green-500/20 text-green-400 text-xs font-bold rounded">
-                      {t('shop.detail.save')} {formatPrice(product.originalPrice - product.price)}
-                    </span>
-                  </>
-                )}
-              </div>
+              )}
 
               <button
                 onClick={() => addShopItem(product)}
                 disabled={product.stock === 0}
-                className="w-full flex items-center justify-center gap-2 py-4 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-bold rounded-xl hover:opacity-90 transition-all hover:shadow-neon-sm disabled:opacity-40 disabled:cursor-not-allowed text-base"
+                className="w-full flex items-center justify-center gap-2 py-4 mt-4 font-bold rounded-xl text-base transition-all hover:opacity-90 disabled:opacity-40 disabled:cursor-not-allowed"
+                style={{
+                  background: product.stock === 0
+                    ? '#27272a'
+                    : `linear-gradient(135deg, ${c.primary}, ${c.secondary})`,
+                  color: '#fff',
+                  boxShadow: product.stock > 0 ? `0 4px 24px ${c.primary}50` : 'none',
+                }}
               >
                 <ShoppingCart className="w-5 h-5" />
                 {product.stock === 0 ? t('shop.detail.outOfStock') : t('shop.detail.addToCart')}
               </button>
 
+              {/* Trust badges */}
               <div className="grid grid-cols-2 gap-3 mt-4">
                 {[
                   { icon: ShieldCheck, text: t('shop.detail.securePayment') },
                   { icon: Download, text: t('shop.detail.instantDownload') },
-                  { icon: Clock, text: t('shop.detail.support247') },
+                  { icon: CheckCircle2, text: 'Bảo hành theo sản phẩm' },
                   { icon: Star, text: t('shop.detail.qualityGuarantee') },
                 ].map(({ icon: Icon, text }) => (
-                  <div key={text} className="flex items-center gap-2 text-xs text-text-muted">
-                    <Icon className="w-4 h-4 text-neon-violet" />
-                    {text}
+                  <div key={text} className="flex items-center gap-2 text-xs" style={{ color: c.textMuted }}>
+                    <Icon className="w-4 h-4 shrink-0" style={{ color: c.primary }} />
+                    <span>{text}</span>
                   </div>
                 ))}
               </div>
             </div>
 
+            {/* Tags */}
             {product.tags && product.tags.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {product.tags.map((tag) => (
-                  <span key={tag} className="px-2.5 py-1 bg-darkcard border border-darkborder rounded-lg text-xs text-text-muted">
+                  <span
+                    key={tag}
+                    className="px-2.5 py-1 border rounded-lg text-xs"
+                    style={{ borderColor: c.border, color: c.textMuted }}
+                  >
                     #{tag}
                   </span>
                 ))}
               </div>
             )}
+
+            {/* Stock + Sold visual bar */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-xs" style={{ color: c.textMuted }}>
+                <span>Kho hàng</span>
+                <span className="font-medium" style={{ color: product.stock > 0 ? '#4ade80' : '#f87171' }}>
+                  {product.stock > 0 ? `${product.stock} sẵn có` : 'Hết hàng'}
+                </span>
+              </div>
+              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: '#1f2937' }}>
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${Math.min(100, (product.stock / 100) * 100)}%` }}
+                  transition={{ delay: 0.3, duration: 0.6 }}
+                  className="h-full rounded-full"
+                  style={{ background: product.stock > 0 ? `linear-gradient(90deg, ${c.primary}, ${c.secondary})` : '#ef4444' }}
+                />
+              </div>
+            </div>
           </motion.div>
         </div>
 
-        {/* Tabs */}
-        <div className="mb-16">
-          <div className="flex gap-1 p-1 bg-darkcard rounded-xl border border-darkborder mb-8 w-fit">
-            {(['description', 'features', 'reviews'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab)}
-                className={`px-5 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                  activeTab === tab
-                    ? 'bg-neon-violet text-white shadow-neon-sm'
-                    : 'text-text-muted hover:text-text-primary'
-                }`}
-              >
-                {t(`shop.detail.${tab}`)}
-                {tab === 'reviews' && ` (${product.reviewCount})`}
-              </button>
-            ))}
-          </div>
+        {/* ── Multi-Tab Content ────────────────────────────────────────── */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2, duration: 0.4 }}
+        >
+          <ProductDetailTabs product={product} />
+        </motion.div>
 
-          {activeTab === 'description' && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-darkcard border border-darkborder rounded-2xl p-8"
-            >
-              <h3 className="text-lg font-heading font-bold text-text-primary mb-4">
-                {t('shop.detail.aboutThisProduct')}
-              </h3>
-              <div
-                className="text-text-secondary leading-relaxed prose prose-invert max-w-none"
-                dangerouslySetInnerHTML={{ __html: product.description || '' }}
-              />
-            </motion.div>
-          )}
-
-          {activeTab === 'features' && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-darkcard border border-darkborder rounded-2xl p-8"
-            >
-              <h3 className="text-lg font-heading font-bold text-text-primary mb-6">
-                {t('shop.detail.keyFeatures')}
-              </h3>
-              {product.features && product.features.length > 0 ? (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {product.features.map((feature, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className="w-6 h-6 rounded-full bg-neon-violet/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <CheckCircle2 className="w-4 h-4 text-neon-violet" />
-                      </div>
-                      <span className="text-text-secondary text-sm leading-relaxed">{feature}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <p className="text-text-muted text-sm">{t('shop.detail.noFeatures')}</p>
-              )}
-            </motion.div>
-          )}
-
-          {activeTab === 'reviews' && (
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="space-y-6"
-            >
-              <div className="bg-darkcard border border-darkborder rounded-2xl p-8">
-                <div className="flex items-center gap-6 mb-6">
-                  <div className="text-center">
-                    <p className="text-5xl font-heading font-bold text-neon-violet">
-                      {product.rating.toFixed(1)}
-                    </p>
-                    <StarRating rating={product.rating} reviewCount={product.reviewCount} size="md" />
-                  </div>
-                  <div className="flex-1 h-2 bg-darkbg rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-yellow-400 rounded-full"
-                      style={{ width: `${(product.rating / 5) * 100}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-4">
-                {displayedReviews.map((review) => (
-                  <div key={review.id} className="bg-darkcard border border-darkborder rounded-2xl p-6">
-                    <div className="flex items-start justify-between mb-3">
-                      <div>
-                        <p className="font-semibold text-text-primary">{review.userName}</p>
-                        <StarRating rating={review.rating} size="sm" showCount={false} />
-                      </div>
-                      <span className="text-xs text-text-muted">
-                        {new Date(review.createdAt).toLocaleDateString('vi-VN')}
-                      </span>
-                    </div>
-                    {review.title && (
-                      <p className="font-semibold text-text-primary mb-2">{review.title}</p>
-                    )}
-                    <p className="text-text-secondary text-sm leading-relaxed">{review.content}</p>
-                  </div>
-                ))}
-              </div>
-
-              {MOCK_REVIEWS.length > 2 && (
-                <button
-                  onClick={() => setShowAllReviews(!showAllReviews)}
-                  className="w-full py-3 text-center text-sm text-neon-violet hover:text-neon-indigo transition-colors border border-neon-violet/20 rounded-xl hover:border-neon-violet/40"
-                >
-                  {showAllReviews ? t('shop.detail.showLess') : t('shop.detail.showAllReviews', { count: MOCK_REVIEWS.length })}
-                </button>
-              )}
-            </motion.div>
-          )}
-        </div>
-
-        {/* Related products */}
+        {/* ── Related Products ─────────────────────────────────────────── */}
         {relatedProducts.length > 0 && (
-          <div>
-            <h2 className="text-2xl font-heading font-bold text-text-primary mb-6">
+          <div className="mt-20 pt-8 border-t" style={{ borderColor: c.border }}>
+            <h2 className="text-2xl font-heading font-bold text-text-primary mb-8 flex items-center gap-3">
+              <span style={{ color: c.primary }}>⟨⟩</span>
               {t('shop.detail.relatedProducts')}
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">

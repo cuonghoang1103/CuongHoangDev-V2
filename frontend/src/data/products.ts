@@ -453,6 +453,20 @@ Workspace access sẽ được gửi qua **email** trong vòng **24 giờ** sau 
       'Source code included',
       'Updated for 2025',
     ],
+    specs: [
+      { label: 'Format', value: 'PDF, EPUB' },
+      { label: 'Pages', value: '300+ pages' },
+      { label: 'Exercises', value: '50+ hands-on' },
+      { label: 'Last Updated', value: '2025 Edition' },
+    ],
+    guidance: `## Nội dung giao
+
+File PDF/EPUB sẽ được gửi qua email trong vòng **1 giờ** sau thanh toán.
+
+## Bảo hành
+
+- Hoàn tiền trong 7 ngày nếu file không mở được
+- Không đổi format sau khi giao`,
     isHot: false,
     isNew: true,
     stock: 999,
@@ -480,6 +494,30 @@ Workspace access sẽ được gửi qua **email** trong vòng **24 giờ** sau 
       'Alert system',
       'Export to CSV/JSON',
     ],
+    specs: [
+      { label: 'Runtime', value: 'Go 1.21+' },
+      { label: 'Supported Formats', value: 'JSON, Apache, Nginx, Syslog, Custom' },
+      { label: 'Supported OS', value: 'Windows, macOS, Linux (x86 + ARM)' },
+      { label: 'Latest Version', value: 'v1.2.0' },
+      { label: 'Hardware Requirements', value: '1GB RAM, 100MB disk' },
+    ],
+    guidance: `## Cài đặt nhanh
+
+\`\`\`bash
+# macOS (Homebrew)
+brew install logify
+
+# Linux
+curl -sSL https://get.logify.io | sh
+
+# Windows
+scoop install logify
+\`\`\`
+
+## Bảo hành
+
+- Hỗ trợ cài đặt trong 30 ngày
+- Cập nhật miễn phí trong 6 tháng`,
     isHot: false,
     isNew: false,
     stock: 400,
@@ -509,6 +547,24 @@ Workspace access sẽ được gửi qua **email** trong vòng **24 giờ** sau 
       'TypeScript source code',
       'Postman collection included',
     ],
+    specs: [
+      { label: 'Language', value: 'TypeScript + Node.js' },
+      { label: 'Framework', value: 'Express / Next.js compatible' },
+      { label: 'Latest Version', value: 'v2.0.3' },
+      { label: 'Stripe Version', value: '2023+ API' },
+      { label: 'Supported OS', value: 'Cross-platform (Node.js)' },
+      { label: 'License', value: 'Perpetual, unlimited projects' },
+    ],
+    guidance: `## Cách sử dụng
+
+1. Thêm toolkit vào project: \`npm install stripe-billing-toolkit\`
+2. Import và cấu hình: \`import { StripeBilling } from 'stripe-billing-toolkit'\`
+3. Đọc README.md trong file ZIP để biết chi tiết từng module
+
+## Bảo hành
+
+- **Hoàn tiền 30 ngày** nếu code không hoạt động theo mô tả
+- Hỗ trợ tích hợp qua Discord trong **3 tháng**`,
     isHot: true,
     isNew: false,
     stock: 150,

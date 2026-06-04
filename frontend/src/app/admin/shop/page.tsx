@@ -5,18 +5,76 @@ import {
   Plus, Search, Trash2, X, Loader2,
   Edit, Star, Flame, Sparkles, CheckCircle2,
   ShoppingBag, ChevronLeft, ChevronRight,
-  Upload,
+  Upload, Info, ChevronDown, PlusCircle, Trash,
+  DollarSign, Package, Tag,
 } from 'lucide-react';
 import Image from 'next/image';
 import { toast } from 'sonner';
 import { useProductStore } from '@/store/productStore';
 import { adminCreateProduct, adminUpdateProduct, adminDeleteProduct, mapProductFromBackend } from '@/lib/api/shop';
 import { fileApi } from '@/lib/api';
-import type { Product, ProductCategory } from '@/types';
+import type { Product, ProductCategory, ProductSpec } from '@/types';
 import ImageUpload from '@/components/admin/ImageUpload';
 import { useTranslation } from '@/hooks/useTranslation';
 
+// ─── Category-specific spec templates ─────────────────────────────────────────────
+
+interface SpecTemplate {
+  placeholderLabel: string;
+  placeholderValue: string;
+}
+
+const SPEC_TEMPLATES: Record<ProductCategory | 'default', SpecTemplate[]> = {
+  'Accounts': [
+    { placeholderLabel: 'Warranty Period', placeholderValue: '12 months' },
+    { placeholderLabel: 'Login Method', placeholderValue: 'Email + Password' },
+    { placeholderLabel: 'Validity', placeholderValue: '12 months active' },
+    { placeholderLabel: 'Access Included', placeholderValue: 'GPT-4, DALL-E 3' },
+    { placeholderLabel: 'Delivery Method', placeholderValue: 'Email within 2 hours' },
+    { placeholderLabel: 'Replacement Policy', placeholderValue: 'Free if banned within 24h' },
+  ],
+  'Tools': [
+    { placeholderLabel: 'Runtime', placeholderValue: 'Node.js 18+' },
+    { placeholderLabel: 'Supported OS', placeholderValue: 'Windows, macOS, Linux' },
+    { placeholderLabel: 'Latest Version', placeholderValue: 'v1.0.0' },
+    { placeholderLabel: 'Hardware Requirements', placeholderValue: '2GB RAM, 500MB disk' },
+    { placeholderLabel: 'License Type', placeholderValue: 'Perpetual' },
+  ],
+  'Software': [
+    { placeholderLabel: 'Supported OS', placeholderValue: 'Windows 10+, macOS 12+' },
+    { placeholderLabel: 'Latest Version', placeholderValue: 'v1.0.0' },
+    { placeholderLabel: 'License', placeholderValue: 'Perpetual, 1 device' },
+    { placeholderLabel: 'File Size', placeholderValue: '~50MB' },
+  ],
+  'Web Template': [
+    { placeholderLabel: 'Framework', placeholderValue: 'Next.js 14 + Tailwind' },
+    { placeholderLabel: 'Components', placeholderValue: '60+ pre-built' },
+    { placeholderLabel: 'Responsive', placeholderValue: 'Mobile-first' },
+    { placeholderLabel: 'Animations', placeholderValue: 'Framer Motion' },
+    { placeholderLabel: 'License', placeholderValue: 'Single project' },
+  ],
+  'Ebook': [
+    { placeholderLabel: 'Format', placeholderValue: 'PDF, EPUB, MOBI' },
+    { placeholderLabel: 'Pages', placeholderValue: '300+ pages' },
+    { placeholderLabel: 'Language', placeholderValue: 'English' },
+    { placeholderLabel: 'Last Updated', placeholderValue: '2024 Edition' },
+  ],
+  default: [
+    { placeholderLabel: 'Category', placeholderValue: 'Value' },
+    { placeholderLabel: 'Feature', placeholderValue: 'Details' },
+    { placeholderLabel: 'Version', placeholderValue: 'v1.0' },
+  ],
+};
+
 const CATEGORIES: ProductCategory[] = ['Web Template', 'Tools', 'Software', 'Accounts', 'Ebook'];
+
+function getSpecTemplates(category: ProductCategory): SpecTemplate[] {
+  return SPEC_TEMPLATES[category] ?? SPEC_TEMPLATES.default;
+}
+
+function emptySpec(): ProductSpec {
+  return { label: '', value: '' };
+}
 
 const emptyProduct = {
   name: '',
@@ -29,6 +87,8 @@ const emptyProduct = {
   reviewCount: 0,
   description: '',
   features: [] as string[],
+  specs: [] as ProductSpec[],
+  guidance: '',
   isHot: false,
   isNew: false,
   stock: 999,
@@ -55,6 +115,149 @@ function slugify(text: string): string {
     .trim();
 }
 
+// ─── Specs Editor Sub-component ────────────────────────────────────────────────
+function SpecsEditor({
+  specs,
+  onChange,
+  category,
+}: {
+  specs: ProductSpec[];
+  onChange: (specs: ProductSpec[]) => void;
+  category: ProductCategory;
+}) {
+  const templates = getSpecTemplates(category);
+  const [showTemplates, setShowTemplates] = useState(false);
+
+  const addSpec = () => onChange([...specs, emptySpec()]);
+
+  const updateSpec = (index: number, field: keyof ProductSpec, value: string) => {
+    const updated = specs.map((s, i) =>
+      i === index ? { ...s, [field]: value } : s
+    );
+    onChange(updated);
+  };
+
+  const removeSpec = (index: number) => {
+    onChange(specs.filter((_, i) => i !== index));
+  };
+
+  const applyTemplate = (template: SpecTemplate) => {
+    const exists = specs.some((s) => s.label === template.placeholderLabel);
+    if (!exists) {
+      onChange([...specs, { label: template.placeholderLabel, value: template.placeholderValue }]);
+    }
+    setShowTemplates(false);
+  };
+
+  const c = {
+    primary: '#a855f7',
+    border: 'rgba(168,85,247,0.25)',
+    borderFocus: 'rgba(168,85,247,0.5)',
+    bg: '#0a0a0f',
+  };
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center justify-between">
+        <label className="block text-xs font-medium text-text-muted">
+          Thông số kỹ thuật (theo danh mục)
+        </label>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowTemplates(!showTemplates)}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-colors"
+            style={{
+              background: `${c.primary}10`,
+              border: `1px solid ${c.border}`,
+              color: c.primary,
+            }}
+          >
+            <PlusCircle className="w-3.5 h-3.5" />
+            Thêm nhanh
+            <ChevronDown className="w-3 h-3" />
+          </button>
+          {showTemplates && (
+            <>
+              <div className="fixed inset-0 z-10" onClick={() => setShowTemplates(false)} />
+              <div
+                className="absolute right-0 top-full mt-2 z-20 rounded-xl border overflow-hidden shadow-xl w-64"
+                style={{ background: c.bg, borderColor: c.border }}
+              >
+                <p className="px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-text-muted border-b" style={{ borderColor: c.border }}>
+                  Chọn thông số cho: {category}
+                </p>
+                {templates.map((t, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => applyTemplate(t)}
+                    className="w-full text-left px-3 py-2 text-xs text-text-secondary hover:bg-white/5 transition-colors border-b last:border-0"
+                    style={{ borderColor: `${c.border}50` }}
+                  >
+                    <span style={{ color: c.primary }}>{t.placeholderLabel}</span>
+                    <span className="text-text-muted ml-1"> — {t.placeholderValue}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Spec rows */}
+      <div className="space-y-2">
+        {specs.map((spec, i) => (
+          <div key={i} className="flex gap-2 items-center">
+            <input
+              type="text"
+              value={spec.label}
+              onChange={(e) => updateSpec(i, 'label', e.target.value)}
+              placeholder="Tên thông số (VD: Warranty Period)"
+              className="flex-1 px-3 py-2 bg-darkbg border border-darkborder rounded-lg text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
+            />
+            <input
+              type="text"
+              value={spec.value}
+              onChange={(e) => updateSpec(i, 'value', e.target.value)}
+              placeholder="Giá trị (VD: 12 months)"
+              className="flex-1 px-3 py-2 bg-darkbg border border-darkborder rounded-lg text-xs text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 transition-colors"
+            />
+            <button
+              type="button"
+              onClick={() => removeSpec(i)}
+              className="p-2 rounded-lg hover:bg-red-500/10 text-text-muted hover:text-red-400 transition-colors"
+            >
+              <Trash className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {specs.length === 0 && (
+        <p className="text-xs text-text-muted italic py-2">
+          Chưa có thông số kỹ thuật. Nhấn "Thêm nhanh" để chọn mẫu hoặc thêm thủ công.
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={addSpec}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+        style={{
+          background: `${c.primary}08`,
+          border: `1px dashed ${c.border}`,
+          color: c.primary,
+        }}
+      >
+        <PlusCircle className="w-3.5 h-3.5" />
+        Thêm thông số
+      </button>
+    </div>
+  );
+}
+
+// ─── Main Admin Shop Page ────────────────────────────────────────────────────────
 export default function AdminShopPage() {
   const { t } = useTranslation();
   const { products, fetchProducts, isLoaded, updateProduct, deleteProduct, toggleFeatured, toggleHot, toggleNew } = useProductStore();
@@ -74,13 +277,11 @@ export default function AdminShopPage() {
   const [saving, setSaving] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
 
-  // Wait for hydration
   useEffect(() => {
     setMounted(true);
     if (!isLoaded) fetchProducts();
   }, []);
 
-  // Show loading during hydration
   if (!mounted) {
     return (
       <div className="min-h-screen bg-darkbg pt-20 flex items-center justify-center">
@@ -89,7 +290,6 @@ export default function AdminShopPage() {
     );
   }
 
-  // Filter
   const filtered = products.filter((p) => {
     const matchSearch =
       !search ||
@@ -102,7 +302,6 @@ export default function AdminShopPage() {
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
   const paginated = filtered.slice(page * pageSize, (page + 1) * pageSize);
 
-  // Open create form
   const openCreate = () => {
     setEditingId(null);
     setProductForm({ ...emptyProduct, slug: '' });
@@ -111,7 +310,6 @@ export default function AdminShopPage() {
     setShowForm(true);
   };
 
-  // Open edit form
   const openEdit = (product: Product) => {
     setEditingId(product.id);
     setProductForm({
@@ -125,6 +323,8 @@ export default function AdminShopPage() {
       reviewCount: product.reviewCount,
       description: product.description,
       features: product.features || [],
+      specs: product.specs ?? [],
+      guidance: product.guidance ?? '',
       isHot: product.isHot ?? false,
       isNew: product.isNew ?? false,
       stock: product.stock ?? 999,
@@ -138,7 +338,6 @@ export default function AdminShopPage() {
     setShowForm(true);
   };
 
-  // Delete
   const handleDelete = async (id: string) => {
     if (!confirm(t('admin.shop.deleteConfirm'))) return;
     setLoading(true);
@@ -153,7 +352,6 @@ export default function AdminShopPage() {
     }
   };
 
-  // Save
   const handleSave = async () => {
     if (!productForm.name.trim()) {
       toast.error(t('checkout.requiredField'));
@@ -198,7 +396,7 @@ export default function AdminShopPage() {
       }
       setShowForm(false);
       if (!isLoaded) fetchProducts();
-    } catch (err) {
+    } catch {
       toast.error(t('admin.shop.saveError'));
     } finally {
       setSaving(false);
@@ -206,7 +404,6 @@ export default function AdminShopPage() {
     }
   };
 
-  // Toggle featured
   const handleToggleFeatured = async (product: Product) => {
     const newVal = !product.isFeatured;
     try {
@@ -264,6 +461,14 @@ export default function AdminShopPage() {
 
   const clearFileUrl = () => {
     setProductForm((f) => ({ ...f, fileUrl: '' }));
+  };
+
+  const c = {
+    primary: '#a855f7',
+    secondary: '#ec4899',
+    border: 'rgba(168,85,247,0.2)',
+    borderDark: '#27272a',
+    surface: 'rgba(20,15,40,0.5)',
   };
 
   return (
@@ -333,127 +538,127 @@ export default function AdminShopPage() {
               <tr className="border-b border-darkborder">
                 <th className="text-left px-4 py-3 text-text-muted font-medium">{t('admin.shop.product')}</th>
                 <th className="text-left px-4 py-3 text-text-muted font-medium hidden md:table-cell">{t('admin.shop.category')}</th>
-                <th className="text-left px-4 py-3 text-text-muted font-medium">{t('admin.shop.price')}</th>
-                <th className="text-left px-4 py-3 text-text-muted font-medium hidden lg:table-cell">{t('admin.shop.tags')}</th>
+                <th className="text-left px-4 py-3 text-text-muted font-medium hidden lg:table-cell">Giá / Giảm giá</th>
                 <th className="text-left px-4 py-3 text-text-muted font-medium hidden sm:table-cell">{t('admin.shop.stock')}</th>
-                <th className="text-left px-4 py-3 text-text-muted font-medium hidden xl:table-cell">{t('admin.shop.sold')}</th>
+                <th className="text-left px-4 py-3 text-text-muted font-medium hidden xl:table-cell">Đã bán</th>
                 <th className="text-right px-4 py-3 text-text-muted font-medium">{t('admin.shop.actions')}</th>
               </tr>
             </thead>
             <tbody>
               {paginated.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-text-muted">
+                  <td colSpan={6} className="text-center py-12 text-text-muted">
                     {t('admin.shop.noProducts')}
                   </td>
                 </tr>
               ) : (
-                paginated.map((product) => (
-                  <tr key={product.id} className="border-b border-darkborder/50 hover:bg-white/5 transition-colors">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-3">
-                        <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-darkbg">
-                          {product.thumbnail ? (
-                            <Image src={product.thumbnail} alt={product.name} fill className="object-cover" />
-                          ) : (
-                            <div className="w-full h-full bg-darkcard flex items-center justify-center">
-                              <ShoppingBag className="w-5 h-5 text-text-muted" />
+                paginated.map((product) => {
+                  const discountPercent = product.originalPrice
+                    ? Math.round((1 - product.price / product.originalPrice) * 100)
+                    : 0;
+                  return (
+                    <tr key={product.id} className="border-b border-darkborder/50 hover:bg-white/5 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-darkbg">
+                            {product.thumbnail ? (
+                              <Image src={product.thumbnail} alt={product.name} fill className="object-cover" />
+                            ) : (
+                              <div className="w-full h-full bg-darkcard flex items-center justify-center">
+                                <ShoppingBag className="w-5 h-5 text-text-muted" />
+                              </div>
+                            )}
+                            {/* Discount badge on thumbnail */}
+                            {discountPercent > 0 && (
+                              <div className="absolute -top-1 -right-1 px-1.5 py-0.5 rounded-full text-[9px] font-bold text-white"
+                                style={{ background: 'linear-gradient(135deg,#a855f7,#ec4899)' }}>
+                                -{discountPercent}%
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-text-primary truncate max-w-[180px]">{product.name}</p>
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                              <span className="text-xs text-text-muted">{product.rating} ({product.reviewCount})</span>
+                              {product.specs && product.specs.length > 0 && (
+                                <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded" style={{ background: `${c.primary}15`, color: c.primary }}>
+                                  {product.specs.length} specs
+                                </span>
+                              )}
                             </div>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-text-primary truncate max-w-[180px]">{product.name}</p>
-                          <div className="flex items-center gap-1 mt-0.5">
-                            <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
-                            <span className="text-xs text-text-muted">{product.rating} ({product.reviewCount})</span>
                           </div>
                         </div>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 hidden md:table-cell">
-                      <span className="px-2 py-1 bg-darkbg rounded-lg text-xs text-text-muted">{product.category}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <p className="font-semibold text-neon-violet">{formatPrice(product.price)}</p>
-                      {product.originalPrice && (
-                        <p className="text-xs text-text-muted line-through">{formatPrice(product.originalPrice)}</p>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 hidden lg:table-cell">
-                      <div className="flex gap-1 flex-wrap">
-                        {product.isHot && (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-orange-500/20 text-orange-400 text-xs rounded">
-                            <Flame className="w-2.5 h-2.5" />Hot
-                          </span>
+                      </td>
+                      <td className="px-4 py-3 hidden md:table-cell">
+                        <span className="px-2 py-1 bg-darkbg rounded-lg text-xs text-text-muted">{product.category}</span>
+                      </td>
+                      <td className="px-4 py-3 hidden lg:table-cell">
+                        <p className="font-semibold text-neon-violet">{formatPrice(product.price)}</p>
+                        {product.originalPrice && product.originalPrice > product.price && (
+                          <div className="flex items-center gap-1.5 mt-0.5">
+                            <span className="text-xs text-text-muted line-through">{formatPrice(product.originalPrice)}</span>
+                            <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded">
+                              -{discountPercent}%
+                            </span>
+                          </div>
                         )}
-                        {product.isNew && (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-neon-cyan/20 text-neon-cyan text-xs rounded">
-                            <Sparkles className="w-2.5 h-2.5" />New
-                          </span>
+                        {!product.originalPrice && <span className="text-xs text-text-muted">—</span>}
+                      </td>
+                      <td className="px-4 py-3 hidden sm:table-cell">
+                        {product.stock === 0 ? (
+                          <span className="text-xs text-red-400">{t('admin.shop.outOfStock')}</span>
+                        ) : product.stock <= 20 ? (
+                          <span className="text-xs text-yellow-400">{t('admin.shop.inStock')} ({product.stock})</span>
+                        ) : (
+                          <span className="text-xs text-text-muted">{product.stock}</span>
                         )}
-                        {product.isFeatured && (
-                          <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-neon-violet/20 text-neon-violet text-xs rounded">
-                            <CheckCircle2 className="w-2.5 h-2.5" />Featured
-                          </span>
-                        )}
-                        {!product.isHot && !product.isNew && !product.isFeatured && (
-                          <span className="text-xs text-text-muted">—</span>
-                        )}
-                      </div>
-                    </td>
-                    <td className="px-4 py-3 hidden sm:table-cell">
-                      {product.stock === 0 ? (
-                        <span className="text-xs text-red-400">{t('admin.shop.outOfStock')}</span>
-                      ) : product.stock <= 20 ? (
-                        <span className="text-xs text-yellow-400">{t('admin.shop.inStock')} ({product.stock})</span>
-                      ) : (
-                        <span className="text-xs text-text-muted">{product.stock}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 hidden xl:table-cell">
-                      <span className="text-xs text-text-muted">{(product.soldCount || 0).toLocaleString()}</span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <div className="flex items-center justify-end gap-1">
-                        <button
-                          onClick={() => handleToggleFeatured(product)}
-                          className={`p-1.5 rounded-lg transition-colors ${product.isFeatured ? 'text-neon-violet bg-neon-violet/10' : 'text-text-muted hover:text-text-primary hover:bg-white/5'}`}
-                          title={product.isFeatured ? t('admin.shop.removeFeatured') : t('admin.shop.markFeatured')}
-                        >
-                          <Star className={`w-4 h-4 ${product.isFeatured ? 'fill-current' : ''}`} />
-                        </button>
-                        <button
-                          onClick={() => toggleHot(product.id)}
-                          className={`p-1.5 rounded-lg transition-colors ${product.isHot ? 'text-orange-400 bg-orange-500/10' : 'text-text-muted hover:text-text-primary hover:bg-white/5'}`}
-                          title="Toggle Hot"
-                        >
-                          <Flame className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => toggleNew(product.id)}
-                          className={`p-1.5 rounded-lg transition-colors ${product.isNew ? 'text-neon-cyan bg-neon-cyan/10' : 'text-text-muted hover:text-text-primary hover:bg-white/5'}`}
-                          title="Toggle New"
-                        >
-                          <Sparkles className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => openEdit(product)}
-                          className="p-1.5 rounded-lg text-text-muted hover:text-neon-violet hover:bg-neon-violet/10 transition-colors"
-                          title={t('admin.shop.edit')}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(product.id)}
-                          className="p-1.5 rounded-lg text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                          title={t('admin.shop.delete')}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td className="px-4 py-3 hidden xl:table-cell">
+                        <span className="text-xs text-text-muted">{(product.soldCount || 0).toLocaleString()}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center justify-end gap-1">
+                          <button
+                            onClick={() => handleToggleFeatured(product)}
+                            className={`p-1.5 rounded-lg transition-colors ${product.isFeatured ? 'text-neon-violet bg-neon-violet/10' : 'text-text-muted hover:text-text-primary hover:bg-white/5'}`}
+                            title={product.isFeatured ? t('admin.shop.removeFeatured') : t('admin.shop.markFeatured')}
+                          >
+                            <Star className={`w-4 h-4 ${product.isFeatured ? 'fill-current' : ''}`} />
+                          </button>
+                          <button
+                            onClick={() => toggleHot(product.id)}
+                            className={`p-1.5 rounded-lg transition-colors ${product.isHot ? 'text-orange-400 bg-orange-500/10' : 'text-text-muted hover:text-text-primary hover:bg-white/5'}`}
+                            title="Toggle Hot"
+                          >
+                            <Flame className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => toggleNew(product.id)}
+                            className={`p-1.5 rounded-lg transition-colors ${product.isNew ? 'text-neon-cyan bg-neon-cyan/10' : 'text-text-muted hover:text-text-primary hover:bg-white/5'}`}
+                            title="Toggle New"
+                          >
+                            <Sparkles className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => openEdit(product)}
+                            className="p-1.5 rounded-lg text-text-muted hover:text-neon-violet hover:bg-neon-violet/10 transition-colors"
+                            title={t('admin.shop.edit')}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(product.id)}
+                            className="p-1.5 rounded-lg text-text-muted hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                            title={t('admin.shop.delete')}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
@@ -502,12 +707,23 @@ export default function AdminShopPage() {
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowForm(false)} />
-          <div className="relative w-full max-w-2xl max-h-[90vh] bg-darkcard border border-darkborder rounded-2xl shadow-2xl overflow-y-auto">
+          <div
+            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl shadow-2xl"
+            style={{ background: '#12121a', border: `1px solid ${c.border}` }}
+          >
             {/* Modal Header */}
-            <div className="sticky top-0 bg-darkcard border-b border-darkborder px-6 py-4 flex items-center justify-between z-10">
-              <h2 className="font-heading font-bold text-text-primary">
-                {editingId ? t('admin.shop.editProduct') : t('admin.shop.addProductTitle')}
-              </h2>
+            <div
+              className="sticky top-0 px-6 py-4 flex items-center justify-between z-10"
+              style={{ background: '#12121a', borderBottom: `1px solid ${c.border}` }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${c.primary}, ${c.secondary})` }}>
+                  <Tag className="w-4 h-4 text-white" />
+                </div>
+                <h2 className="font-heading font-bold text-text-primary">
+                  {editingId ? t('admin.shop.editProduct') : t('admin.shop.addProductTitle')}
+                </h2>
+              </div>
               <button
                 onClick={() => setShowForm(false)}
                 className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-white/5 text-text-muted hover:text-text-primary transition-colors"
@@ -542,13 +758,16 @@ export default function AdminShopPage() {
                 </div>
               </div>
 
-              {/* Category + Price */}
+              {/* Category + Price + Original Price */}
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <div>
                   <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.categoryLabel')}</label>
                   <select
                     value={productForm.category}
-                    onChange={(e) => setProductForm((f) => ({ ...f, category: e.target.value as ProductCategory }))}
+                    onChange={(e) => {
+                      const cat = e.target.value as ProductCategory;
+                      setProductForm((f) => ({ ...f, category: cat }));
+                    }}
                     className="w-full px-4 py-2.5 bg-darkbg border border-darkborder rounded-xl text-sm text-text-primary focus:outline-none focus:border-neon-violet/50 cursor-pointer"
                   >
                     {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -564,14 +783,22 @@ export default function AdminShopPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.originalPrice')} (VND)</label>
+                  <label className="block text-xs font-medium text-text-muted mb-1.5">
+                    {t('admin.shop.originalPrice')} (VND)
+                    <span className="ml-1 text-neon-violet font-normal">(giá gốc)</span>
+                  </label>
                   <input
                     type="number"
                     value={productForm.originalPrice || ''}
                     onChange={(e) => setProductForm((f) => ({ ...f, originalPrice: Number(e.target.value) || 0 }))}
-                    placeholder={t('admin.shop.optional')}
+                    placeholder="Để trống = không giảm giá"
                     className="w-full px-4 py-2.5 bg-darkbg border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50"
                   />
+                  {productForm.originalPrice > 0 && productForm.price > 0 && productForm.originalPrice > productForm.price && (
+                    <p className="text-[10px] text-emerald-400 mt-1 font-medium">
+                      Giảm {Math.round((1 - productForm.price / productForm.originalPrice) * 100)}%
+                    </p>
+                  )}
                 </div>
               </div>
 
@@ -633,7 +860,7 @@ export default function AdminShopPage() {
                 <textarea
                   value={productForm.description}
                   onChange={(e) => setProductForm((f) => ({ ...f, description: e.target.value }))}
-                  rows={4}
+                  rows={3}
                   placeholder={t('admin.shop.descriptionPlaceholder')}
                   className="w-full px-4 py-2.5 bg-darkbg border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 resize-none"
                 />
@@ -667,6 +894,42 @@ export default function AdminShopPage() {
                 </div>
               </div>
 
+              {/* ── Category-Specific Specs Editor ─────────────────────── */}
+              <div
+                className="rounded-xl p-4 border"
+                style={{ background: `${c.primary}06`, borderColor: `${c.primary}25` }}
+              >
+                <div className="flex items-center gap-2 mb-3">
+                  <Info className="w-4 h-4" style={{ color: c.primary }} />
+                  <p className="text-xs font-semibold" style={{ color: c.primary }}>
+                    Thông số kỹ thuật — {productForm.category}
+                  </p>
+                </div>
+                <SpecsEditor
+                  specs={productForm.specs}
+                  onChange={(specs) => setProductForm((f) => ({ ...f, specs }))}
+                  category={productForm.category}
+                />
+              </div>
+
+              {/* ── Guidance / Hướng dẫn & Bảo hành ─────────────────── */}
+              <div>
+                <label className="block text-xs font-medium text-text-muted mb-1.5">
+                  Hướng dẫn & Bảo hành
+                  <span className="ml-1 text-text-muted font-normal">(hiển thị ở Tab 3)</span>
+                </label>
+                <textarea
+                  value={productForm.guidance}
+                  onChange={(e) => setProductForm((f) => ({ ...f, guidance: e.target.value }))}
+                  rows={5}
+                  placeholder={`## Hướng dẫn cài đặt\n\n1. Giải nén file ZIP\n2. Chạy lệnh cài đặt...\n\n## Bảo hành\n\n- Hoàn tiền trong 7 ngày\n- Hỗ trợ qua email`}
+                  className="w-full px-4 py-2.5 bg-darkbg border border-darkborder rounded-xl text-sm text-text-primary placeholder:text-text-muted focus:outline-none focus:border-neon-violet/50 resize-none font-mono"
+                />
+                <p className="text-[10px] text-text-muted mt-1">
+                  Hỗ trợ Markdown đơn giản: ## Tiêu đề, **bold**, `code`, - danh sách
+                </p>
+              </div>
+
               {/* Tags */}
               <div>
                 <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.tagsLabel')}</label>
@@ -698,7 +961,7 @@ export default function AdminShopPage() {
               {/* Badges */}
               <div>
                 <label className="block text-xs font-medium text-text-muted mb-1.5">{t('admin.shop.specialBadges')}</label>
-                <div className="flex gap-3">
+                <div className="flex gap-3 flex-wrap">
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
@@ -753,7 +1016,10 @@ export default function AdminShopPage() {
             </div>
 
             {/* Modal Footer */}
-            <div className="sticky bottom-0 bg-darkcard border-t border-darkborder px-6 py-4 flex items-center justify-end gap-3">
+            <div
+              className="sticky bottom-0 px-6 py-4 flex items-center justify-end gap-3"
+              style={{ background: '#12121a', borderTop: `1px solid ${c.border}` }}
+            >
               <button
                 onClick={() => setShowForm(false)}
                 className="px-5 py-2.5 border border-darkborder rounded-xl text-sm text-text-muted hover:text-text-primary hover:border-darkborder/80 transition-colors"
