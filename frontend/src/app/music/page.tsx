@@ -11,14 +11,16 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Headphones, MoonStar, CloudSun, RefreshCw } from 'lucide-react';
+import { Headphones, MoonStar, CloudSun, RefreshCw, ListMusic } from 'lucide-react';
 import ClientOnly from '@/components/providers/ClientOnly';
 import PremiumBackground from '@/components/music/PremiumBackground';
 import PremiumNowPlaying from '@/components/music/PremiumNowPlaying';
 import PremiumPlaylist from '@/components/music/PremiumPlaylist';
+import PlaylistDrawer from '@/components/music/PlaylistDrawer';
 import MiniPlayer from '@/components/music/MiniPlayer';
 import { useMousePosition } from '@/components/music/useMousePosition';
 import { useMusicStore } from '@/store/musicStore';
+import { usePlaylistStore } from '@/store/playlistStore';
 import type { Track } from '@/types';
 
 function formatSeconds(seconds?: number): string {
@@ -236,6 +238,7 @@ export default function MusicPage() {
                 {isNight ? <MoonStar className="w-3 h-3" /> : <CloudSun className="w-3 h-3" />}
                 <span className="hidden sm:inline">{isNight ? 'Night' : 'Day'}</span>
               </div>
+              <PlaylistButton />
             </div>
           </div>
         </motion.header>
@@ -295,6 +298,34 @@ export default function MusicPage() {
       <ClientOnly>
         <MiniPlayer isNight={isNight} />
       </ClientOnly>
+      <ClientOnly>
+        <PlaylistDrawer />
+      </ClientOnly>
     </div>
+  );
+}
+
+function PlaylistButton() {
+  const openDrawer = usePlaylistStore((s) => s.openDrawer);
+  const playlistCount = usePlaylistStore((s) => s.playlists.length);
+
+  return (
+    <button
+      onClick={openDrawer}
+      className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] transition-all hover:scale-105"
+      style={{
+        background: `${C.primary}15`,
+        border: `1px solid ${C.border}`,
+        color: C.primary,
+      }}
+    >
+      <ListMusic className="w-3 h-3" />
+      <span className="hidden sm:inline">Playlists</span>
+      {playlistCount > 0 && (
+        <span className="w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold" style={{ background: C.primary, color: '#fff' }}>
+          {playlistCount}
+        </span>
+      )}
+    </button>
   );
 }

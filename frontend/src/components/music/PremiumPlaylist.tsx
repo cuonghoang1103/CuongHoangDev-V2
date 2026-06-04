@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import Image from 'next/image';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Play, Pause, Search, Music, Loader2, ListMusic } from 'lucide-react';
+import { Play, Pause, Search, Music, Loader2, ListMusic, Plus } from 'lucide-react';
 import { useMusicStore } from '@/store/musicStore';
+import { usePlaylistStore } from '@/store/playlistStore';
 import type { Track } from '@/types';
 
 function isSafeCoverUrl(url: unknown): url is string {
@@ -224,6 +225,10 @@ export default function PremiumPlaylist({ isNight = true }: PremiumPlaylistProps
                       isActive={isActive}
                       isPlaying={isCurrentlyPlaying}
                       onPlay={() => handlePlayTrack(track)}
+                      onAddToPlaylist={() => {
+                        usePlaylistStore.getState().setPendingTrack(track);
+                        usePlaylistStore.getState().openDrawer();
+                      }}
                       colors={c}
                     />
                   </motion.div>
@@ -243,6 +248,7 @@ function PremiumTrackItem({
   isActive,
   isPlaying,
   onPlay,
+  onAddToPlaylist,
   colors,
 }: {
   track: Track;
@@ -250,6 +256,7 @@ function PremiumTrackItem({
   isActive: boolean;
   isPlaying: boolean;
   onPlay: () => void;
+  onAddToPlaylist: () => void;
   colors: {
     primary: string;
     secondary: string;
@@ -366,6 +373,16 @@ function PremiumTrackItem({
           {track.artist}
         </p>
       </div>
+
+      {/* Add to Playlist button */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onAddToPlaylist(); }}
+        className="w-7 h-7 rounded-lg flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shrink-0"
+        style={{ color: colors.primary, background: `${colors.primary}15` }}
+        title="Add to Playlist"
+      >
+        <Plus className="w-3.5 h-3.5" />
+      </button>
 
       {/* Duration */}
       <span className="text-[11px] tabular-nums shrink-0 font-mono" style={{ color: colors.textMuted }}>
