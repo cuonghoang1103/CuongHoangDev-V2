@@ -19,7 +19,6 @@ interface MusicState {
   isShuffled: boolean;
   repeatMode: RepeatMode;
   queue: Track[];
-  savedPositions: Record<string, number>;
 
   setTracks: (tracks: Track[]) => void;
   addTrack: (track: Track) => void;
@@ -66,7 +65,6 @@ export const useMusicStore = create<MusicState>()((set, get) => ({
   isShuffled: false,
   repeatMode: 'none',
   queue: [],
-  savedPositions: {},
 
   setTracks: (tracks) => {
     const first = tracks[0] || null;
@@ -125,24 +123,22 @@ export const useMusicStore = create<MusicState>()((set, get) => ({
   playTrack: (track) => {
     const { tracks } = get();
     const idx = tracks.findIndex((t) => t.id === track.id);
-    const savedPos = get().savedPositions[track.id] ?? 0;
     set({
       currentTrack: track,
       currentIndex: idx >= 0 ? idx : 0,
       isPlaying: true,
-      currentTime: savedPos,
+      currentTime: 0,
     });
   },
 
   playTrackAtIndex: (index) => {
-    const { tracks, savedPositions } = get();
+    const { tracks } = get();
     if (index < 0 || index >= tracks.length) return;
-    const savedPos = savedPositions[tracks[index]?.id] ?? 0;
     set({
       currentTrack: tracks[index],
       currentIndex: index,
       isPlaying: true,
-      currentTime: savedPos,
+      currentTime: 0,
     });
   },
 
@@ -165,12 +161,11 @@ export const useMusicStore = create<MusicState>()((set, get) => ({
       else { set({ isPlaying: false }); return; }
     }
 
-    const savedPos = get().savedPositions[tracks[nextIndex]?.id] ?? 0;
     set({
       currentTrack: tracks[nextIndex],
       currentIndex: nextIndex,
       isPlaying: true,
-      currentTime: savedPos,
+      currentTime: 0,
     });
   },
 
@@ -185,25 +180,15 @@ export const useMusicStore = create<MusicState>()((set, get) => ({
 
     let prevIndex = currentIndex - 1;
     if (prevIndex < 0) prevIndex = tracks.length - 1;
-    const savedPos = get().savedPositions[tracks[prevIndex]?.id] ?? 0;
     set({
       currentTrack: tracks[prevIndex],
       currentIndex: prevIndex,
-      currentTime: savedPos,
+      currentTime: 0,
       isPlaying: true,
     });
   },
 
-  setCurrentTime: (time) => {
-    const { currentTrack } = get();
-    set((s) => {
-      const newPositions = { ...s.savedPositions };
-      if (currentTrack?.id) {
-        newPositions[currentTrack.id] = time;
-      }
-      return { currentTime: time, savedPositions: newPositions };
-    });
-  },
+  setCurrentTime: (time) => set({ currentTime: time }),
 
   setDuration: (duration) => set({ duration }),
   setVolume: (volume) => set({ volume, isMuted: false }),
