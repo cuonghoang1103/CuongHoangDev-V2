@@ -15,7 +15,8 @@ import org.springframework.stereotype.Component;
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.Optional;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Component
 public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
@@ -58,10 +59,12 @@ public class OAuth2SuccessHandler implements AuthenticationSuccessHandler {
             user = userRepository.save(user);
         }
 
-        String token = tokenProvider.generateTokenFromUsername(user.getUsername());
-        String role = user.getRoles().stream()
-                .findFirst()
+        List<String> roles = user.getRoles().stream()
                 .map(r -> r.getName())
+                .collect(Collectors.toList());
+        String token = tokenProvider.generateTokenWithRoles(user.getUsername(), roles);
+        String role = roles.stream()
+                .findFirst()
                 .orElse("ROLE_USER");
 
         String redirectUrl = String.format("%s/auth/callback?token=%s&userId=%d&username=%s&email=%s&role=%s&provider=%s",

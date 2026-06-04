@@ -27,6 +27,7 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class AuthService {
@@ -80,7 +81,7 @@ public class AuthService {
                 userPrincipal, null, authorities);
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
-        String token = tokenProvider.generateToken(authentication);
+        String token = tokenProvider.generateTokenWithRoles(user.getUsername(), user.getRoles().stream().map(Role::getName).collect(Collectors.toList()));
 
         AuthResponse authResponse = new AuthResponse(
                 token,

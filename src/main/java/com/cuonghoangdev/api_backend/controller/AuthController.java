@@ -18,6 +18,9 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
 @RestController
 @RequestMapping("/api/v1/auth")
 @Tag(name = "1. Authentication", description = "Xác thực & Đăng nhập")
@@ -97,11 +100,11 @@ public class AuthController {
     @Operation(summary = "OAuth token", description = "Generate JWT token for an existing OAuth user by email — used to set backend_token cookie after NextAuth sign-in")
     public ResponseEntity<ApiResponse<AuthResponse>> oauthToken(@Valid @RequestBody OAuthRegisterRequest request) {
         User user = authService.oauthRegister(request);
-        String token = tokenProvider.generateTokenFromUsername(user.getUsername());
-        String role = user.getRoles().stream()
-                .findFirst()
+        List<String> roles = user.getRoles().stream()
                 .map(Role::getName)
-                .orElse("ROLE_USER");
+                .collect(Collectors.toList());
+        String token = tokenProvider.generateTokenWithRoles(user.getUsername(), roles);
+        String role = roles.stream().findFirst().orElse("ROLE_USER");
         AuthResponse response = new AuthResponse(
                 token,
                 user.getId(),
@@ -156,7 +159,10 @@ public class AuthController {
         }
         User user = userRepository.findByUsername(currentUser.getUsername())
                 .orElseThrow(() -> new ResourceNotFoundException("User not found"));
-        String newToken = tokenProvider.generateTokenFromUsername(user.getUsername());
+        List<String> roles = user.getRoles().stream()
+                .map(Role::getName)
+                .collect(Collectors.toList());
+        String newToken = tokenProvider.generateTokenWithRoles(user.getUsername(), roles);
         String role = user.getRoles().stream()
                 .findFirst()
                 .map(Role::getName)
