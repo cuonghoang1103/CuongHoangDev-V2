@@ -135,13 +135,19 @@ export default function ProductDetailPage() {
             transition={{ duration: 0.5 }}
           >
             <div className="relative aspect-square rounded-2xl overflow-hidden bg-darkcard border border-darkborder group">
-              <Image
-                src={product.thumbnail}
-                alt={product.name}
-                fill
-                className="object-cover group-hover:scale-105 transition-transform duration-500"
-                priority
-              />
+              {product.thumbnail ? (
+                <Image
+                  src={product.thumbnail}
+                  alt={product.name}
+                  fill
+                  className="object-cover group-hover:scale-105 transition-transform duration-500"
+                  priority
+                />
+              ) : (
+                <div className="absolute inset-0 bg-gradient-to-br from-neon-indigo/20 to-neon-violet/20 flex items-center justify-center">
+                  <Package className="w-12 h-12 text-white/30" />
+                </div>
+              )}
 
               {/* Badges */}
               <div className="absolute top-4 left-4 flex flex-col gap-2">

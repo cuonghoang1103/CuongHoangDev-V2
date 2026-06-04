@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { motion } from 'framer-motion';
-import { Play, Lock, Zap, Clock, BarChart3 } from 'lucide-react';
+import { Play, Lock, Zap, Clock, BarChart3, Package } from 'lucide-react';
 import type { Game } from '@/types/games';
 
 const difficultyColor: Record<string, string> = {
@@ -65,12 +65,18 @@ export default function GameCard({ game, index = 0 }: GameCardProps) {
 
         {/* Thumbnail */}
         <Link href={`/games/${game.slug}`} className="block relative aspect-[4/3] overflow-hidden">
-          <Image
-            src={game.thumbnail}
-            alt={game.title}
-            fill
-            className={`object-cover transition-transform duration-500 group-hover:scale-110 ${!game.isPlayable && 'opacity-50'}`}
-          />
+          {game.thumbnail ? (
+            <Image
+              src={game.thumbnail}
+              alt={game.title}
+              fill
+              className={`object-cover transition-transform duration-500 group-hover:scale-110 ${!game.isPlayable && 'opacity-50'}`}
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-neon-violet/30 to-neon-fuchsia/30 flex items-center justify-center">
+              <Package className="w-8 h-8 text-white/30" />
+            </div>
+          )}
           {/* Overlay gradient */}
           <div className="absolute inset-0 bg-gradient-to-t from-darkbg via-transparent to-transparent opacity-80" />
 

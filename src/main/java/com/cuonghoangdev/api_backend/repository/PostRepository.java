@@ -25,7 +25,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     Page<Post> findByStatusAndCategoryId(String status, Long categoryId, Pageable pageable);
 
     @Query("SELECT p FROM Post p WHERE p.status = :status " +
-           "AND (:categorySlug IS NULL OR p.category.slug = :categorySlug) " +
+           "AND (:categorySlug IS NULL OR (p.category IS NOT NULL AND p.category.slug = :categorySlug)) " +
            "ORDER BY p.publishedAt DESC")
     Page<Post> findByStatusAndCategorySlug(
             @Param("status") String status,
@@ -45,7 +45,7 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("SELECT p FROM Post p WHERE p.status = 'PUBLISHED' " +
            "AND (:keyword IS NULL OR LOWER(p.title) LIKE LOWER(CONCAT('%', :keyword, '%')) " +
            "OR LOWER(p.content) LIKE LOWER(CONCAT('%', :keyword, '%'))) " +
-           "AND (:categorySlug IS NULL OR p.category.slug = :categorySlug) " +
+           "AND (:categorySlug IS NULL OR (p.category IS NOT NULL AND p.category.slug = :categorySlug)) " +
            "ORDER BY p.publishedAt DESC")
     Page<Post> searchPosts(
             @Param("keyword") String keyword,
@@ -68,6 +68,6 @@ public interface PostRepository extends JpaRepository<Post, Long> {
     @Query("UPDATE Post p SET p.viewCount = p.viewCount + 1 WHERE p.id = :id")
     void incrementViewCount(@Param("id") Long id);
 
-    @Query("SELECT COUNT(p) FROM Post p WHERE p.category.id = :categoryId")
+    @Query("SELECT COUNT(p) FROM Post p WHERE p.category IS NOT NULL AND p.category.id = :categoryId")
     int countByCategoryId(@Param("categoryId") Long categoryId);
 }

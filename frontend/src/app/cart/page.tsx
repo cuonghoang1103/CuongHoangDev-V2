@@ -111,12 +111,18 @@ export default function CartPage() {
                         href={`/shop/${item.product.slug}`}
                         className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-xl overflow-hidden flex-shrink-0"
                       >
-                        <Image
-                          src={item.product.thumbnail}
-                          alt={item.product.name}
-                          fill
-                          className="object-cover"
-                        />
+                        {item.product.thumbnail ? (
+                          <Image
+                            src={item.product.thumbnail}
+                            alt={item.product.name}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-darkcard flex items-center justify-center">
+                            <Package className="w-6 h-6 text-text-muted" />
+                          </div>
+                        )}
                       </Link>
 
                       <div className="flex-1 min-w-0">
@@ -206,12 +212,18 @@ export default function CartPage() {
                         href={`/academy/courses/${item.course?.slug}`}
                         className="relative w-24 h-24 sm:w-32 sm:h-32 rounded-xl overflow-hidden flex-shrink-0"
                       >
-                        <Image
-                          src={item.product.thumbnail}
-                          alt={item.course?.title || 'Khóa học'}
-                          fill
-                          className="object-cover"
-                        />
+                        {item.product.thumbnail ? (
+                          <Image
+                            src={item.product.thumbnail}
+                            alt={item.course?.title || 'Khóa học'}
+                            fill
+                            className="object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full bg-darkcard flex items-center justify-center">
+                            <BookOpen className="w-6 h-6 text-text-muted" />
+                          </div>
+                        )}
                       </Link>
 
                       <div className="flex-1 min-w-0">

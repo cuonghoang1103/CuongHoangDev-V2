@@ -38,13 +38,19 @@ export default function ProductCard({ product, index = 0 }: ProductCardProps) {
       <div className="bg-darkcard border border-darkborder rounded-2xl overflow-hidden hover:border-neon-violet/50 transition-all duration-300 hover:shadow-neon-sm hover:-translate-y-1 flex flex-col h-full">
         {/* Thumbnail */}
         <Link href={`/shop/${product.slug}`} className="block relative aspect-[4/3] overflow-hidden">
-          <Image
-            src={product.thumbnail}
-            alt={product.name}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-500"
-            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
-          />
+          {product.thumbnail ? (
+            <Image
+              src={product.thumbnail}
+              alt={product.name}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-500"
+              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
+            />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-br from-neon-indigo/30 to-neon-violet/30 flex items-center justify-center">
+              <Package className="w-8 h-8 text-white/30" />
+            </div>
+          )}
 
           {/* Badges */}
           <div className="absolute top-3 left-3 flex flex-col gap-1.5">

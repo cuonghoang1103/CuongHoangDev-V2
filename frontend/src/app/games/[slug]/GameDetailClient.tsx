@@ -7,7 +7,7 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Play, Maximize2, ChevronRight,
-  Clock, BarChart3, Calendar, Tag, Code2, Gamepad2, Lock
+  Clock, BarChart3, Calendar, Tag, Code2, Gamepad2, Lock, Package
 } from 'lucide-react';
 import GameRenderer from '@/components/games';
 import type { Game } from '@/types/games';
@@ -58,13 +58,19 @@ export default function GameDetailClient({ game, relatedGames }: GameDetailClien
     <div className="min-h-screen bg-darkbg pt-20 pb-20">
       {/* Hero banner */}
       <div className="relative h-56 overflow-hidden">
-        <Image
-          src={game.previewImage}
-          alt={game.title}
-          fill
-          className="object-cover"
-          priority
-        />
+        {game.previewImage ? (
+          <Image
+            src={game.previewImage}
+            alt={game.title}
+            fill
+            className="object-cover"
+            priority
+          />
+        ) : (
+          <div className="absolute inset-0 bg-gradient-to-br from-neon-violet/30 to-neon-fuchsia/30 flex items-center justify-center">
+            <Gamepad2 className="w-16 h-16 text-white/30" />
+          </div>
+        )}
         <div className="absolute inset-0 bg-gradient-to-b from-darkbg/40 via-darkbg/60 to-darkbg" />
         <div className="absolute inset-0 bg-gradient-to-r from-darkbg/80 via-transparent to-darkbg/40" />
 
@@ -176,7 +182,13 @@ export default function GameDetailClient({ game, relatedGames }: GameDetailClien
                       className="group flex items-center gap-3 bg-darkbg/60 border border-darkborder rounded-xl p-3 hover:border-neon-violet/30 transition-all"
                     >
                       <div className="relative w-14 h-10 rounded-lg overflow-hidden shrink-0">
-                        <Image src={g.thumbnail} alt={g.title} fill className="object-cover" />
+                        {g.thumbnail ? (
+                          <Image src={g.thumbnail} alt={g.title} fill className="object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-darkcard flex items-center justify-center">
+                            <Package className="w-4 h-4 text-text-muted" />
+                          </div>
+                        )}
                         {!g.isPlayable && (
                           <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
                             <Lock className="w-3 h-3 text-white/60" />

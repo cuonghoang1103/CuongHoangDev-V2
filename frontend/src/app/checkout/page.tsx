@@ -447,7 +447,13 @@ export default function CheckoutPage() {
                 {shopItems.map((item) => (
                   <div key={item.id} className="flex items-center gap-3">
                     <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-                      <Image src={item.product.thumbnail} alt={item.product.name} fill className="object-cover" />
+                      {item.product.thumbnail ? (
+                        <Image src={item.product.thumbnail} alt={item.product.name} fill className="object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-darkcard flex items-center justify-center">
+                          <Package className="w-5 h-5 text-text-muted" />
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-text-primary font-medium truncate">{item.product.name}</p>
@@ -465,7 +471,13 @@ export default function CheckoutPage() {
                 {academyItems.map((item) => (
                   <div key={item.id} className="flex items-center gap-3">
                     <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0">
-                      <Image src={item.product.thumbnail} alt={item.product.name} fill className="object-cover" />
+                      {item.product.thumbnail ? (
+                        <Image src={item.product.thumbnail} alt={item.product.name} fill className="object-cover" />
+                      ) : (
+                        <div className="w-full h-full bg-darkcard flex items-center justify-center">
+                          <BookOpen className="w-5 h-5 text-text-muted" />
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-xs text-text-primary font-medium truncate">{item.product.name}</p>

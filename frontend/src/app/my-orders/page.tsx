@@ -297,17 +297,23 @@ export default function MyOrdersPage() {
                                   key={item.id}
                                   className="flex items-center gap-3 p-3 bg-darkbg rounded-xl"
                                 >
-                                  <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
+                                  <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0"                                >
+                                  {item.thumbnail ? (
                                     <Image
                                       src={item.thumbnail}
                                       alt={item.name}
                                       fill
                                       className="object-cover"
                                     />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-text-primary truncate">
-                                      {item.name}
+                                  ) : (
+                                    <div className="w-full h-full bg-darkcard flex items-center justify-center">
+                                      <Package className="w-6 h-6 text-text-muted" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-text-primary truncate">
+                                    {item.name}
                                     </p>
                                     <p className="text-xs text-text-muted">{item.category}</p>
                                   </div>
@@ -338,17 +344,23 @@ export default function MyOrdersPage() {
                                   key={item.id}
                                   className="flex items-center gap-3 p-3 bg-darkbg rounded-xl"
                                 >
-                                  <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
+                                  <div className="relative w-14 h-14 rounded-lg overflow-hidden flex-shrink-0"                                >
+                                  {item.thumbnail ? (
                                     <Image
                                       src={item.thumbnail}
                                       alt={item.name}
                                       fill
                                       className="object-cover"
                                     />
-                                  </div>
-                                  <div className="flex-1 min-w-0">
-                                    <p className="text-sm font-medium text-text-primary truncate">
-                                      {item.name}
+                                  ) : (
+                                    <div className="w-full h-full bg-darkcard flex items-center justify-center">
+                                      <Package className="w-6 h-6 text-text-muted" />
+                                    </div>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium text-text-primary truncate">
+                                    {item.name}
                                     </p>
                                     <p className="text-xs text-neon-violet">{t('orders.course')}</p>
                                   </div>

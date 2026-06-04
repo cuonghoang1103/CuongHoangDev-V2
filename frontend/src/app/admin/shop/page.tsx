@@ -353,7 +353,13 @@ export default function AdminShopPage() {
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 bg-darkbg">
-                          <Image src={product.thumbnail} alt={product.name} fill className="object-cover" />
+                          {product.thumbnail ? (
+                            <Image src={product.thumbnail} alt={product.name} fill className="object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-darkcard flex items-center justify-center">
+                              <ShoppingBag className="w-5 h-5 text-text-muted" />
+                            </div>
+                          )}
                         </div>
                         <div className="min-w-0">
                           <p className="font-semibold text-text-primary truncate max-w-[180px]">{product.name}</p>
