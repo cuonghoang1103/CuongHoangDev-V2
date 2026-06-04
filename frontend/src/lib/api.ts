@@ -70,6 +70,21 @@ const api: AxiosInstance = axios.create({
   withCredentials: true,
 });
 
+// Read JWT from httpOnly cookie and attach as Authorization header on every request.
+// This is needed because the cookie is httpOnly (JS can't read it directly),
+// but the browser automatically sends it with every same-origin request.
+// The /api/v1 proxy route reads the cookie and forwards the token.
+api.interceptors.request.use((config) => {
+  if (typeof document !== 'undefined') {
+    const match = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/);
+    const token = match ? match[1] : '';
+    if (token) {
+      config.headers.set('Authorization', `Bearer ${token}`);
+    }
+  }
+  return config;
+});
+
 api.interceptors.response.use(
   (response) => response,
   (error: ApiError) => {
