@@ -76,12 +76,27 @@ export function useAuth() {
     [setLoading, router]
   );
 
-  const logoutAndRedirect = useCallback(() => {
-    logout();
-    signOut({ redirect: false }).then(() => {
-      router.push('/login');
-    });
-  }, [logout, router]);
+  /**
+   * Logout — sequential:
+   * 1. Clear Zustand + storage
+   * 2. Wait for event propagation
+   * 3. Clear NextAuth session
+   * 4. Navigate
+   */
+  const logoutAndRedirect = useCallback(async () => {
+    logout(); // clears state + dispatches auth-changed
+
+    try {
+      await signOut({ redirect: false });
+    } catch {}
+
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch {}
+
+    toast.success('Logged out successfully');
+    window.location.href = '/login';
+  }, [logout]);
 
   const logoutSilently = useCallback(() => {
     logout();
@@ -92,7 +107,7 @@ export function useAuth() {
     if (!token) return;
     try {
       const res = await authApi.getProfile();
-      if (res.data.data) {
+      if (res.data?.data) {
         updateProfile(res.data.data);
       }
     } catch {

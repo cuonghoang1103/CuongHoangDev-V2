@@ -10,6 +10,8 @@ import { Eye, EyeOff, Loader2 } from 'lucide-react';
 import { signIn } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
+import { useAuthStore } from '@/store/authStore';
+import type { AuthResponse } from '@/types';
 
 const loginSchema = z.object({
   username: z.string().min(1, 'Username is required'),
@@ -57,67 +59,61 @@ function LoginForm() {
         const errorMsg = result.message || 'Incorrect username or password. Please try again.';
         setBackendError(errorMsg);
         toast.error(errorMsg);
-      } else {
-        let profileData = null;
-        // Extract token from response body and store in cookie for middleware
-        const token = result.data?.token ?? '';
+        return;
+      }
 
-        // Fetch profile and sync to Zustand store so Navbar shows logged-in state
+      const token = (result.data?.token as string | undefined) ?? '';
+      const loginRole = (result.data?.role as string | undefined) ?? 'USER';
+      const loginUserId = result.data?.userId as number | undefined;
+      const loginEmail = result.data?.email as string | undefined;
+
+      let profileData: any = null;
+
+      // Fetch full profile to get accurate roles
+      if (token) {
         try {
           const profileRes = await fetch('/api/v1/profile', {
             headers: { Authorization: `Bearer ${token}` },
           });
           if (profileRes.ok) {
             profileData = await profileRes.json();
-            const user = profileData.data;
-            if (user && typeof window !== 'undefined') {
-              localStorage.setItem('user', JSON.stringify({
-                id: user.id,
-                username: user.username,
-                email: user.email,
-                roles: user.roles ?? [],
-                enabled: true,
-                accountNonLocked: true,
-                createdAt: new Date().toISOString(),
-              }));
-              window.dispatchEvent(new CustomEvent('auth-updated', {
-                detail: {
-                  userId: user.id,
-                  username: user.username,
-                  email: user.email,
-                  roles: user.roles ?? [],
-                  token,
-                },
-              }));
-            }
-          } else {
-            console.warn('[login] Profile fetch failed:', profileRes.status, '- falling back to login response role');
           }
         } catch (e) {
-          console.warn('[login] Profile fetch threw:', e, '- falling back to login response role');
+          console.warn('[login] Profile fetch failed:', e);
         }
-
-        // Determine redirect destination:
-        // - Admin role  → /admin
-        // - Normal user  → redirect param or /
-        // FALLBACK: use the role from the login response body if profile fetch failed.
-        // This ensures the admin user is always redirected correctly even on profile errors.
-        const roles: string[] = profileData?.data?.roles ??
-          (role ? [{ name: role }] : []);
-        const isAdmin = roles.some(
-          (r: any) => ((typeof r === 'string' ? r : r.name) || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
-        ) || (role || '').replace('ROLE_', '').toUpperCase() === 'ADMIN';
-        let dest = '/';
-        if (isAdmin) {
-          dest = '/admin';
-        } else if (redirect && redirect !== '/') {
-          dest = redirect;
-        }
-
-        toast.success(`Welcome back, ${data.username}!`);
-        router.push(dest);
-        router.refresh();
       }
+
+      // Build AuthResponse-compatible object
+      const authData: AuthResponse = {
+        token,
+        userId: profileData?.data?.id ?? loginUserId ?? 0,
+        username: profileData?.data?.username ?? data.username,
+        email: profileData?.data?.email ?? loginEmail ?? '',
+        role: loginRole,
+        roles: profileData?.data?.roles ?? [loginRole],
+      };
+
+      // CRITICAL: call setAuth directly so Zustand state + localStorage are in sync
+      // The auth-changed event will propagate to all open tabs/components
+      useAuthStore.getState().setAuth(authData);
+
+      // Determine redirect
+      const roles: string[] = profileData?.data?.roles ?? [loginRole];
+      const isAdmin = roles.some(
+        (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+      );
+
+      let dest = '/';
+      if (isAdmin) {
+        dest = '/admin';
+      } else if (redirect && redirect !== '/') {
+        dest = redirect;
+      }
+
+      toast.success(`Welcome back, ${data.username}!`);
+
+      // Hard navigation: replace current history entry so back-button doesn't return to login page
+      window.location.replace(dest);
     } catch (err: unknown) {
       const error = err as Error;
       const msg = error?.message || 'Something went wrong. Please try again.';

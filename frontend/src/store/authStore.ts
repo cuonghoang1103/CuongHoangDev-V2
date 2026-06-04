@@ -18,7 +18,7 @@ interface AuthState {
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
       isAuthenticated: false,
@@ -26,50 +26,47 @@ export const useAuthStore = create<AuthState>()(
       isHydrated: false,
 
       setAuth: (auth) => {
+        const userObj: User = {
+          id: auth.userId,
+          username: auth.username,
+          email: auth.email,
+          roles: auth.roles || [auth.role],
+          enabled: true,
+          accountNonLocked: true,
+          createdAt: new Date().toISOString(),
+        };
+
         if (typeof window !== 'undefined') {
           localStorage.setItem('token', auth.token);
-          localStorage.setItem('auth_token', auth.token); // for shop.ts compatibility
-          localStorage.setItem('user', JSON.stringify({
-            id: auth.userId,
-            username: auth.username,
-            email: auth.email,
-            roles: auth.roles || [auth.role],
-            enabled: true,
-            accountNonLocked: true,
-            createdAt: new Date().toISOString(),
-          }));
+          localStorage.setItem('auth_token', auth.token);
+          localStorage.setItem('user', JSON.stringify(userObj));
+          // Signal ALL tabs/windows that auth changed
+          window.dispatchEvent(new CustomEvent('auth-changed', { detail: { action: 'login', user: userObj, token: auth.token } }));
         }
-        set({
-          user: {
-            id: auth.userId,
-            username: auth.username,
-            email: auth.email,
-            roles: auth.roles || [auth.role],
-            enabled: true,
-            accountNonLocked: true,
-            createdAt: new Date().toISOString(),
-          },
-          token: auth.token,
-          isAuthenticated: true,
-          isLoading: false,
-        });
+
+        set({ user: userObj, token: auth.token, isAuthenticated: true, isLoading: false });
       },
 
-      updateUser: (user) =>
-        set({ user }),
+      updateUser: (user) => set({ user }),
 
-      updateProfile: (data: { username?: string; email?: string; avatarUrl?: string; bio?: string; fullName?: string }) =>
+      updateProfile: (data) =>
         set((state) => ({
           user: state.user ? { ...state.user, ...data } : null,
         })),
 
+      /**
+       * Logout — synchronous, no redirects.
+       * 1. Clear ALL auth keys from storage
+       * 2. Dispatch auth-changed event so ALL components/tabs reset
+       * 3. Reset Zustand state immediately
+       * Callers should handle navigation AFTER this returns.
+       */
       logout: () => {
         if (typeof window === 'undefined') {
-          set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+          set({ user: null, token: null, isAuthenticated: false, isLoading: false, isHydrated: true });
           return;
         }
 
-        // 1. Clear auth tokens & user data
         localStorage.removeItem('token');
         localStorage.removeItem('auth_token');
         localStorage.removeItem('user');
@@ -77,17 +74,13 @@ export const useAuthStore = create<AuthState>()(
         document.cookie = '__auth__=; path=/; max-age=0';
         document.cookie = 'backend_token=; path=/; max-age=0';
 
-        // 2. Clear dashboard state (direct localStorage — each user has their own key)
-        //    Dashboard store uses keys like "123_dashboard", "guest_dashboard"
-        //    We only need to clear the CURRENT user's key.
-        //    The safest approach: reload so the new user starts fresh.
-        window.location.href = '/dashboard';
+        // Notify every component and every open tab
+        window.dispatchEvent(new CustomEvent('auth-changed', { detail: { action: 'logout' } }));
 
-        set({ user: null, token: null, isAuthenticated: false, isLoading: false });
+        set({ user: null, token: null, isAuthenticated: false, isLoading: false, isHydrated: true });
       },
 
-      setLoading: (loading) =>
-        set({ isLoading: loading }),
+      setLoading: (loading) => set({ isLoading: loading }),
     }),
     {
       name: 'auth-storage',
@@ -99,7 +92,7 @@ export const useAuthStore = create<AuthState>()(
         isLoading: state.isLoading,
       }),
       onRehydrateStorage: () => (state) => {
-        state?.setLoading(false);
+        state?.set({ isHydrated: true });
       },
     }
   )

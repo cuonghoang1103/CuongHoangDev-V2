@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
 import { useAuthStore } from '@/store/authStore';
 import { useCartStore } from '@/store/cartStore';
@@ -24,7 +24,7 @@ const CONTACT_LINKS = {
 
 const ZaloIcon = () => (
   <svg viewBox="0 0 24 24" className="w-3.5 h-3.5" fill="currentColor">
-    <path d="M12 2C6.48 2 2 6.48 2 12c0 2.5.92 4.79 2.45 6.55L2 22l3.55-2.45A9.96 9.96 0 0012 20c5.52 0 10-4.48 10-10S17.52 2 12 2zm4.27 14.14c-.24.67-1.41 1.24-1.96 1.32-.53.08-1.03.11-1.47-.13-.43-.24-.67-.53-.93-.86-.23-.3-.48-.64-.68-.9-.12-.15-.14-.26-.11-.42.05-.28.24-.55.65-.72.78-.33 1.38-.27 1.88.16.58.5 1.15 1.01 1.73 1.51.37.32.74.43 1.2.31.44-.12.82-.37 1.19-.68.25-.21.44-.37.62-.5.14-.1.25-.18.35-.23.13-.08.27-.13.43-.13h.23c.21-.01.29-.09.34-.2l.01-.03c.06-.18.05-.45-.03-.67-.04-.11-.09-.22-.15-.32l-.09-.15c-.1-.17-.21-.34-.33-.5-.12-.16-.25-.31-.39-.46-.15-.15-.3-.29-.46-.42-.16-.13-.34-.25-.52-.35-.17-.1-.34-.19-.52-.26-.16-.06-.32-.11-.49-.15l-.48-.1-.48-.07c-.16-.02-.32-.04-.48-.04l-.48-.01-.48.02c-.16.01-.32.03-.48.06l-.48.09c-.16.03-.32.08-.47.13l-.47.15c-.15.05-.3.11-.45.18-.15.07-.29.14-.43.22-.14.08-.27.17-.4.26-.13.09-.25.19-.37.29-.12.1-.23.21-.34.32l-.15.18-.13.2-.24.4c-.07.13-.13.27-.18.41-.05.14-.1.28-.14.43-.04.14-.07.29-.09.44-.02.15-.04.3-.05.45v.48c.01.16.03.32.06.48.03.16.07.32.12.48l.09.47.15.47c.05.15.12.3.18.45.07.15.14.29.22.43.08.14.17.28.27.41.09.13.19.25.3.37l.33.33.18.15.2.14c.14.09.29.17.44.24.15.07.31.13.47.19l.47.12.48.09.48.06.48.03h.48c.16 0 .32-.02.48-.04l.48-.07.48-.1.48-.15c.16-.05.32-.11.47-.18l.47-.21c.15-.08.3-.16.44-.25.14-.09.28-.19.41-.3.13-.11.25-.22.37-.34.12-.12.23-.24.33-.37.11-.13.21-.26.3-.4.09-.14.17-.28.25-.42.08-.14.14-.29.2-.44.06-.15.11-.3.15-.45.04-.15.08-.3.1-.45.02-.15.04-.3.05-.45v-.48c0-.16-.01-.32-.03-.48l-.06-.48c-.03-.16-.07-.32-.12-.48l-.09-.47-.15-.47c-.05-.15-.12-.3-.18-.44-.07-.14-.14-.29-.22-.42-.08-.14-.17-.27-.26-.4-.1-.13-.2-.25-.31-.37-.11-.11-.23-.22-.35-.32-.12-.1-.25-.2-.38-.29-.13-.09-.26-.17-.4-.25-.14-.08-.28-.15-.42-.21-.14-.06-.29-.12-.44-.17l-.45-.12-.47-.09-.47-.06-.48-.03h-.48c-.16 0-.32.02-.48.04l-.48.07-.48.1-.48.15c-.16.05-.32.11-.47.18l-.47.21c-.15.08-.3.16-.44.25-.14.09-.28.19-.41.3-.13.11-.25.22-.37.34-.12.12-.23.24-.33.37-.11.13-.21.26-.3.4-.09.14-.17.28-.25.42-.08.14-.14.29-.2.44-.06.15-.11.3-.15.45-.04.15-.08.3-.1.45-.02.15-.04.3-.05.45v.48c0 .16.01.32.02.48.02.16.04.32.07.48l.09.48.12.48c.05.16.11.32.17.48.07.16.14.31.22.47l.26.46c.09.15.19.3.29.44.1.14.21.28.32.41.11.13.23.26.35.38.12.12.25.24.38.35.13.11.27.22.41.32.14.1.29.19.44.28l.46.23.48.18.48.15.48.11.48.07.48.03h.48c.16 0 .32-.01.48-.03l.48-.07.48-.11.48-.15.48-.18.48-.23.48-.28.48-.32c.16-.11.32-.23.47-.35.15-.13.3-.26.44-.4.14-.14.28-.28.41-.43.13-.15.26-.3.38-.46.12-.16.23-.32.34-.48.1-.16.2-.33.29-.5l.24-.51c.07-.17.13-.35.18-.52.05-.18.09-.35.13-.53.03-.18.06-.36.08-.53.02-.18.03-.36.03-.53v-.53c0-.18-.01-.36-.03-.53l-.06-.53c-.03-.18-.07-.35-.12-.53-.05-.17-.11-.35-.17-.52-.07-.17-.14-.34-.22-.51-.08-.16-.17-.33-.26-.49-.09-.16-.19-.32-.29-.48-.1-.15-.21-.3-.32-.45-.11-.14-.23-.29-.35-.42-.12-.13-.25-.26-.38-.39-.13-.12-.27-.24-.41-.35-.14-.11-.29-.21-.44-.31-.15-.09-.31-.18-.47-.26-.16-.08-.33-.15-.5-.21-.17-.06-.34-.12-.52-.16-.18-.05-.36-.08-.53-.11-.18-.03-.36-.05-.53-.06-.18-.01-.36-.02-.53-.02-.18 0-.36.01-.53.03l-.53.06c-.18.03-.35.07-.53.12-.17.05-.35.11-.52.17-.17.06-.34.13-.5.21-.17.08-.33.16-.5.25-.16.09-.32.19-.47.29-.15.1-.3.21-.44.33-.14.11-.28.23-.41.36-.13.13-.26.26-.38.39-.12.13-.23.27-.34.41-.11.14-.21.29-.31.44-.09.15-.18.3-.26.45-.08.15-.15.31-.22.46-.07.16-.13.31-.18.47-.05.16-.1.32-.13.48-.04.16-.06.32-.08.48Z"/>
+    <path d="M12 2C6.48 2 2 6.48 2 12c0 2.5.92 4.79 2.45 6.55L2 22l3.55-2.45A9.96 9.96 0 0012 20c5.52 0 10-4.48 10-10S17.52 2 12 2zm4.27 14.14c-.24.67-1.41 1.24-1.96 1.32-.53.08-1.03.11-1.47-.13-.43-.24-.67-.53-.93-.86-.23-.3-.48-.64-.68-.9-.12-.15-.14-.26-.11-.42.05-.28.24-.55.65-.72.78-.33 1.38-.27 1.88.16.58.5 1.15 1.01 1.73 1.51.37.32.74.43 1.2.31.44-.12.82-.37 1.19-.68.25-.21.44-.37.62-.5.14-.1.25-.18.35-.23.13-.08.27-.13.43-.13h.23c.21-.01.29-.09.34-.2l.01-.03c.06-.18.05-.45-.03-.67-.04-.11-.09-.22-.15-.32l-.09-.15c-.1-.17-.21-.34-.33-.5-.12-.16-.25-.31-.39-.46-.15-.15-.3-.29-.46-.42-.16-.13-.34-.25-.52-.35-.17-.1-.34-.19-.52-.26-.16-.06-.32-.11-.49-.15l-.48-.1-.48-.07c-.16-.02-.32-.04-.48-.04l-.48-.01-.48.02-.48.06-.48.09-.47.15c-.15.05-.3.11-.45.18-.15.07-.29.14-.43.22-.14.08-.27.17-.4.26-.13.09-.25.19-.37.29-.12.1-.23.21-.34.32l-.15.18-.13.2-.24.4c-.07.13-.13.27-.18.41-.05.14-.1.28-.14.43-.04.14-.07.29-.09.44-.02.15-.04.3-.05.45v.48c.01.16.03.32.06.48.03.16.07.32.12.48l.09.47.15.47c.05.15.12.3.18.45.07.15.14.29.22.43.08.14.17.28.27.41.09.13.19.25.3.37l.33.33.18.15.2.14c.14.09.29.17.44.24.15.07.31.13.47.19l.47.12.48.09.48.06.48.03h.48c.16 0 .32-.02.48-.04l.48-.07.48-.1.48-.15c.16-.05.32-.11.47-.18l.47-.21c.15-.08.3-.16.44-.25.14-.09.28-.19.41-.3.13-.11.25-.22.37-.34.12-.12.23-.24.33-.37.11-.13.21-.26.3-.4.09-.14.17-.28.25-.42.08-.14.14-.29.2-.44.06-.15.11-.3.15-.45.04-.15.08-.3.1-.45.02-.15.04-.3.05-.45v-.48c0-.16-.01-.32-.03-.48l-.06-.48c-.03-.16-.07-.32-.12-.48l-.09-.47-.15-.47c-.05-.15-.12-.3-.18-.44-.07-.14-.14-.29-.22-.42-.08-.14-.17-.27-.26-.4-.1-.13-.2-.25-.31-.37-.11-.11-.23-.22-.35-.32-.12-.1-.25-.2-.38-.29-.13-.09-.26-.17-.4-.25-.14-.08-.28-.15-.42-.21-.14-.06-.29-.12-.44-.17l-.45-.12-.47-.09-.47-.06-.48-.03h-.48c-.16 0-.32.02-.48.04l-.48.07-.48.1-.48.15c-.16.05-.32.11-.47.18l-.47.21c-.15.08-.3.16-.44.25-.14.09-.28.19-.41.3-.13.11-.25.22-.37.34-.12.12-.23.24-.33.37-.11.13-.21.26-.3.4-.09.14-.17.28-.25.42-.08.14-.14.29-.2.44-.06.15-.11.3-.15.45-.04.15-.08.3-.1.45-.02.15-.04.3-.05.45v.48c0 .16.01.32.02.48.02.16.04.32.07.48l.09.48.12.48c.05.16.11.32.17.48.07.16.14.31.22.47l.26.46c.09.15.19.3.29.44.1.14.21.28.32.41.11.13.23.26.35.38.12.12.25.24.38.35.13.11.27.22.41.32.14.1.29.19.44.28l.46.23.48.18.48.15.48.11.48.07.48.03h.48c.16 0 .32-.01.48-.03l.48-.07.48-.11.48-.15.48-.18.48-.23.48-.28.48-.32c.16-.11.32-.23.47-.35.15-.13.3-.26.44-.4.14-.14.28-.28.41-.43.13-.15.26-.3.38-.46.12-.16.23-.32.34-.48.1-.16.2-.33.29-.5l.24-.51c.07-.17.13-.35.18-.52.05-.18.09-.35.13-.53.03-.18.06-.36.08-.53.02-.18.03-.36.03-.53v-.53c0-.18-.01-.36-.03-.53l-.06-.53c-.03-.18-.07-.35-.12-.53-.05-.17-.11-.35-.17-.52-.07-.17-.14-.34-.22-.51-.08-.16-.17-.33-.26-.49-.09-.16-.19-.32-.29-.48-.1-.15-.21-.3-.32-.45-.11-.14-.23-.29-.35-.42-.12-.13-.25-.26-.38-.39-.13-.12-.27-.24-.41-.35-.14-.11-.29-.21-.44-.31-.15-.09-.31-.18-.47-.26-.16-.08-.33-.15-.5-.21-.17-.06-.34-.12-.52-.16-.18-.05-.36-.08-.53-.11-.18-.03-.36-.05-.53-.06-.18-.01-.36-.02-.53-.02-.18 0-.36.01-.53.03l-.53.06c-.18.03-.35.07-.53.12-.17.05-.35.11-.52.17-.17.06-.34.13-.5.21-.17.08-.33.16-.5.25-.16.09-.32.19-.47.29-.15.1-.3.21-.44.33-.14.11-.28.23-.41.36-.13.13-.26.26-.38.39-.12.13-.23.27-.34.41-.11.14-.21.29-.31.44-.09.15-.18.3-.26.45-.08.15-.15.31-.22.46-.07.16-.13.31-.18.47-.05.16-.1.32-.13.48-.04.16-.06.32-.08.48Z"/>
   </svg>
 );
 
@@ -46,20 +46,17 @@ const LABELS = {
 
 export default function Navbar() {
   const pathname = usePathname();
-  const router = useRouter();
   const { data: session } = useSession();
-  const { user: backendUser, isAuthenticated: isBackendAuth, logout: backendLogout, setAuth, updateUser } = useAuthStore();
+  const { user: backendUser, isAuthenticated: isBackendAuth, setAuth } = useAuthStore();
   const { getTotalItems, openDrawer } = useCartStore();
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [locale, setLocale] = useState('en');
 
-  // Avoid hydration mismatch — don't check session on server
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // Load locale from cookie — defaults to 'en' (English)
   useEffect(() => {
     const match = document.cookie.match(/locale=(\w+)/);
     if (match && (match[1] === 'vi' || match[1] === 'en')) {
@@ -69,46 +66,34 @@ export default function Navbar() {
     }
   }, []);
 
-  // Sync localStorage into Zustand store on mount
+  /**
+   * Global auth-changed listener — handles logout from ANY source:
+   * logout button, another tab, middleware redirect, etc.
+   */
   useEffect(() => {
-    const storedUser = localStorage.getItem('user');
-    const storedToken = localStorage.getItem('token');
-    if (storedUser && storedToken && !backendUser) {
-      try {
-        const user = JSON.parse(storedUser);
-        setAuth({
-          userId: user.id,
-          username: user.username,
-          email: user.email,
-          role: user.roles?.[0] ?? 'USER',
-          roles: user.roles ?? [],
-          token: storedToken,
-        });
-      } catch {}
-    }
-  }, []);
+    if (!mounted) return;
 
-  // Listen for auth-updated event from login page
-  useEffect(() => {
     const handler = (e: Event) => {
-      const auth = (e as CustomEvent).detail;
-      setAuth(auth);
+      const { action } = (e as CustomEvent<{ action: string }>).detail ?? {};
+      if (action === 'logout') {
+        // Reset admin badge immediately on logout — prevents stale user profile display
+        setVerifiedAdmin(false);
+        setUserMenuOpen(false);
+      }
     };
-    window.addEventListener('auth-updated', handler);
-    return () => window.removeEventListener('auth-updated', handler);
-  }, []);
+
+    window.addEventListener('auth-changed', handler);
+    return () => window.removeEventListener('auth-changed', handler);
+  }, [mounted]);
 
   // ── Auth state ──────────────────────────────────────────────────────────
   const isAuthenticated = mounted && (isBackendAuth || !!session);
-  const displayUser = mounted ? ((session?.user || backendUser) as any) : backendUser;
+  const displayUser = mounted ? ((session?.user || backendUser) as any) : null;
 
-  // ── Admin check — ALWAYS verify from backend to ensure fresh role ──
-  // Triggered by: (1) component mount (2) auth-updated event (3) backendUser change
-  // This guarantees the Navbar updates for both credentials AND OAuth users immediately.
+  // ── Admin verification ──────────────────────────────────────────────────
   const [verifiedAdmin, setVerifiedAdmin] = useState(false);
 
   const verifyAdmin = useCallback(async () => {
-    // Credentials user: read token DIRECTLY from Zustand state (not from closure)
     const token = useAuthStore.getState().token;
     if (token) {
       try {
@@ -126,13 +111,9 @@ export default function Navbar() {
         }
       } catch {}
     }
-
-    // OAuth user: fetch profile using httpOnly cookie (backend_token set by oauth-callback)
     if (session?.user?.email) {
       try {
-        const res = await fetch('/api/v1/profile', {
-          credentials: 'include',
-        });
+        const res = await fetch('/api/v1/profile', { credentials: 'include' });
         if (res.ok) {
           const data = await res.json();
           const roles: string[] = data.data?.roles ?? [];
@@ -144,26 +125,28 @@ export default function Navbar() {
         }
       } catch {}
     }
-
     setVerifiedAdmin(false);
-  }, [session]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [session]);
 
-  // Run on mount (after hydration) — catches users who already have a token in localStorage
   useEffect(() => {
     if (!mounted) return;
     verifyAdmin();
   }, [mounted, verifyAdmin]);
 
-  // Re-run when auth-updated event fires (dispatched by login page after credentials login)
+  // Re-verify on login (auth-changed with action=login)
   useEffect(() => {
-    const handler = () => {
-      // Delay slightly to let Zustand update first
-      setTimeout(verifyAdmin, 50);
+    if (!mounted) return;
+
+    const handler = (e: Event) => {
+      const { action } = (e as CustomEvent<{ action: string }>).detail ?? {};
+      if (action === 'login') {
+        setTimeout(verifyAdmin, 150);
+      }
     };
-    window.addEventListener('auth-updated', handler);
-    return () => window.removeEventListener('auth-updated', handler);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [verifyAdmin]); // Only depend on id to avoid infinite loops
+
+    window.addEventListener('auth-changed', handler);
+    return () => window.removeEventListener('auth-changed', handler);
+  }, [mounted, verifyAdmin]);
 
   const isAdmin = mounted && verifiedAdmin;
 
@@ -181,10 +164,8 @@ export default function Navbar() {
   const isAuthPage = pathname === '/login' || pathname === '/register';
   if (isAuthPage) return null;
 
-  // Translation helper — uses the locale to pick the right label
   const t = (key: string) => LABELS[key as keyof typeof LABELS]?.[locale as 'vi' | 'en'] ?? key;
 
-  // Nav links — labels come from translation system
   const navLinks = [
     { href: '/', label: t('home'), icon: Home },
     { href: '/academy', label: t('academy'), icon: GraduationCap },
@@ -203,16 +184,35 @@ export default function Navbar() {
     window.dispatchEvent(new Event('locale-changed'));
   };
 
+  /**
+   * Logout — STRICT SEQUENTIAL ORDER:
+   * 1. Close menus
+   * 2. Clear Zustand state + localStorage + cookie (logout())
+   * 3. Dispatch event → all components reset
+   * 4. THEN navigate to /login
+   *
+   * Never uses Promise.allSettled — we need logout() to complete BEFORE navigation.
+   */
   const handleLogout = async () => {
     setUserMenuOpen(false);
-    await Promise.allSettled([
-      fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }),
-      signOut({ redirect: false }),
-      Promise.resolve(backendLogout()),
-    ]);
+    setMobileOpen(false);
+
+    // Step 1: Clear ALL auth state synchronously — this also dispatches auth-changed
+    useAuthStore.getState().logout();
+
+    // Step 2: Clear NextAuth session (for OAuth users)
+    try {
+      await signOut({ redirect: false });
+    } catch {}
+
+    // Step 3: Call backend logout endpoint
+    try {
+      await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' });
+    } catch {}
+
+    // Step 4: Navigate AFTER state is fully cleared
     toast.success('Logged out successfully');
-    router.push('/');
-    router.refresh();
+    window.location.href = '/login';
   };
 
   const contactItems = [
@@ -263,7 +263,7 @@ export default function Navbar() {
               ))}
             </div>
 
-            {/* Tablet nav — icon-only, hidden at xl */}
+            {/* Tablet nav */}
             <div className="hidden md:flex xl:hidden items-center gap-0.5">
               {navLinks.map((link) => (
                 <Link
@@ -283,7 +283,7 @@ export default function Navbar() {
 
             {/* Right side */}
             <div className="flex items-center gap-2">
-              {/* Contact Icons — external links only */}
+              {/* Contact Icons */}
               <div className="hidden lg:flex items-center gap-1 mr-2">
                 {contactItems.map(({ href, icon: Icon, label }) => (
                   <a
@@ -313,7 +313,6 @@ export default function Navbar() {
                 )}
               </button>
 
-              {/* Lang Switcher - Using new component */}
               <LanguageSwitcher />
 
               {/* User area */}
@@ -415,7 +414,6 @@ export default function Navbar() {
                 </Link>
               ))}
 
-              {/* Mobile contact */}
               <div className="pt-3 pb-1 border-t border-darkborder">
                 <div className="flex items-center gap-2 px-4 mb-2">
                   <Globe className="w-4 h-4 text-text-muted" />
