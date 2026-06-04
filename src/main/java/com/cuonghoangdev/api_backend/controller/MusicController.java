@@ -121,19 +121,26 @@ public class MusicController {
         log.info("[MusicController] ===== createTrack ENTRY POINT =====");
         log.info("[MusicController] HTTP Content-Type header: '{}'", contentTypeHeader);
         log.info("[MusicController] Raw @RequestBody MusicUploadRequest: {}", request);
-        log.info("[MusicController]   request.title           = {}", request.getTitle());
-        log.info("[MusicController]   request.artist         = {}", request.getArtist());
-        log.info("[MusicController]   request.audioUrl       = {}", request.getAudioUrl());
-        log.info("[MusicController]   request.supabasePath   = {}", request.getSupabasePath());
-        log.info("[MusicController]   request.coverImageUrl = {}", request.getCoverImageUrl());
-        log.info("[MusicController]   request.durationSeconds = {}", request.getDurationSeconds());
-        log.info("[MusicController]   request.active       = {}", request.getActive());
+        log.info("[MusicController]   request.title           = {}", request == null ? "NULL" : request.getTitle());
+        log.info("[MusicController]   request.artist         = {}", request == null ? "NULL" : request.getArtist());
+        log.info("[MusicController]   request.audioUrl       = {}", request == null ? "NULL" : request.getAudioUrl());
+        log.info("[MusicController]   request.supabasePath   = {}", request == null ? "NULL" : request.getSupabasePath());
+        log.info("[MusicController]   request.coverImageUrl = {}", request == null ? "NULL" : request.getCoverImageUrl());
+        log.info("[MusicController]   request.durationSeconds = {}", request == null ? "NULL" : request.getDurationSeconds());
+        log.info("[MusicController]   request.active       = {}", request == null ? "NULL" : request.getActive());
+
+        if (request == null) {
+            return ResponseEntity.badRequest().body(Map.of(
+                    "success", false,
+                    "message", "Request body is null — check Content-Type header is application/json"
+            ));
+        }
 
         try {
             MusicTrack track = new MusicTrack();
             track.setTitle(request.getTitle() != null ? request.getTitle() : "Untitled");
             track.setArtist(request.getArtist() != null ? request.getArtist() : "Unknown Artist");
-            track.setDurationSeconds(request.getDurationSeconds());
+            track.setDurationSeconds(request.getDurationSeconds() != null ? request.getDurationSeconds() : 0);
             track.setCoverImage(request.getCoverImageUrl());
             track.setSupabasePath(request.getSupabasePath());
             track.setActive(request.getActive() != null ? request.getActive() : true);
@@ -188,9 +195,12 @@ public class MusicController {
             log.error("[MusicController] Exception message: {}", e.getMessage());
             log.error("[MusicController] Exception cause  : {}", e.getCause());
             log.error("[MusicController] ==============================================");
+            String userMessage = (e.getMessage() != null && !e.getMessage().isBlank())
+                    ? e.getMessage()
+                    : ("Unknown DB/system error [" + e.getClass().getSimpleName() + "]. Check backend logs for details.");
             return ResponseEntity.badRequest().body(Map.of(
                     "success", false,
-                    "message", "Failed to create track: " + e.getMessage()
+                    "message", userMessage
             ));
         }
     }

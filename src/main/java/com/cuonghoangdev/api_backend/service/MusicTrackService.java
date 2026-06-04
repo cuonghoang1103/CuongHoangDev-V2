@@ -79,13 +79,25 @@ public class MusicTrackService {
             log.info("[MusicTrackService] ===== DTO created ===== id={}, audioUrl={}", dto.getId(), dto.getAudioUrl());
             return dto;
 
+        } catch (org.hibernate.exception.ConstraintViolationException cve) {
+            log.error("[MusicTrackService] ===== CONSTRAINT VIOLATION =====", cve);
+            log.error("[MusicTrackService]   Constraint name : {}", cve.getConstraintName());
+            log.error("[MusicTrackService]   SQL state       : {}", cve.getSQLState());
+            log.error("[MusicTrackService]   SQL exception    : {}", cve.getSQLException());
+            log.error("[MusicTrackService]   Failed track    : {}", track);
+            throw new RuntimeException("Database constraint violation [" + cve.getConstraintName() + "]: " + cve.getSQLState());
+        } catch (org.springframework.dao.DataIntegrityViolationException div) {
+            log.error("[MusicTrackService] ===== DATA INTEGRITY VIOLATION =====", div);
+            log.error("[MusicTrackService]   Root cause      : {}", div.getMostSpecificCause());
+            log.error("[MusicTrackService]   Failed track    : {}", track);
+            throw new RuntimeException("Data integrity violation: " + div.getMostSpecificCause().getMessage());
         } catch (Exception e) {
             log.error("[MusicTrackService] ===== save() FAILED =====", e);
             log.error("[MusicTrackService]   Exception class : {}", e.getClass().getName());
             log.error("[MusicTrackService]   Exception message: {}", e.getMessage());
             log.error("[MusicTrackService]   Exception cause  : {}", e.getCause());
             log.error("[MusicTrackService]   Failed track state: {}", track);
-            throw e;
+            throw new RuntimeException("Database save failed [" + e.getClass().getSimpleName() + "]: " + e.getMessage());
         }
     }
 
