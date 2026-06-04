@@ -36,6 +36,8 @@ export default function ParticleRain({
     const speedMultiplier = intensity === 'heavy' ? 1.5 : intensity === 'medium' ? 1 : 0.6;
 
     const particles: Particle[] = [];
+    const w = canvas.width;
+    const h = canvas.height;
 
     class Particle {
       x: number;
@@ -46,33 +48,31 @@ export default function ParticleRain({
       color: string;
 
       constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
+        this.x = Math.random() * w;
+        this.y = Math.random() * h;
         this.length = Math.random() * 20 + 10;
         this.speed = (Math.random() * 4 + 4) * speedMultiplier;
         this.opacity = Math.random() * 0.3 + 0.1;
-        // Vary colors for visual interest
         const colors = ['139, 92, 246', '34, 211, 238', '236, 72, 153'];
         this.color = colors[Math.floor(Math.random() * colors.length)];
       }
 
       update() {
         this.y += this.speed;
-        if (this.y > canvas.height) {
+        if (this.y > h) {
           this.y = -this.length;
-          this.x = Math.random() * canvas.width;
+          this.x = Math.random() * w;
         }
-        // Slight horizontal drift
         this.x += Math.sin(this.y * 0.01) * 0.3;
       }
 
       draw() {
-        ctx.beginPath();
-        ctx.moveTo(this.x, this.y);
-        ctx.lineTo(this.x + 1, this.y + this.length);
-        ctx.strokeStyle = `rgba(${this.color}, ${this.opacity})`;
-        ctx.lineWidth = 1;
-        ctx.stroke();
+        ctx!.beginPath();
+        ctx!.moveTo(this.x, this.y);
+        ctx!.lineTo(this.x + 1, this.y + this.length);
+        ctx!.strokeStyle = `rgba(${this.color}, ${this.opacity})`;
+        ctx!.lineWidth = 1;
+        ctx!.stroke();
       }
     }
 
@@ -93,8 +93,8 @@ export default function ParticleRain({
       color: string;
 
       constructor() {
-        this.x = Math.random() * canvas.width;
-        this.y = Math.random() * canvas.height;
+        this.x = Math.random() * w;
+        this.y = Math.random() * h;
         this.size = Math.random() * 2 + 0.5;
         this.speedX = (Math.random() - 0.5) * 0.3;
         this.speedY = (Math.random() - 0.5) * 0.2;
@@ -106,17 +106,17 @@ export default function ParticleRain({
       update() {
         this.x += this.speedX;
         this.y += this.speedY;
-        if (this.x < 0) this.x = canvas.width;
-        if (this.x > canvas.width) this.x = 0;
-        if (this.y < 0) this.y = canvas.height;
-        if (this.y > canvas.height) this.y = 0;
+        if (this.x < 0) this.x = w;
+        if (this.x > w) this.x = 0;
+        if (this.y < 0) this.y = h;
+        if (this.y > h) this.y = 0;
       }
 
       draw() {
-        ctx.beginPath();
-        ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(${this.color}, ${this.opacity})`;
-        ctx.fill();
+        ctx!.beginPath();
+        ctx!.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+        ctx!.fillStyle = `rgba(${this.color}, ${this.opacity})`;
+        ctx!.fill();
       }
     }
 
@@ -126,7 +126,7 @@ export default function ParticleRain({
     }
 
     const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.clearRect(0, 0, w, h);
 
       // Draw rain
       particles.forEach((p) => {

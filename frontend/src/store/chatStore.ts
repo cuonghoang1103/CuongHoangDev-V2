@@ -188,6 +188,7 @@ export const useChatStore = create<ChatState>()(
         currentSessionId: state.currentSessionId,
         isSidebarOpen: state.isSidebarOpen,
       }),
+      skipHydration: true,
     }
   )
 );

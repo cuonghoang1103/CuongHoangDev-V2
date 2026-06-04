@@ -11,6 +11,19 @@ interface CinematicPlaylistProps {
   isNight?: boolean;
 }
 
+interface NeonColors {
+  primary: string;
+  secondary: string;
+  tertiary: string;
+  glow: string;
+  text: string;
+  textMuted: string;
+  cardBg: string;
+  cardBgHover: string;
+  border: string;
+  borderActive: string;
+}
+
 export default function CinematicPlaylist({ isNight = true }: CinematicPlaylistProps) {
   const { tracks, currentTrack, isPlaying, playTrack, playTrackAtIndex, currentIndex } = useMusicStore();
   const [search, setSearch] = useState('');
@@ -25,14 +38,13 @@ export default function CinematicPlaylist({ isNight = true }: CinematicPlaylistP
   const handlePlayTrack = (track: Track, index: number) => {
     const actualIndex = tracks.indexOf(track);
     if (actualIndex === currentIndex && currentTrack?.id === track.id) {
-      // Same track - toggle play
       useMusicStore.getState().togglePlay();
     } else {
       playTrackAtIndex(actualIndex);
     }
   };
 
-  const neonColors = {
+  const neonColors: NeonColors = {
     primary: isNight ? '#8b5cf6' : '#6366f1',
     secondary: isNight ? '#ec4899' : '#d946ef',
     tertiary: isNight ? '#22d3ee' : '#3b82f6',
@@ -45,10 +57,17 @@ export default function CinematicPlaylist({ isNight = true }: CinematicPlaylistP
     borderActive: isNight ? 'rgba(139,92,246,0.5)' : 'rgba(99,102,241,0.5)',
   };
 
-  const totalDuration = tracks.reduce((acc, t) => {
-    const parts = t.duration.split(':').map(Number);
-    return acc + (parts[0] * 60 + (parts[1] || 0));
-  }, 0);
+  const parseDuration = (d: string | number | undefined): number => {
+    if (!d && d !== 0) return 0;
+    if (typeof d === 'number') return d;
+    if (typeof d === 'string' && d.includes(':')) {
+      const parts = d.split(':').map(Number);
+      return parts[0] * 60 + (parts[1] || 0);
+    }
+    return Number(d) || 0;
+  };
+
+  const totalDuration = tracks.reduce((acc, t) => acc + parseDuration(t.duration), 0);
 
   const formatTotalDuration = (seconds: number) => {
     const h = Math.floor(seconds / 3600);
@@ -262,7 +281,7 @@ function TrackItem({
   isActive: boolean;
   isPlaying: boolean;
   onPlay: () => void;
-  colors: ReturnType<typeof useState> extends [infer T, ...unknown[]] ? T : never;
+  colors: NeonColors;
 }) {
   return (
     <motion.div

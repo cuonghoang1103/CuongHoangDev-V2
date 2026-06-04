@@ -8,6 +8,7 @@ interface AuthState {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  isHydrated: boolean;
   setAuth: (auth: AuthResponse) => void;
   updateUser: (user: User) => void;
   updateProfile: (data: { username?: string; email?: string; avatarUrl?: string; bio?: string; fullName?: string }) => void;
@@ -22,6 +23,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       isLoading: true,
+      isHydrated: false,
 
       setAuth: (auth) => {
         if (typeof window !== 'undefined') {
@@ -99,6 +101,7 @@ export const useAuthStore = create<AuthState>()(
       onRehydrateStorage: () => (state) => {
         state?.setLoading(false);
       },
+      skipHydration: true,
     }
   )
 );

@@ -7,9 +7,9 @@ import AuthProvider from '@/components/providers/AuthProvider'
 import ToasterProvider from '@/components/providers/ToasterProvider'
 import MusicAudioController from '@/components/music/MusicAudioController'
 import LocaleWrapper from '@/components/providers/LocaleWrapper'
+import { useRehydrateStores } from '@/store/useRehydrateStores'
 
 // GlobalMusicPlayer reads from localStorage — never runs on the server.
-// NOTE: It is hidden on /music via CSS so CinematicPlayer takes over.
 const GlobalMusicPlayer = dynamic(
   () => import('@/components/music/GlobalMusicPlayer'),
   { ssr: false }
@@ -30,6 +30,11 @@ export const metadata: Metadata = {
   },
 }
 
+function RehydrateWrapper({ children }: { children: React.ReactNode }) {
+  useRehydrateStores();
+  return <>{children}</>;
+}
+
 export default function RootLayout({
   children,
 }: {
@@ -41,15 +46,14 @@ export default function RootLayout({
         <AuthProvider>
           <ToasterProvider />
           <LocaleWrapper>
-            <Navbar />
-            {children}
-            <CartDrawer />
-            {/* Audio element lives here — never unmounts during navigation */}
-            <MusicAudioController />
-            {/* Player UI reads from/writes to the same store */}
-            <GlobalMusicPlayer />
-            {/* Floating Ai CuongMini — appears on every page */}
-            <FloatingAIAssistant />
+            <RehydrateWrapper>
+              <Navbar />
+              {children}
+              <CartDrawer />
+              <MusicAudioController />
+              <GlobalMusicPlayer />
+              <FloatingAIAssistant />
+            </RehydrateWrapper>
           </LocaleWrapper>
         </AuthProvider>
       </body>
