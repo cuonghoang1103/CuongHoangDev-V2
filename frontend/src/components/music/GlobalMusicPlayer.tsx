@@ -9,6 +9,7 @@ import {
   ChevronUp, Music, X,
 } from 'lucide-react';
 import { useMusicStore } from '@/store/musicStore';
+import { usePathname } from 'next/navigation';
 
 const AUTO_HIDE_DELAY = 5000; // 5 seconds
 
@@ -220,13 +221,13 @@ function MiniBar({ onExpand, onClose }: { onExpand: () => void; onClose: () => v
 // - When expanded: auto-collapse after 5s of inactivity
 // ============================================================
 export default function GlobalMusicPlayer() {
+  const pathname = usePathname();
   const [expanded, setExpanded] = useState(false);
   const [hidden, setHidden] = useState(false);
   const { currentTrack, tracks, isPlaying } = useMusicStore();
 
   // Hide when on /music page — CinematicPlayer takes over there
-  const isMusicPage = typeof window !== 'undefined' && window.location.pathname === '/music';
-  if (isMusicPage) return null;
+  if (pathname === '/music') return null;
 
   const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const collapseTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);

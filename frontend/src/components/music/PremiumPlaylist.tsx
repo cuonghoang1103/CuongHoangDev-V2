@@ -47,10 +47,17 @@ export default function PremiumPlaylist({ isNight = true }: PremiumPlaylistProps
     activeBg: 'rgba(168,85,247,0.12)',
   };
 
-  const totalDuration = tracks.reduce((acc, t) => {
-    const parts = t.duration.split(':').map(Number);
-    return acc + (parts[0] * 60 + (parts[1] || 0));
-  }, 0);
+  const parseDuration = (d: string | number | undefined): number => {
+    if (!d && d !== 0) return 0;
+    if (typeof d === 'number') return d;
+    if (typeof d === 'string' && d.includes(':')) {
+      const parts = d.split(':').map(Number);
+      return parts[0] * 60 + (parts[1] || 0);
+    }
+    return Number(d) || 0;
+  };
+
+  const totalDuration = tracks.reduce((acc, t) => acc + parseDuration(t.duration), 0);
 
   const formatTotal = (s: number) => {
     const h = Math.floor(s / 3600);
@@ -239,7 +246,21 @@ function PremiumTrackItem({
   isActive: boolean;
   isPlaying: boolean;
   onPlay: () => void;
-  colors: ReturnType<typeof useState> extends [infer T, ...unknown[]] ? T : never;
+  colors: {
+    primary: string;
+    secondary: string;
+    tertiary: string;
+    glow: string;
+    text: string;
+    textSecondary: string;
+    textMuted: string;
+    glassBg: string;
+    glassBgLight: string;
+    border: string;
+    borderLight: string;
+    cardBgHover: string;
+    activeBg: string;
+  };
 }) {
   return (
     <motion.div
