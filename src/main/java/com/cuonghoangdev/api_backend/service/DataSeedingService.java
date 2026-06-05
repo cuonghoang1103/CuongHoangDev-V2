@@ -141,11 +141,30 @@ public class DataSeedingService {
             // ── Fallback: guaranteed admin accounts (so system is never locked out) ──
             createUserIfNotExists(userRepository, "admin", "admin123", "admin@test.com",
                     "Admin User", List.of(adminRole, userRole), passwordEncoder);
-            createUserIfNotExists(userRepository, "cuong03dx", "cuong123", "cuong03dx@gmail.com",
-                    "Cuong Admin", List.of(adminRole, userRole), passwordEncoder);
             createUserIfNotExists(userRepository, "testuser", "test123", "test@test.com",
                     "Test User", List.of(userRole), passwordEncoder);
+
+            // cuong03dx: create with ADMIN if not exists, OR upgrade to ADMIN if already exists
+            upgradeToAdminIfNeeded(userRepository, "cuong03dx", adminRole);
+
+            // cuonglinh1805: same — upgrade to ADMIN if role was changed
+            upgradeToAdminIfNeeded(userRepository, "cuonglinh1805", adminRole);
         };
+    }
+
+    private void upgradeToAdminIfNeeded(UserRepository userRepository, String username, Role adminRole) {
+        User user = userRepository.findByUsername(username).orElse(null);
+        if (user == null) {
+            log.info("User {} not found — not creating (seed only upgrades existing accounts)", username);
+            return;
+        }
+        boolean hasAdmin = user.getRoles().stream()
+                .anyMatch(r -> r.getName().equals("ROLE_ADMIN"));
+        if (!hasAdmin) {
+            user.getRoles().add(adminRole);
+            userRepository.save(user);
+            log.info("Da gan quyen ADMIN cho {} (seed upgrade)", username);
+        }
     }
 
     private void createUserIfNotExists(
