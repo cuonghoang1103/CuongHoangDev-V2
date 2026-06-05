@@ -422,6 +422,11 @@ export default function PremiumPlaylist({ isNight = true }: PremiumPlaylistProps
                     <p className="text-[11px]" style={{ color: c.textMuted }}>
                       {pl.trackCount} track{pl.trackCount !== 1 ? 's' : ''}
                     </p>
+                    {pl.createdByName && (
+                      <p className="text-[10px] truncate mt-0.5" style={{ color: c.textMuted, opacity: 0.8 }}>
+                        Tạo bởi {pl.createdByName}
+                      </p>
+                    )}
                   </div>
                 </motion.button>
               ))}

@@ -4,9 +4,11 @@ import com.cuonghoangdev.api_backend.dto.MusicPlaylistDto;
 import com.cuonghoangdev.api_backend.entity.MusicPlaylist;
 import com.cuonghoangdev.api_backend.entity.MusicPlaylistTrack;
 import com.cuonghoangdev.api_backend.entity.MusicTrack;
+import com.cuonghoangdev.api_backend.entity.User;
 import com.cuonghoangdev.api_backend.repository.MusicPlaylistRepository;
 import com.cuonghoangdev.api_backend.repository.MusicPlaylistTrackRepository;
 import com.cuonghoangdev.api_backend.repository.MusicTrackRepository;
+import com.cuonghoangdev.api_backend.repository.UserRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,22 +32,25 @@ public class MusicPlaylistService {
     @Autowired
     private MusicTrackRepository trackRepository;
 
+    @Autowired
+    private UserRepository userRepository;
+
     public List<MusicPlaylistDto> getAllPublicPlaylists() {
         return playlistRepository.findAllPublic().stream()
-                .map(MusicPlaylistDto::fromEntityLight)
+                .map(this::toDtoWithCreator)
                 .collect(Collectors.toList());
     }
 
     public List<MusicPlaylistDto> getPlaylistsByUser(Long userId) {
         return playlistRepository.findByUserIdOrderByCreatedAtDesc(userId).stream()
-                .map(MusicPlaylistDto::fromEntity)
+                .map(this::toDtoWithCreator)
                 .collect(Collectors.toList());
     }
 
     public MusicPlaylistDto getPlaylistById(Long id) {
-        MusicPlaylist playlist = playlistRepository.findById(id)
+        MusicPlaylist playlist = playlistRepository.findWithTracksById(id)
                 .orElseThrow(() -> new RuntimeException("Playlist not found: " + id));
-        return MusicPlaylistDto.fromEntity(playlist);
+        return toDtoWithCreator(playlist);
     }
 
     @Transactional
@@ -57,7 +62,7 @@ public class MusicPlaylistService {
         playlist.setIsPublic(true);
         MusicPlaylist saved = playlistRepository.save(playlist);
         log.info("[MusicPlaylist] Created playlist id={} name='{}' cover='{}' userId={}", saved.getId(), name, coverUrl, userId);
-        return MusicPlaylistDto.fromEntity(saved);
+        return getPlaylistById(saved.getId());
     }
 
     @Transactional
@@ -69,7 +74,7 @@ public class MusicPlaylistService {
         if (coverUrl != null) playlist.setCoverUrl(coverUrl);
         MusicPlaylist saved = playlistRepository.save(playlist);
         log.info("[MusicPlaylist] Updated playlist id={}", saved.getId());
-        return MusicPlaylistDto.fromEntity(saved);
+        return getPlaylistById(saved.getId());
     }
 
     @Transactional
@@ -90,17 +95,15 @@ public class MusicPlaylistService {
 
         if (playlistTrackRepository.existsByPlaylistIdAndTrackId(playlistId, trackId)) {
             log.info("[MusicPlaylist] Track {} already in playlist {}, skipping", trackId, playlistId);
-            return MusicPlaylistDto.fromEntity(playlist);
+            return getPlaylistById(playlistId);
         }
 
         Integer maxPos = playlistTrackRepository.findMaxPositionByPlaylistId(playlistId);
-        int newPos = maxPos + 1;
+        int newPos = (maxPos != null ? maxPos : -1) + 1;
 
         MusicPlaylistTrack pt = new MusicPlaylistTrack(playlist, track, newPos);
         playlistTrackRepository.save(pt);
         log.info("[MusicPlaylist] Added track {} to playlist {} at position {}", trackId, playlistId, newPos);
-
-        // Refresh playlist to get updated tracks
         return getPlaylistById(playlistId);
     }
 
@@ -112,5 +115,18 @@ public class MusicPlaylistService {
         playlistTrackRepository.deleteByPlaylistIdAndTrackId(playlistId, trackId);
         log.info("[MusicPlaylist] Removed track {} from playlist {}", trackId, playlistId);
         return getPlaylistById(playlistId);
+    }
+
+    private MusicPlaylistDto toDtoWithCreator(MusicPlaylist playlist) {
+        MusicPlaylistDto dto = MusicPlaylistDto.fromEntity(playlist);
+        if (playlist.getUserId() != null) {
+            User user = userRepository.findById(playlist.getUserId()).orElse(null);
+            if (user != null) {
+                dto.createdByName = user.getFullName() != null && !user.getFullName().isBlank()
+                        ? user.getFullName()
+                        : user.getUsername();
+            }
+        }
+        return dto;
     }
 }

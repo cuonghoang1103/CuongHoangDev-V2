@@ -15,6 +15,7 @@ public class MusicPlaylistDto {
     public String description;
     public String coverUrl;
     public Long userId;
+    public String createdByName;
     public Boolean isPublic;
     public int trackCount;
     public int totalDurationSeconds;
@@ -48,7 +49,6 @@ public class MusicPlaylistDto {
             dto.tracks = pts.stream()
                     .map(pt -> MusicTrackDto.fromEntity(pt.getTrack()))
                     .collect(Collectors.toList());
-            // Use first track's cover as playlist cover if no explicit cover
             if (dto.coverUrl == null || dto.coverUrl.isBlank()) {
                 MusicTrack firstTrack = pts.get(0).getTrack();
                 if (firstTrack != null && firstTrack.getCoverImage() != null) {
@@ -62,7 +62,6 @@ public class MusicPlaylistDto {
         return dto;
     }
 
-    // Lightweight version — no tracks array, for listing only
     public static MusicPlaylistDto fromEntityLight(MusicPlaylist playlist) {
         MusicPlaylistDto dto = new MusicPlaylistDto();
         dto.id = playlist.getId();
@@ -74,6 +73,8 @@ public class MusicPlaylistDto {
         dto.createdAt = playlist.getCreatedAt();
         dto.updatedAt = playlist.getUpdatedAt();
         dto.tracks = null;
+        dto.trackCount = playlist.getPlaylistTracks() != null ? playlist.getPlaylistTracks().size() : 0;
+        dto.totalDurationSeconds = 0;
         return dto;
     }
 }

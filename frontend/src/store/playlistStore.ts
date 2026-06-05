@@ -6,6 +6,8 @@ interface PlaylistItem {
   name: string;
   description?: string;
   coverUrl?: string;
+  userId?: number;
+  createdByName?: string;
   isPublic: boolean;
   trackCount: number;
   totalDurationSeconds: number;
@@ -54,6 +56,8 @@ function parsePlaylist(raw: any): PlaylistItem {
     name: raw.name ?? 'Untitled',
     description: raw.description,
     coverUrl: raw.coverUrl,
+    userId: raw.userId,
+    createdByName: raw.createdByName,
     isPublic: raw.isPublic ?? true,
     trackCount: raw.trackCount ?? 0,
     totalDurationSeconds: raw.totalDurationSeconds ?? 0,

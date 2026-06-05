@@ -300,7 +300,7 @@ function PlaylistItem({
   playlist, isExpanded, pendingTrack, addingTo,
   onToggleExpand, onPlay, onDelete, onAddTrack, onRemoveTrack, colors,
 }: {
-  playlist: { id: number; name: string; coverUrl?: string; trackCount: number; totalDurationSeconds: number; tracks?: Track[] };
+  playlist: { id: number; name: string; coverUrl?: string; createdByName?: string; trackCount: number; totalDurationSeconds: number; tracks?: Track[] };
   isExpanded: boolean;
   pendingTrack: Track | null;
   addingTo: number | null;
@@ -348,6 +348,11 @@ function PlaylistItem({
           <p className="text-[11px]" style={{ color: colors.textMuted }}>
             {playlist.trackCount} track{playlist.trackCount !== 1 ? 's' : ''} &bull; {formatDuration(playlist.totalDurationSeconds)}
           </p>
+          {playlist.createdByName && (
+            <p className="text-[10px] truncate mt-0.5" style={{ color: colors.textMuted, opacity: 0.8 }}>
+              Tạo bởi {playlist.createdByName}
+            </p>
+          )}
         </div>
 
         {/* Actions */}
