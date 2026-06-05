@@ -125,7 +125,7 @@ public class AcademyAdminService {
 
     @Transactional(readOnly = true)
     public CourseDto getCourseWithSections(Long courseId) {
-        Course course = courseRepository.findByIdWithSections(courseId)
+        Course course = courseRepository.findCourseWithSectionsById(courseId)
             .orElseThrow(() -> new RuntimeException("Course not found: " + courseId));
         CourseDto dto = CourseDto.fromEntity(course);
         if (course.getSections() != null && Hibernate.isInitialized(course.getSections())) {

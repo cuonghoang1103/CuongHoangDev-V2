@@ -65,7 +65,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
     List<Course> findFeaturedPublished(Pageable pageable);
 
     @EntityGraph(attributePaths = {"sections", "sections.lessons", "sections.lessons.detail", "sections.lessons.documents", "sections.lessons.assignments"})
-    Optional<Course> findByIdWithSections(Long id);
+    Optional<Course> findCourseWithSectionsById(Long id);
 
     @Query(value = "SELECT c FROM Course c WHERE " +
            "(cast(:keyword as text) IS NULL OR cast(c.title as text) ILIKE cast(concat('%', cast(:keyword as text), '%') as text)) " +
