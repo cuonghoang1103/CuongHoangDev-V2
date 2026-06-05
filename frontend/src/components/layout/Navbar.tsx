@@ -88,12 +88,16 @@ export default function Navbar() {
 
   // ── Auth state ──────────────────────────────────────────────────────────
   const isAuthenticated = mounted && (isBackendAuth || !!session);
-  const displayUser = mounted ? ((session?.user || backendUser) as any) : null;
+  const displayUser = mounted
+    ? ((isBackendAuth ? backendUser : session?.user) as any)
+    : null;
 
   // ── Admin verification ──────────────────────────────────────────────────
   const [verifiedAdmin, setVerifiedAdmin] = useState(false);
 
   const verifyAdmin = useCallback(async () => {
+    let cachedAdmin = false;
+
     // 1. Fast path: check cached roles from localStorage (Zustand authStore persisted)
     //    This renders the Admin badge immediately without waiting for a network request.
     if (typeof window !== 'undefined') {
@@ -101,10 +105,10 @@ export default function Navbar() {
         const storedUser = localStorage.getItem('user');
         if (storedUser) {
           const user = JSON.parse(storedUser);
-          const isAdmin = (user?.roles || []).some(
+          cachedAdmin = (user?.roles || []).some(
             (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
           );
-          if (isAdmin) setVerifiedAdmin(true);
+          if (cachedAdmin) setVerifiedAdmin(true);
         }
       } catch {}
     }
@@ -113,7 +117,7 @@ export default function Navbar() {
     //    /api/auth/admin-check reads the httpOnly backend_token cookie and
     //    calls Spring Boot to confirm ADMIN role.
     try {
-      const res = await fetch('/api/auth/admin-check', { credentials: 'include' });
+      const res = await fetch('/api/auth/admin-check', { credentials: 'include', cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         const roles: string[] = data.data?.roles ?? [];
@@ -122,11 +126,11 @@ export default function Navbar() {
         );
         setVerifiedAdmin(isAdmin);
       } else {
-        setVerifiedAdmin(false);
+        setVerifiedAdmin(cachedAdmin);
       }
     } catch {
-      // Network error — keep the cached value if it was true, otherwise set false
-      setVerifiedAdmin(false);
+      // Network error — preserve cached admin state if present.
+      setVerifiedAdmin(cachedAdmin);
     }
   }, []);
 
@@ -135,19 +139,29 @@ export default function Navbar() {
     verifyAdmin();
   }, [mounted, verifyAdmin]);
 
-  // Re-verify on login (auth-changed with action=login)
+  // Re-verify on login or role/profile refresh
   useEffect(() => {
     if (!mounted) return;
 
     const handler = (e: Event) => {
-      const { action } = (e as CustomEvent<{ action: string }>).detail ?? {};
-      if (action === 'login') {
+      const detail = (e as CustomEvent<{ action?: string; role?: string; roles?: string[] }>).detail ?? {};
+      const eventRoles = detail.roles ?? [];
+      const eventIsAdmin = detail.role === 'ADMIN' || eventRoles.some(
+        (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+      );
+
+      if (detail.action === 'login' || detail.action === 'role-updated' || detail.action === 'profile-refreshed' || eventIsAdmin) {
+        if (eventIsAdmin) setVerifiedAdmin(true);
         setTimeout(verifyAdmin, 150);
       }
     };
 
     window.addEventListener('auth-changed', handler);
-    return () => window.removeEventListener('auth-changed', handler);
+    window.addEventListener('auth-updated', handler as EventListener);
+    return () => {
+      window.removeEventListener('auth-changed', handler);
+      window.removeEventListener('auth-updated', handler as EventListener);
+    };
   }, [mounted, verifyAdmin]);
 
   const isAdmin = mounted && verifiedAdmin;

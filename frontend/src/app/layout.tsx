@@ -22,6 +22,7 @@ const FloatingAIAssistant = dynamic(
 )
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'https://cuonghoang.xyz'),
   title: 'CuongThai V2',
   description: 'Portfolio & E-commerce Platform with AI Integration',
   icons: {

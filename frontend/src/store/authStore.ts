@@ -52,9 +52,22 @@ export const useAuthStore = create<AuthState>()(
       updateUser: (user) => set({ user }),
 
       updateProfile: (data) =>
-        set((state) => ({
-          user: state.user ? { ...state.user, ...data } : null,
-        })),
+        set((state) => {
+          const nextUser = state.user ? { ...state.user, ...data } : null;
+
+          if (typeof window !== 'undefined' && nextUser) {
+            localStorage.setItem('user', JSON.stringify(nextUser));
+            window.dispatchEvent(new CustomEvent('auth-changed', {
+              detail: {
+                action: 'profile-refreshed',
+                user: nextUser,
+                roles: nextUser.roles ?? [],
+              },
+            }));
+          }
+
+          return { user: nextUser };
+        }),
 
       /**
        * Logout — synchronous, no redirects.

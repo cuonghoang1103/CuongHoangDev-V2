@@ -150,22 +150,23 @@ export default function AdminUsersPage() {
 
   const backendUser = useAuthStore((s) => s.user);
   const backendToken = useAuthStore((s) => s.token);
+  const currentAuthUser = ((backendUser ?? session?.user) as any) || null;
 
   // ── Auth detection ───────────────────────────────────────────────────────
   useEffect(() => {
-    const currentUser = session?.user as any;
+    const currentUser = currentAuthUser;
     const isSAdmin =
       currentUser?.username === 'cuong03dx' ||
       backendUser?.username === 'cuong03dx' ||
       (currentUser?.email || '').toLowerCase() === 'cuong03dx@gmail.com' ||
       (backendUser?.email || '').toLowerCase() === 'cuong03dx@gmail.com';
     setIsSuperAdmin(isSAdmin);
-    setIsOAuthAdmin(!!session?.user && !backendToken);
-  }, [session, backendUser, backendToken]);
+    setIsOAuthAdmin(!backendUser && !!session?.user && !backendToken);
+  }, [currentAuthUser, session, backendUser, backendToken]);
 
   // ── Self role change detection ───────────────────────────────────────────
   useEffect(() => {
-    const currentUser = session?.user as any;
+    const currentUser = currentAuthUser;
     if (!currentUser) return;
     if (initialRoleVersion.current === null) {
       initialRoleVersion.current = currentUser.roleVersion ?? 0;
@@ -178,7 +179,7 @@ export default function AdminUsersPage() {
         setSelfRoleChanged(true);
       }
     }
-  }, [session]);
+  }, [currentAuthUser]);
 
   // ── Fetch users from backend (with provider filter) ─────────────────────
   const fetchUsers = useCallback(async () => {
@@ -231,7 +232,7 @@ export default function AdminUsersPage() {
   };
 
   const saveRoles = async (userId: number) => {
-    const currentUser = (session?.user as any);
+    const currentUser = currentAuthUser;
     const userBeingEdited = users.find((u) => u.id === userId);
     const isEditingSelf =
       currentUser &&
@@ -315,7 +316,7 @@ export default function AdminUsersPage() {
       toast.success('Đã xóa tài khoản thành công!');
       setDeleteTarget(null);
       // If deleting self, sign out
-      const currentUser = session?.user as any;
+      const currentUser = currentAuthUser;
       if (currentUser?.id === deleteTarget.id || currentUser?.email === deleteTarget.email) {
         await signOut({ redirect: false });
         setTimeout(() => router.push('/login'), 1000);
@@ -462,8 +463,8 @@ export default function AdminUsersPage() {
                 </tr>
               ) : (
                 users.map((user: BackendUser) => {
-                  const isSelf = (session?.user as any)?.id === user.id ||
-                    (session?.user as any)?.email === user.email;
+                  const isSelf = currentAuthUser?.id === user.id ||
+                    currentAuthUser?.email === user.email;
                   const isEditing = editingId === user.id;
                   const isActing = actionLoading === user.id;
                   const pcfg = user.provider

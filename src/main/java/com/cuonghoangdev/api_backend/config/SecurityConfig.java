@@ -196,6 +196,8 @@ public class SecurityConfig {
             "http://[::1]:3000", "http://[::1]:3001", "http://[::1]:3002", "http://[::1]:3003",
             "http://localhost", "http://127.0.0.1", "http://[::1]",
             "http://localhost:5173",
+            "https://cuonghoang.xyz",
+            "https://www.cuonghoang.xyz",
             "https://cuong-hoang-dev-v2.vercel.app",
             "https://*.vercel.app",
             "https://cuong-hoang-dev-v2.onrender.com",

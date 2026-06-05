@@ -7,7 +7,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Eye, EyeOff, Loader2 } from 'lucide-react';
-import { signIn } from 'next-auth/react';
+import { signIn, signOut } from 'next-auth/react';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { useAuthStore } from '@/store/authStore';
@@ -46,6 +46,10 @@ function LoginForm() {
     setIsLoading(true);
     setBackendError('');
     try {
+      try {
+        await signOut({ redirect: false });
+      } catch {}
+
       const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

@@ -68,8 +68,19 @@ function OAuthCallbackContent() {
 
       // Dispatch auth-updated so Navbar gets the fresh role immediately
       if (freshEmail && typeof window !== 'undefined') {
+        try {
+          const existingRaw = localStorage.getItem('user');
+          const existingUser = existingRaw ? JSON.parse(existingRaw) : {};
+          localStorage.setItem('user', JSON.stringify({
+            ...existingUser,
+            email: freshEmail,
+            roles: freshRoles,
+          }));
+        } catch {}
+
         window.dispatchEvent(new CustomEvent('auth-updated', {
           detail: {
+            action: 'role-updated',
             email: freshEmail,
             role: freshRole,
             roles: freshRoles,
