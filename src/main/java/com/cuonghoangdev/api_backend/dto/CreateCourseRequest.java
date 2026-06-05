@@ -11,6 +11,9 @@ public class CreateCourseRequest {
 
     private Long categoryId;
     private Long instructorId;
+    private Long semesterId;
+    private String courseCode;
+    private String academyType;
 
     @Size(max = 500)
     private String shortDescription;
@@ -55,6 +58,30 @@ public class CreateCourseRequest {
 
     public void setInstructorId(Long instructorId) {
         this.instructorId = instructorId;
+    }
+
+    public Long getSemesterId() {
+        return semesterId;
+    }
+
+    public void setSemesterId(Long semesterId) {
+        this.semesterId = semesterId;
+    }
+
+    public String getCourseCode() {
+        return courseCode;
+    }
+
+    public void setCourseCode(String courseCode) {
+        this.courseCode = courseCode;
+    }
+
+    public String getAcademyType() {
+        return academyType;
+    }
+
+    public void setAcademyType(String academyType) {
+        this.academyType = academyType;
     }
 
     public String getShortDescription() {

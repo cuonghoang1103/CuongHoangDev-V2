@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -26,6 +25,9 @@ public class CourseService {
     private final CourseCategoryRepository categoryRepository;
     private final EnrollmentRepository enrollmentRepository;
     private final UserRepository userRepository;
+    private final SemesterRepository semesterRepository;
+    private final LessonDetailRepository lessonDetailRepository;
+    private final AssignmentRepository assignmentRepository;
 
     public CourseService(CourseRepository courseRepository,
                          CourseSectionRepository sectionRepository,
@@ -35,7 +37,10 @@ public class CourseService {
                          CourseTagRepository tagRepository,
                          CourseCategoryRepository categoryRepository,
                          EnrollmentRepository enrollmentRepository,
-                         UserRepository userRepository) {
+                         UserRepository userRepository,
+                         SemesterRepository semesterRepository,
+                         LessonDetailRepository lessonDetailRepository,
+                         AssignmentRepository assignmentRepository) {
         this.courseRepository = courseRepository;
         this.sectionRepository = sectionRepository;
         this.lessonRepository = lessonRepository;
@@ -45,6 +50,9 @@ public class CourseService {
         this.categoryRepository = categoryRepository;
         this.enrollmentRepository = enrollmentRepository;
         this.userRepository = userRepository;
+        this.semesterRepository = semesterRepository;
+        this.lessonDetailRepository = lessonDetailRepository;
+        this.assignmentRepository = assignmentRepository;
     }
 
     public Page<CourseDto> getPublishedCourses(int page, int size,
@@ -65,27 +73,22 @@ public class CourseService {
             .orElseThrow(() -> new RuntimeException("Course not found"));
         CourseDto dto = CourseDto.fromEntity(course);
 
-        // Load sections with lessons
         List<CourseSection> sections = sectionRepository.findByCourseIdOrderBySortOrderAsc(course.getId());
+        boolean isEnrolled = userId != null && enrollmentRepository.existsByUserIdAndCourseId(userId, course.getId());
+
         dto.setSections(sections.stream()
             .map(s -> {
                 CourseSectionDto secDto = CourseSectionDto.fromEntity(s);
                 List<Lesson> lessons = lessonRepository.findBySectionIdOrderBySortOrderAsc(s.getId());
                 secDto.setLessons(lessons.stream()
-                    .map(l -> {
-                        List<CourseDocument> docs = documentRepository.findByLessonIdAndIsActiveTrue(l.getId());
-                        l.setDocuments(docs);
-                        boolean canWatch = Boolean.TRUE.equals(l.getIsFreePreview()) ||
-                            (userId != null && enrollmentRepository.existsByUserIdAndCourseId(userId, course.getId()));
-                        return LessonDto.fromEntityWithDocuments(l, canWatch);
-                    })
+                    .map(l -> hydrateLessonDto(l, Boolean.TRUE.equals(l.getIsFreePreview()) || isEnrolled))
                     .toList());
                 return secDto;
             })
             .toList());
 
         if (userId != null) {
-            dto.setIsEnrolled(enrollmentRepository.existsByUserIdAndCourseId(userId, course.getId()));
+            dto.setIsEnrolled(isEnrolled);
             enrollmentRepository.findByUserIdAndCourseId(userId, course.getId())
                 .ifPresent(e -> dto.setEnrollmentProgress(e.getProgressPercent()));
         }
@@ -99,8 +102,6 @@ public class CourseService {
             .toList();
     }
 
-    // === ADMIN ===
-
     public Page<CourseDto> getAdminCourses(String keyword, String status, Long categoryId, int page, int size) {
         Pageable pageable = PageRequest.of(page, size);
         return courseRepository.searchCoursesAdmin(keyword, status, categoryId, pageable)
@@ -111,11 +112,13 @@ public class CourseService {
     public CourseDto createCourse(CreateCourseRequest req) {
         Course course = new Course();
         course.setTitle(req.getTitle());
+        course.setCourseCode(req.getCourseCode());
         course.setSlug(generateSlug(req.getTitle()));
         course.setShortDescription(req.getShortDescription());
         course.setDescription(req.getDescription());
         course.setThumbnailUrl(req.getThumbnailUrl());
         course.setPreviewVideoUrl(req.getPreviewVideoUrl());
+        course.setAcademyType(req.getAcademyType() != null ? req.getAcademyType() : "GENERAL");
         if (req.getPrice() != null) course.setPrice(BigDecimal.valueOf(req.getPrice()));
         if (req.getDiscountPrice() != null) course.setDiscountPrice(BigDecimal.valueOf(req.getDiscountPrice()));
         if (req.getLevel() != null) course.setLevel(req.getLevel());
@@ -124,10 +127,8 @@ public class CourseService {
         if (req.getIsFeatured() != null) course.setIsFeatured(req.getIsFeatured());
         course.setRequirements(req.getRequirements());
         course.setWhatYouLearn(req.getWhatYouLearn());
-        // Status + auto-sync with isPublished for backward compatibility
         if (req.getStatus() != null) {
             course.setStatus(req.getStatus());
-            // Auto-set publishedAt when creating with status = PUBLISHED (for the first time)
             if ("PUBLISHED".equals(req.getStatus())) {
                 course.setIsPublished(true);
                 course.setPublishedAt(LocalDateTime.now());
@@ -136,12 +137,13 @@ public class CourseService {
             course.setStatus("DRAFT");
         }
         if (req.getCategoryId() != null) {
-            categoryRepository.findById(req.getCategoryId())
-                .ifPresent(course::setCategory);
+            categoryRepository.findById(req.getCategoryId()).ifPresent(course::setCategory);
         }
         if (req.getInstructorId() != null) {
-            userRepository.findById(req.getInstructorId())
-                .ifPresent(course::setInstructor);
+            userRepository.findById(req.getInstructorId()).ifPresent(course::setInstructor);
+        }
+        if (req.getSemesterId() != null) {
+            semesterRepository.findById(req.getSemesterId()).ifPresent(course::setSemester);
         }
         course = courseRepository.save(course);
         if (req.getTags() != null) saveTags(course, req.getTags());
@@ -156,6 +158,8 @@ public class CourseService {
             course.setTitle(req.getTitle());
             course.setSlug(generateSlug(req.getTitle()));
         }
+        if (req.getCourseCode() != null) course.setCourseCode(req.getCourseCode());
+        if (req.getAcademyType() != null) course.setAcademyType(req.getAcademyType());
         if (req.getShortDescription() != null) course.setShortDescription(req.getShortDescription());
         if (req.getDescription() != null) course.setDescription(req.getDescription());
         if (req.getThumbnailUrl() != null) course.setThumbnailUrl(req.getThumbnailUrl());
@@ -166,29 +170,19 @@ public class CourseService {
         if (req.getLanguage() != null) course.setLanguage(req.getLanguage());
         if (req.getIsFree() != null) course.setIsFree(req.getIsFree());
         if (req.getIsFeatured() != null) course.setIsFeatured(req.getIsFeatured());
-        if (req.getIsPublished() != null) {
-            course.setIsPublished(req.getIsPublished());
-            if (req.getIsPublished() && course.getPublishedAt() == null) {
-                course.setPublishedAt(LocalDateTime.now());
-            }
-        }
         if (req.getRequirements() != null) course.setRequirements(req.getRequirements());
         if (req.getWhatYouLearn() != null) course.setWhatYouLearn(req.getWhatYouLearn());
-        // Status + auto-sync with isPublished for backward compatibility
         if (req.getStatus() != null) {
             course.setStatus(req.getStatus());
-            // Auto-set publishedAt when transitioning to PUBLISHED (for the first time)
             if ("PUBLISHED".equals(req.getStatus())) {
                 course.setIsPublished(true);
                 if (course.getPublishedAt() == null) {
                     course.setPublishedAt(LocalDateTime.now());
                 }
             } else {
-                // Unpublishing: set isPublished = false
                 course.setIsPublished(false);
             }
         }
-        // isPublished checkbox still respected for backward compat
         if (req.getIsPublished() != null) {
             course.setIsPublished(req.getIsPublished());
             if (req.getIsPublished() && course.getPublishedAt() == null) {
@@ -196,12 +190,13 @@ public class CourseService {
             }
         }
         if (req.getCategoryId() != null) {
-            categoryRepository.findById(req.getCategoryId())
-                .ifPresent(course::setCategory);
+            categoryRepository.findById(req.getCategoryId()).ifPresent(course::setCategory);
         }
         if (req.getInstructorId() != null) {
-            userRepository.findById(req.getInstructorId())
-                .ifPresent(course::setInstructor);
+            userRepository.findById(req.getInstructorId()).ifPresent(course::setInstructor);
+        }
+        if (req.getSemesterId() != null) {
+            semesterRepository.findById(req.getSemesterId()).ifPresent(course::setSemester);
         }
         if (req.getTags() != null) {
             tagRepository.deleteByCourseId(id);
@@ -268,8 +263,9 @@ public class CourseService {
         lesson.setIsPublished(req.getIsPublished() != null ? req.getIsPublished() : false);
         lesson.setSortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0);
         lesson = lessonRepository.save(lesson);
+        upsertLessonDetail(lesson, req);
         updateCourseStats(section.getCourse().getId());
-        return LessonDto.fromEntity(lesson);
+        return hydrateLessonDto(lessonRepository.findById(lesson.getId()).orElse(lesson), true);
     }
 
     @Transactional
@@ -288,8 +284,9 @@ public class CourseService {
         if (req.getIsPublished() != null) lesson.setIsPublished(req.getIsPublished());
         if (req.getSortOrder() != null) lesson.setSortOrder(req.getSortOrder());
         Lesson saved = lessonRepository.save(lesson);
+        upsertLessonDetail(saved, req);
         updateCourseStats(lesson.getSection().getCourse().getId());
-        return LessonDto.fromEntity(saved);
+        return hydrateLessonDto(lessonRepository.findById(saved.getId()).orElse(saved), true);
     }
 
     @Transactional
@@ -359,6 +356,26 @@ public class CourseService {
         Integer duration = lessonRepository.sumDurationByCourseId(courseId);
         Integer count = lessonRepository.countPublishedByCourseId(courseId);
         courseRepository.updateStats(courseId, duration != null ? duration : 0, count != null ? count : 0);
+    }
+
+    private void upsertLessonDetail(Lesson lesson, CreateLessonRequest req) {
+        LessonDetail detail = lessonDetailRepository.findByLessonId(lesson.getId()).orElseGet(() -> {
+            LessonDetail created = new LessonDetail();
+            created.setLesson(lesson);
+            return created;
+        });
+        detail.setVideoPlatform(req.getVideoPlatform() != null ? req.getVideoPlatform() : "EMBED");
+        detail.setSourceCodeUrl(req.getSourceCodeUrl());
+        detail.setTeachingNotes(req.getTeachingNotes() != null ? req.getTeachingNotes() : req.getContent());
+        lesson.setDetail(lessonDetailRepository.save(detail));
+    }
+
+    private LessonDto hydrateLessonDto(Lesson lesson, boolean includeVideo) {
+        List<CourseDocument> docs = documentRepository.findByLessonIdAndIsActiveTrue(lesson.getId());
+        lesson.setDocuments(docs);
+        lesson.setAssignments(assignmentRepository.findByLessonIdOrderBySortOrderAscIdAsc(lesson.getId()));
+        lessonDetailRepository.findByLessonId(lesson.getId()).ifPresent(lesson::setDetail);
+        return LessonDto.fromEntityWithDocuments(lesson, includeVideo);
     }
 
     private String generateSlug(String title) {

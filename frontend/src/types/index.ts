@@ -251,6 +251,45 @@ export interface CourseCategory {
   isActive?: boolean;
 }
 
+export interface Semester {
+  id: number;
+  name: string;
+  code: string;
+  ordinal: number;
+  description?: string;
+  isActive?: boolean;
+}
+
+export interface AssignmentSubmission {
+  id: number;
+  assignmentId: number;
+  userId?: number;
+  submissionUrl: string;
+  notes?: string;
+  status: string;
+  submittedAt?: string;
+  updatedAt?: string;
+}
+
+export interface Assignment {
+  id: number;
+  lessonId?: number;
+  title: string;
+  instructions?: string;
+  deadline?: string;
+  sortOrder: number;
+  isPublished: boolean;
+  mySubmission?: AssignmentSubmission;
+}
+
+export interface LessonDetail {
+  id: number;
+  lessonId?: number;
+  videoPlatform?: 'EMBED' | 'YOUTUBE_TAB' | 'DIRECT' | string;
+  sourceCodeUrl?: string;
+  teachingNotes?: string;
+}
+
 export interface LessonDto {
   id: number;
   sectionId?: number;
@@ -265,7 +304,12 @@ export interface LessonDto {
   isFreePreview: boolean;
   isPublished: boolean;
   sortOrder: number;
+  videoPlatform?: 'EMBED' | 'YOUTUBE_TAB' | 'DIRECT' | string;
+  sourceCodeUrl?: string;
+  teachingNotes?: string;
+  detail?: LessonDetail;
   documents?: CourseDocument[];
+  assignments?: Assignment[];
 }
 
 export interface CourseDocument {
@@ -292,6 +336,7 @@ export interface CourseSection {
 export interface Course {
   id: number;
   title: string;
+  courseCode?: string;
   slug: string;
   shortDescription?: string;
   description?: string;
@@ -302,6 +347,7 @@ export interface Course {
   discountExpiresAt?: string;
   level: string;
   language: string;
+  academyType?: string;
   isFree: boolean;
   isFeatured: boolean;
   isPublished: boolean;
@@ -321,6 +367,11 @@ export interface Course {
   instructorId?: number;
   instructorName?: string;
   instructorAvatar?: string;
+  semesterId?: number;
+  semesterName?: string;
+  semesterCode?: string;
+  semesterOrdinal?: number;
+  semester?: Semester;
   sections?: CourseSection[];
   tags?: string[];
   isEnrolled?: boolean;

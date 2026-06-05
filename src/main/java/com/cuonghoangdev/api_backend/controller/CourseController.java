@@ -2,6 +2,7 @@ package com.cuonghoangdev.api_backend.controller;
 
 import com.cuonghoangdev.api_backend.dto.*;
 import com.cuonghoangdev.api_backend.security.UserPrincipal;
+import com.cuonghoangdev.api_backend.service.AcademyAdminService;
 import com.cuonghoangdev.api_backend.service.CourseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,9 +19,11 @@ import java.util.List;
 public class CourseController {
 
     private final CourseService courseService;
+    private final AcademyAdminService academyAdminService;
 
-    public CourseController(CourseService courseService) {
+    public CourseController(CourseService courseService, AcademyAdminService academyAdminService) {
         this.courseService = courseService;
+        this.academyAdminService = academyAdminService;
     }
 
     @GetMapping
@@ -53,6 +56,12 @@ public class CourseController {
         return ResponseEntity.ok(ApiResponse.ok("OK", courseService.getCourseBySlug(slug, userId)));
     }
 
+    @GetMapping("/semester/{semesterId}")
+    @Operation(summary = "Khoa hoc theo hoc ky")
+    public ResponseEntity<ApiResponse<List<CourseDto>>> getCoursesBySemester(@PathVariable Long semesterId) {
+        return ResponseEntity.ok(ApiResponse.ok("OK", academyAdminService.getCoursesBySemester(semesterId)));
+    }
+
     @GetMapping("/{courseId}/reviews")
     @Operation(summary = "Danh gia khoa hoc")
     public ResponseEntity<ApiResponse<List<CourseReviewDto>>> getReviews(@PathVariable Long courseId) {
@@ -67,8 +76,6 @@ public class CourseController {
         CourseReviewDto review = courseService.createReview(user.getId(), request);
         return ResponseEntity.ok(ApiResponse.ok("Gui danh gia thanh cong!", review));
     }
-
-    // === ADMIN ===
 
     @GetMapping("/admin/all")
     @Operation(summary = "[Admin] Tat ca khoa hoc")
@@ -104,7 +111,6 @@ public class CourseController {
         return ResponseEntity.ok(ApiResponse.ok("Xoa thanh cong!", null));
     }
 
-    // Sections
     @PostMapping("/sections")
     @Operation(summary = "[Admin] Tao chuong")
     public ResponseEntity<ApiResponse<CourseSectionDto>> createSection(
@@ -127,7 +133,6 @@ public class CourseController {
         return ResponseEntity.ok(ApiResponse.ok("Xoa thanh cong!", null));
     }
 
-    // Lessons
     @PostMapping("/lessons")
     @Operation(summary = "[Admin] Tao bai giang")
     public ResponseEntity<ApiResponse<LessonDto>> createLesson(
@@ -150,7 +155,6 @@ public class CourseController {
         return ResponseEntity.ok(ApiResponse.ok("Xoa thanh cong!", null));
     }
 
-    // Documents
     @PostMapping("/documents")
     @Operation(summary = "[Admin] Tao tai lieu")
     public ResponseEntity<ApiResponse<CourseDocumentDto>> createDocument(
@@ -163,5 +167,44 @@ public class CourseController {
     public ResponseEntity<ApiResponse<Void>> deleteDocument(@PathVariable Long id) {
         courseService.deleteDocument(id);
         return ResponseEntity.ok(ApiResponse.ok("Xoa thanh cong!", null));
+    }
+
+    @PostMapping("/assignments")
+    @Operation(summary = "[Admin] Tao bai tap")
+    public ResponseEntity<ApiResponse<AssignmentDto>> createAssignment(
+            @Valid @RequestBody CreateAssignmentRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Tao bai tap thanh cong!", academyAdminService.createAssignment(request)));
+    }
+
+    @PutMapping("/assignments/{id}")
+    @Operation(summary = "[Admin] Cap nhat bai tap")
+    public ResponseEntity<ApiResponse<AssignmentDto>> updateAssignment(
+            @PathVariable Long id,
+            @Valid @RequestBody CreateAssignmentRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Cap nhat bai tap thanh cong!", academyAdminService.updateAssignment(id, request)));
+    }
+
+    @DeleteMapping("/assignments/{id}")
+    @Operation(summary = "[Admin] Xoa bai tap")
+    public ResponseEntity<ApiResponse<Void>> deleteAssignment(@PathVariable Long id) {
+        academyAdminService.deleteAssignment(id);
+        return ResponseEntity.ok(ApiResponse.ok("Xoa bai tap thanh cong!", null));
+    }
+
+    @GetMapping("/lessons/{lessonId}/assignments")
+    @Operation(summary = "Danh sach bai tap cua lesson")
+    public ResponseEntity<ApiResponse<List<AssignmentDto>>> getAssignments(
+            @PathVariable Long lessonId,
+            @AuthenticationPrincipal UserPrincipal user) {
+        Long userId = user != null ? user.getId() : null;
+        return ResponseEntity.ok(ApiResponse.ok("OK", academyAdminService.getAssignmentsByLesson(lessonId, userId)));
+    }
+
+    @PostMapping("/assignments/submit")
+    @Operation(summary = "Nop bai tap")
+    public ResponseEntity<ApiResponse<AssignmentSubmissionDto>> submitAssignment(
+            @AuthenticationPrincipal UserPrincipal user,
+            @Valid @RequestBody AssignmentSubmissionRequest request) {
+        return ResponseEntity.ok(ApiResponse.ok("Nop bai thanh cong!", academyAdminService.submitAssignment(user.getId(), request)));
     }
 }

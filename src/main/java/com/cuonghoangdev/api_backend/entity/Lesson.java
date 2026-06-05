@@ -66,6 +66,13 @@ public class Lesson {
     @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<CourseDocument> documents = new ArrayList<>();
 
+    @OneToOne(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
+    private LessonDetail detail;
+
+    @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("sortOrder ASC, id ASC")
+    private List<Assignment> assignments = new ArrayList<>();
+
     public Lesson() {}
 
     public Long getId() { return id; }
@@ -100,4 +107,8 @@ public class Lesson {
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
     public List<CourseDocument> getDocuments() { return documents; }
     public void setDocuments(List<CourseDocument> documents) { this.documents = documents; }
+    public LessonDetail getDetail() { return detail; }
+    public void setDetail(LessonDetail detail) { this.detail = detail; }
+    public List<Assignment> getAssignments() { return assignments; }
+    public void setAssignments(List<Assignment> assignments) { this.assignments = assignments; }
 }

@@ -28,6 +28,9 @@ public class EnrollmentService {
     private final UserRepository userRepository;
     private final CourseSectionRepository sectionRepository;
     private final CourseDocumentRepository documentRepository;
+    private final LessonDetailRepository lessonDetailRepository;
+    private final AssignmentRepository assignmentRepository;
+    private final AssignmentSubmissionRepository assignmentSubmissionRepository;
 
     public EnrollmentService(EnrollmentRepository enrollmentRepository,
                              LessonProgressRepository progressRepository,
@@ -35,7 +38,10 @@ public class EnrollmentService {
                              LessonRepository lessonRepository,
                              UserRepository userRepository,
                              CourseSectionRepository sectionRepository,
-                             CourseDocumentRepository documentRepository) {
+                             CourseDocumentRepository documentRepository,
+                             LessonDetailRepository lessonDetailRepository,
+                             AssignmentRepository assignmentRepository,
+                             AssignmentSubmissionRepository assignmentSubmissionRepository) {
         this.enrollmentRepository = enrollmentRepository;
         this.progressRepository = progressRepository;
         this.courseRepository = courseRepository;
@@ -43,6 +49,9 @@ public class EnrollmentService {
         this.userRepository = userRepository;
         this.sectionRepository = sectionRepository;
         this.documentRepository = documentRepository;
+        this.lessonDetailRepository = lessonDetailRepository;
+        this.assignmentRepository = assignmentRepository;
+        this.assignmentSubmissionRepository = assignmentSubmissionRepository;
     }
 
     @Transactional
@@ -84,10 +93,8 @@ public class EnrollmentService {
     public List<LessonDto> getCurriculum(Long courseId) {
         List<CourseSection> sections = sectionRepository.findByCourseIdOrderBySortOrderAsc(courseId);
         return sections.stream()
-            .flatMap(s -> {
-                List<Lesson> lessons = lessonRepository.findBySectionIdOrderBySortOrderAsc(s.getId());
-                return lessons.stream().map(LessonDto::fromEntity);
-            })
+            .flatMap(s -> lessonRepository.findBySectionIdOrderBySortOrderAsc(s.getId()).stream())
+            .map(lesson -> hydrateLessonDto(lesson, null, false))
             .toList();
     }
 
@@ -98,24 +105,13 @@ public class EnrollmentService {
         Lesson lesson = lessonRepository.findById(lessonId)
             .orElseThrow(() -> new RuntimeException("Lesson not found"));
 
-        // Check access
         boolean canWatch = Boolean.TRUE.equals(lesson.getIsFreePreview()) || "ACTIVE".equals(enrollment.getStatus());
         if (!canWatch) {
             throw new RuntimeException("Ban can dang ky khoa hoc de xem bai nay");
         }
 
-        LessonDto dto = LessonDto.fromEntity(lesson);
-        if (Boolean.TRUE.equals(lesson.getIsFreePreview()) || canWatch) {
-            // full video URL
-        } else {
-            dto.setVideoUrl(null);
-        }
+        LessonDto dto = hydrateLessonDto(lesson, userId, canWatch);
 
-        // Load documents
-        List<CourseDocument> docs = documentRepository.findByLessonIdAndIsActiveTrue(lessonId);
-        dto.setDocuments(docs.stream().map(CourseDocumentDto::fromEntity).toList());
-
-        // Update last accessed
         enrollment.setLastLesson(lesson);
         enrollment.setLastAccessedAt(LocalDateTime.now());
         enrollmentRepository.save(enrollment);
@@ -150,7 +146,6 @@ public class EnrollmentService {
         }
         progressRepository.save(progress);
 
-        // Recalculate overall progress
         updateEnrollmentProgress(enrollment);
         return LessonProgressDto.of(
             req.getLessonId(),
@@ -195,5 +190,36 @@ public class EnrollmentService {
             enrollmentRepository.save(e);
             courseRepository.decrementTotalStudents(courseId);
         });
+    }
+
+    private LessonDto hydrateLessonDto(Lesson lesson, Long userId, boolean includeVideo) {
+        LessonDto dto = LessonDto.fromEntity(lesson);
+        if (!includeVideo) {
+            dto.setVideoUrl(null);
+        }
+
+        List<CourseDocument> docs = documentRepository.findByLessonIdAndIsActiveTrue(lesson.getId());
+        dto.setDocuments(docs.stream().map(CourseDocumentDto::fromEntity).toList());
+
+        lessonDetailRepository.findByLessonId(lesson.getId()).ifPresent(detail -> {
+            dto.setDetail(com.cuonghoangdev.api_backend.dto.LessonDetailDto.fromEntity(detail));
+            dto.setVideoPlatform(detail.getVideoPlatform());
+            dto.setSourceCodeUrl(detail.getSourceCodeUrl());
+            dto.setTeachingNotes(detail.getTeachingNotes());
+        });
+
+        List<AssignmentDto> assignments = assignmentRepository.findByLessonIdOrderBySortOrderAscIdAsc(lesson.getId()).stream()
+            .filter(a -> Boolean.TRUE.equals(a.getIsPublished()))
+            .map(assignment -> {
+                AssignmentDto assignmentDto = AssignmentDto.fromEntity(assignment);
+                if (userId != null) {
+                    assignmentSubmissionRepository.findByAssignmentIdAndUserId(assignment.getId(), userId)
+                        .ifPresent(submission -> assignmentDto.setMySubmission(AssignmentSubmissionDto.fromEntity(submission)));
+                }
+                return assignmentDto;
+            })
+            .toList();
+        dto.setAssignments(assignments);
+        return dto;
     }
 }

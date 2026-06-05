@@ -6,11 +6,12 @@ import { usePathname, useRouter } from 'next/navigation';
 import {
   LayoutDashboard, FileText, Users, Code2, Sparkles,
   LogOut, Menu, X, ChevronRight, Shield,
-  MessageSquare, BarChart3, BookOpen, ShoppingBag, Tag, Receipt, Music,
+  MessageSquare, BarChart3, BookOpen, ShoppingBag, Tag, Receipt, Music, GraduationCap,
 } from 'lucide-react';
 
 const adminNav = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
+  { label: 'FPT Academy LMS', href: '/admin/academy', icon: GraduationCap },
   { label: 'Quan ly Nhac', href: '/admin/music', icon: Music },
   { label: 'Quản lý Khoá học', href: '/admin/courses', icon: BookOpen },
   { label: 'Danh mục Khoá học', href: '/admin/course-categories', icon: Sparkles },

@@ -23,6 +23,9 @@ public class CreateLessonRequest {
     private Boolean isFreePreview = false;
     private Boolean isPublished = false;
     private Integer sortOrder;
+    private String videoPlatform = "EMBED";
+    private String sourceCodeUrl;
+    private String teachingNotes;
 
     public Long getSectionId() {
         return sectionId;
@@ -118,5 +121,29 @@ public class CreateLessonRequest {
 
     public void setSortOrder(Integer sortOrder) {
         this.sortOrder = sortOrder;
+    }
+
+    public String getVideoPlatform() {
+        return videoPlatform;
+    }
+
+    public void setVideoPlatform(String videoPlatform) {
+        this.videoPlatform = videoPlatform;
+    }
+
+    public String getSourceCodeUrl() {
+        return sourceCodeUrl;
+    }
+
+    public void setSourceCodeUrl(String sourceCodeUrl) {
+        this.sourceCodeUrl = sourceCodeUrl;
+    }
+
+    public String getTeachingNotes() {
+        return teachingNotes;
+    }
+
+    public void setTeachingNotes(String teachingNotes) {
+        this.teachingNotes = teachingNotes;
     }
 }

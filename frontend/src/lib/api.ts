@@ -329,6 +329,15 @@ export const contactApi = {
 };
 
 // Course Categories API
+export const academyApi = {
+  getSemesters: () => api.get('/academy/semesters'),
+  getCoursesBySemester: (semesterId: number) => api.get(`/courses/semester/${semesterId}`),
+  getLessonAssignments: (lessonId: number) => api.get(`/courses/lessons/${lessonId}/assignments`),
+  submitAssignment: (data: { assignmentId: number; submissionUrl: string; notes?: string }) =>
+    api.post('/courses/assignments/submit', data),
+};
+
+// Course Categories API
 export const courseCategoryApi = {
   getAll: () => api.get('/course-categories'),
   getAdminAll: () => api.get('/course-categories/admin/all'),
@@ -417,6 +426,9 @@ export const adminCoursesApi = {
     title: string;
     categoryId?: number;
     instructorId?: number;
+    semesterId?: number;
+    courseCode?: string;
+    academyType?: string;
     shortDescription?: string;
     description?: string;
     thumbnailUrl?: string;
@@ -438,6 +450,9 @@ export const adminCoursesApi = {
     title: string;
     categoryId: number;
     instructorId: number;
+    semesterId: number;
+    courseCode: string;
+    academyType: string;
     shortDescription: string;
     description: string;
     thumbnailUrl: string;
@@ -489,6 +504,9 @@ export const adminCoursesApi = {
     isFreePreview?: boolean;
     isPublished?: boolean;
     sortOrder?: number;
+    videoPlatform?: 'EMBED' | 'YOUTUBE_TAB' | 'DIRECT' | string;
+    sourceCodeUrl?: string;
+    teachingNotes?: string;
   }) => api.post('/courses/lessons', data),
 
   updateLesson: (id: number, data: Partial<{
@@ -504,6 +522,9 @@ export const adminCoursesApi = {
     isFreePreview: boolean;
     isPublished: boolean;
     sortOrder: number;
+    videoPlatform: 'EMBED' | 'YOUTUBE_TAB' | 'DIRECT' | string;
+    sourceCodeUrl: string;
+    teachingNotes: string;
   }>) => api.put(`/courses/lessons/${id}`, data),
 
   deleteLesson: (id: number) => api.delete(`/courses/lessons/${id}`),
@@ -517,6 +538,26 @@ export const adminCoursesApi = {
   }) => api.post('/courses/documents', data),
 
   deleteDocument: (id: number) => api.delete(`/courses/documents/${id}`),
+
+  createAssignment: (data: {
+    lessonId: number;
+    title: string;
+    instructions?: string;
+    deadline?: string;
+    sortOrder?: number;
+    isPublished?: boolean;
+  }) => api.post('/courses/assignments', data),
+
+  updateAssignment: (id: number, data: Partial<{
+    lessonId: number;
+    title: string;
+    instructions: string;
+    deadline: string;
+    sortOrder: number;
+    isPublished: boolean;
+  }>) => api.put(`/courses/assignments/${id}`, data),
+
+  deleteAssignment: (id: number) => api.delete(`/courses/assignments/${id}`),
 };
 
 export default api;

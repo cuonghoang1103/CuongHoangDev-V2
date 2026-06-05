@@ -27,8 +27,15 @@ public class Course {
     @JoinColumn(name = "instructor_id")
     private User instructor;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "semester_id")
+    private Semester semester;
+
     @Column(nullable = false, length = 255)
     private String title;
+
+    @Column(name = "course_code", length = 50)
+    private String courseCode;
 
     @Column(nullable = false, unique = true, length = 255)
     private String slug;
@@ -59,6 +66,9 @@ public class Course {
 
     @Column(length = 20)
     private String language = "Vietnamese";
+
+    @Column(name = "academy_type", length = 30)
+    private String academyType = "GENERAL";
 
     @Column(name = "is_free")
     private Boolean isFree = false;
@@ -122,8 +132,12 @@ public class Course {
     public void setCategory(CourseCategory category) { this.category = category; }
     public User getInstructor() { return instructor; }
     public void setInstructor(User instructor) { this.instructor = instructor; }
+    public Semester getSemester() { return semester; }
+    public void setSemester(Semester semester) { this.semester = semester; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
+    public String getCourseCode() { return courseCode; }
+    public void setCourseCode(String courseCode) { this.courseCode = courseCode; }
     public String getSlug() { return slug; }
     public void setSlug(String slug) { this.slug = slug; }
     public String getShortDescription() { return shortDescription; }
@@ -144,6 +158,8 @@ public class Course {
     public void setLevel(String level) { this.level = level; }
     public String getLanguage() { return language; }
     public void setLanguage(String language) { this.language = language; }
+    public String getAcademyType() { return academyType; }
+    public void setAcademyType(String academyType) { this.academyType = academyType; }
     public Boolean getIsFree() { return isFree; }
     public void setIsFree(Boolean isFree) { this.isFree = isFree; }
     public Boolean getIsFeatured() { return isFeatured; }

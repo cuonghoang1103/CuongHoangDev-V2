@@ -18,7 +18,12 @@ public class LessonDto {
     private Boolean isFreePreview;
     private Boolean isPublished;
     private Integer sortOrder;
+    private String videoPlatform;
+    private String sourceCodeUrl;
+    private String teachingNotes;
+    private LessonDetailDto detail;
     private List<CourseDocumentDto> documents;
+    private List<AssignmentDto> assignments;
 
     public Long getId() {
         return id;
@@ -124,6 +129,15 @@ public class LessonDto {
         this.sortOrder = sortOrder;
     }
 
+    public String getVideoPlatform() { return videoPlatform; }
+    public void setVideoPlatform(String videoPlatform) { this.videoPlatform = videoPlatform; }
+    public String getSourceCodeUrl() { return sourceCodeUrl; }
+    public void setSourceCodeUrl(String sourceCodeUrl) { this.sourceCodeUrl = sourceCodeUrl; }
+    public String getTeachingNotes() { return teachingNotes; }
+    public void setTeachingNotes(String teachingNotes) { this.teachingNotes = teachingNotes; }
+    public LessonDetailDto getDetail() { return detail; }
+    public void setDetail(LessonDetailDto detail) { this.detail = detail; }
+
     public List<CourseDocumentDto> getDocuments() {
         return documents;
     }
@@ -131,6 +145,9 @@ public class LessonDto {
     public void setDocuments(List<CourseDocumentDto> documents) {
         this.documents = documents;
     }
+
+    public List<AssignmentDto> getAssignments() { return assignments; }
+    public void setAssignments(List<AssignmentDto> assignments) { this.assignments = assignments; }
 
     public static LessonDto fromEntity(Lesson entity) {
         LessonDto dto = new LessonDto();
@@ -147,19 +164,29 @@ public class LessonDto {
         dto.setIsFreePreview(entity.getIsFreePreview());
         dto.setIsPublished(entity.getIsPublished());
         dto.setSortOrder(entity.getSortOrder());
+        if (entity.getDetail() != null) {
+            dto.setVideoPlatform(entity.getDetail().getVideoPlatform());
+            dto.setSourceCodeUrl(entity.getDetail().getSourceCodeUrl());
+            dto.setTeachingNotes(entity.getDetail().getTeachingNotes());
+            dto.setDetail(LessonDetailDto.fromEntity(entity.getDetail()));
+        }
         return dto;
     }
 
     public static LessonDto fromEntityWithDocuments(Lesson entity, boolean includeVideo) {
         LessonDto dto = fromEntity(entity);
-        if (includeVideo) {
-            // full video - for enrolled or free preview
-        } else {
+        if (!includeVideo) {
             dto.setVideoUrl(null);
         }
         if (entity.getDocuments() != null) {
             dto.setDocuments(entity.getDocuments().stream()
                 .map(CourseDocumentDto::fromEntity)
+                .toList());
+        }
+        if (entity.getAssignments() != null) {
+            dto.setAssignments(entity.getAssignments().stream()
+                .filter(a -> Boolean.TRUE.equals(a.getIsPublished()))
+                .map(AssignmentDto::fromEntity)
                 .toList());
         }
         return dto;

@@ -27,6 +27,8 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
     Page<Course> findByIsPublishedTrueAndCategorySlug(String categorySlug, Pageable pageable);
 
+    List<Course> findBySemesterIdOrderByTitleAsc(Long semesterId);
+
     List<Course> findByIsFeaturedTrueAndIsPublishedTrue(Pageable pageable);
 
     /**
