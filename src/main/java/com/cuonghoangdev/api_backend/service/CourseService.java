@@ -262,10 +262,16 @@ public class CourseService {
         lesson.setIsFreePreview(req.getIsFreePreview() != null ? req.getIsFreePreview() : false);
         lesson.setIsPublished(req.getIsPublished() != null ? req.getIsPublished() : false);
         lesson.setSortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0);
-        lesson = lessonRepository.save(lesson);
-        upsertLessonDetail(lesson, req);
+        Lesson saved = lessonRepository.save(lesson);
+        LessonDetail detail = new LessonDetail();
+        detail.setLesson(saved);
+        detail.setVideoPlatform(req.getVideoPlatform() != null ? req.getVideoPlatform() : "EMBED");
+        detail.setVideoUrl(req.getVideoUrl());
+        detail.setSourceCodeUrl(req.getSourceCodeUrl());
+        detail.setTeachingNotes(req.getTeachingNotes() != null ? req.getTeachingNotes() : req.getContent());
+        saved.setDetail(lessonDetailRepository.save(detail));
         updateCourseStats(section.getCourse().getId());
-        return hydrateLessonDto(lessonRepository.findById(lesson.getId()).orElse(lesson), true);
+        return LessonDto.fromEntityWithDocuments(lessonRepository.getReferenceById(saved.getId()), true);
     }
 
     @Transactional
@@ -284,9 +290,20 @@ public class CourseService {
         if (req.getIsPublished() != null) lesson.setIsPublished(req.getIsPublished());
         if (req.getSortOrder() != null) lesson.setSortOrder(req.getSortOrder());
         Lesson saved = lessonRepository.save(lesson);
-        upsertLessonDetail(saved, req);
+
+        LessonDetail detail = lessonDetailRepository.findByLessonId(saved.getId()).orElseGet(() -> {
+            LessonDetail created = new LessonDetail();
+            created.setLesson(saved);
+            return created;
+        });
+        if (req.getVideoPlatform() != null) detail.setVideoPlatform(req.getVideoPlatform());
+        if (req.getVideoUrl() != null) detail.setVideoUrl(req.getVideoUrl());
+        if (req.getSourceCodeUrl() != null) detail.setSourceCodeUrl(req.getSourceCodeUrl());
+        if (req.getTeachingNotes() != null) detail.setTeachingNotes(req.getTeachingNotes());
+        lessonDetailRepository.save(detail);
+
         updateCourseStats(lesson.getSection().getCourse().getId());
-        return hydrateLessonDto(lessonRepository.findById(saved.getId()).orElse(saved), true);
+        return LessonDto.fromEntityWithDocuments(lessonRepository.getReferenceById(saved.getId()), true);
     }
 
     @Transactional
@@ -389,10 +406,17 @@ public class CourseService {
 
     private LessonDto hydrateLessonDto(Lesson lesson, boolean includeVideo) {
         List<CourseDocument> docs = documentRepository.findByLessonIdAndIsActiveTrue(lesson.getId());
-        lesson.setDocuments(docs);
-        lesson.setAssignments(assignmentRepository.findByLessonIdOrderBySortOrderAscIdAsc(lesson.getId()));
-        lessonDetailRepository.findByLessonId(lesson.getId()).ifPresent(lesson::setDetail);
-        return LessonDto.fromEntityWithDocuments(lesson, includeVideo);
+        List<Assignment> assignments = assignmentRepository.findByLessonIdOrderBySortOrderAscIdAsc(lesson.getId());
+        LessonDetail detail = lessonDetailRepository.findByLessonId(lesson.getId()).orElse(null);
+        lesson.setDetail(detail);
+        LessonDto dto = LessonDto.fromEntity(lesson);
+        dto.setDocuments(docs.stream().map(CourseDocumentDto::fromEntity).toList());
+        dto.setAssignments(assignments.stream()
+            .filter(a -> Boolean.TRUE.equals(a.getIsPublished()))
+            .map(AssignmentDto::fromEntity)
+            .toList());
+        if (!includeVideo) dto.setVideoUrl(null);
+        return dto;
     }
 
     private String generateSlug(String title) {
