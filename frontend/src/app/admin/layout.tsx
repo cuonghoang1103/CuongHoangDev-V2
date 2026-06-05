@@ -37,37 +37,42 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
     const checkAuth = async () => {
       if (typeof document === 'undefined') return;
 
-      // Read admin_role cookie (set by /api/auth/login)
+      // Read admin_role cookie (set by /api/auth/login) - non-HttpOnly, JS can read it
       const adminRoleCookie = document.cookie.match(/(?:^|;)\s*admin_role=([^;]*)/)?.[1];
-      // Read backend_token cookie (httpOnly)
+
+      // Read backend_token cookie (HttpOnly) - JS CANNOT read this, but middleware already checked it
       const cookieToken = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] ?? '';
 
       console.log('[admin-layout] admin_role:', adminRoleCookie);
       console.log('[admin-layout] backend_token exists:', !!cookieToken, 'length:', cookieToken.length);
       console.log('[admin-layout] pathname:', pathname);
 
-      if (cookieToken && adminRoleCookie === '1') {
-        try {
-          // Call profile API through the proxy - it reads token from cookie
-          const res = await fetch('/api/v1/profile', {
-            credentials: 'include',
-          });
-          console.log('[admin-layout] profile status:', res.status);
-          if (res.ok) {
-            const data = await res.json();
-            const user = data.data;
-            console.log('[admin-layout] profile OK, user:', user?.username);
-            setCurrentUser({ name: user?.fullName || user?.username || 'Admin', email: user?.email || '' });
-            setAuthChecked(true);
-            return;
-          } else {
-            console.warn('[admin-layout] profile non-ok, status:', res.status);
-          }
-        } catch (err) {
-          console.error('[admin-layout] Profile fetch failed:', err);
+      // Quick check: if no admin_role cookie, must redirect
+      if (adminRoleCookie !== '1') {
+        console.log('[admin-layout] No admin role cookie - redirecting');
+        router.push('/login?redirect=' + pathname);
+        return;
+      }
+
+      // Verify with backend using the /api/auth/admin-check route
+      // (which reads the httpOnly backend_token server-side and passes as Authorization header)
+      try {
+        const res = await fetch('/api/auth/admin-check', {
+          credentials: 'include',
+        });
+        console.log('[admin-layout] admin-check status:', res.status);
+        if (res.ok) {
+          const data = await res.json();
+          const user = data.data;
+          console.log('[admin-layout] admin-check OK, user:', user?.username);
+          setCurrentUser({ name: user?.fullName || user?.username || 'Admin', email: user?.email || '' });
+          setAuthChecked(true);
+          return;
+        } else {
+          console.warn('[admin-layout] admin-check failed, status:', res.status);
         }
-      } else {
-        console.log('[admin-layout] Missing cookie - token:', !!cookieToken, 'role:', adminRoleCookie);
+      } catch (err) {
+        console.error('[admin-layout] admin-check failed:', err);
       }
 
       // No valid auth → redirect to login
