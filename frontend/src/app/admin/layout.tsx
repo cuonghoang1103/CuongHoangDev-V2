@@ -33,50 +33,24 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [currentUser, setCurrentUser] = useState<{ name: string; email: string } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
 
+  // Server-side admin verification on every navigation
+  // backend_token và admin_role là httpOnly → JS không đọc được
+  // Chỉ gọi /api/auth/admin-check để verify với backend
   useEffect(() => {
     const checkAuth = async () => {
-      if (typeof document === 'undefined') return;
-
-      // Read admin_role cookie (set by /api/auth/login) - non-HttpOnly, JS can read it
-      const adminRoleCookie = document.cookie.match(/(?:^|;)\s*admin_role=([^;]*)/)?.[1];
-
-      // Read backend_token cookie (HttpOnly) - JS CANNOT read this, but middleware already checked it
-      const cookieToken = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] ?? '';
-
-      console.log('[admin-layout] admin_role:', adminRoleCookie);
-      console.log('[admin-layout] backend_token exists:', !!cookieToken, 'length:', cookieToken.length);
-      console.log('[admin-layout] pathname:', pathname);
-
-      // Quick check: if no admin_role cookie, must redirect
-      if (adminRoleCookie !== '1') {
-        console.log('[admin-layout] No admin role cookie - redirecting');
-        router.push('/login?redirect=' + pathname);
-        return;
-      }
-
-      // Verify with backend using the /api/auth/admin-check route
-      // (which reads the httpOnly backend_token server-side and passes as Authorization header)
       try {
         const res = await fetch('/api/auth/admin-check', {
           credentials: 'include',
         });
-        console.log('[admin-layout] admin-check status:', res.status);
         if (res.ok) {
           const data = await res.json();
           const user = data.data;
-          console.log('[admin-layout] admin-check OK, user:', user?.username);
           setCurrentUser({ name: user?.fullName || user?.username || 'Admin', email: user?.email || '' });
           setAuthChecked(true);
           return;
-        } else {
-          console.warn('[admin-layout] admin-check failed, status:', res.status);
         }
-      } catch (err) {
-        console.error('[admin-layout] admin-check failed:', err);
-      }
+      } catch {}
 
-      // No valid auth → redirect to login
-      console.log('[admin-layout] Redirecting to /login');
       router.push('/login?redirect=' + pathname);
     };
 

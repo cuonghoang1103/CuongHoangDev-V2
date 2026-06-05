@@ -76,9 +76,9 @@ export async function POST(request: NextRequest) {
     path: "/",
   });
 
-  // Also set admin_role cookie so middleware allows /admin access for OAuth admins
+  // admin_role cookie: httpOnly=true vì middleware Edge Runtime vẫn đọc được raw cookie header
   response.cookies.set("admin_role", isAdmin ? "1" : "0", {
-    httpOnly: false,
+    httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
     maxAge: 60 * 60 * 24 * 7,
