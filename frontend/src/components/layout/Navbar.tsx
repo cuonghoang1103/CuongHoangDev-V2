@@ -94,44 +94,41 @@ export default function Navbar() {
   const [verifiedAdmin, setVerifiedAdmin] = useState(false);
 
   const verifyAdmin = useCallback(async () => {
-    // Read token from httpOnly cookie — not from Zustand/localStorage (token was removed for security)
-    const cookieToken = typeof document !== 'undefined'
-      ? (document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] ?? '')
-      : '';
+    // 1. Fast path: check cached roles from localStorage (Zustand authStore persisted)
+    //    This renders the Admin badge immediately without waiting for a network request.
+    if (typeof window !== 'undefined') {
+      try {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const user = JSON.parse(storedUser);
+          const isAdmin = (user?.roles || []).some(
+            (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+          );
+          if (isAdmin) setVerifiedAdmin(true);
+        }
+      } catch {}
+    }
 
-    if (cookieToken) {
-      try {
-        const res = await fetch('/api/v1/profile', {
-          credentials: 'include',
-          headers: { Authorization: `Bearer ${cookieToken}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const roles: string[] = data.data?.roles ?? [];
-          const isAdmin = roles.some(
-            (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
-          );
-          setVerifiedAdmin(isAdmin);
-          return;
-        }
-      } catch {}
+    // 2. Server-side verification — always verify with backend to catch stale cached roles
+    //    /api/auth/admin-check reads the httpOnly backend_token cookie and
+    //    calls Spring Boot to confirm ADMIN role.
+    try {
+      const res = await fetch('/api/auth/admin-check', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        const roles: string[] = data.data?.roles ?? [];
+        const isAdmin = roles.some(
+          (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+        );
+        setVerifiedAdmin(isAdmin);
+      } else {
+        setVerifiedAdmin(false);
+      }
+    } catch {
+      // Network error — keep the cached value if it was true, otherwise set false
+      setVerifiedAdmin(false);
     }
-    if (session?.user?.email) {
-      try {
-        const res = await fetch('/api/v1/profile', { credentials: 'include' });
-        if (res.ok) {
-          const data = await res.json();
-          const roles: string[] = data.data?.roles ?? [];
-          const isAdmin = roles.some(
-            (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
-          );
-          setVerifiedAdmin(isAdmin);
-          return;
-        }
-      } catch {}
-    }
-    setVerifiedAdmin(false);
-  }, [session]);
+  }, []);
 
   useEffect(() => {
     if (!mounted) return;
