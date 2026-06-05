@@ -267,6 +267,22 @@ export interface AssignmentSubmission {
   submissionUrl: string;
   notes?: string;
   status: string;
+  grade?: number;
+  feedback?: string;
+  submittedAt?: string;
+  updatedAt?: string;
+}
+
+export interface SubmissionWithUser {
+  id: number;
+  assignmentId: number;
+  studentName?: string;
+  studentEmail?: string;
+  submissionUrl: string;
+  notes?: string;
+  status: string;
+  grade?: number;
+  feedback?: string;
   submittedAt?: string;
   updatedAt?: string;
 }
@@ -279,6 +295,7 @@ export interface Assignment {
   deadline?: string;
   sortOrder: number;
   isPublished: boolean;
+  maxScore?: number;
   mySubmission?: AssignmentSubmission;
 }
 

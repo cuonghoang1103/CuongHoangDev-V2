@@ -35,6 +35,9 @@ public class Assignment {
     @Column(name = "is_published")
     private Boolean isPublished = true;
 
+    @Column(name = "max_score")
+    private Double maxScore = 10.0;
+
     @CreatedDate
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;
@@ -57,6 +60,8 @@ public class Assignment {
     public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
     public Boolean getIsPublished() { return isPublished; }
     public void setIsPublished(Boolean isPublished) { this.isPublished = isPublished; }
+    public Double getMaxScore() { return maxScore; }
+    public void setMaxScore(Double maxScore) { this.maxScore = maxScore; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

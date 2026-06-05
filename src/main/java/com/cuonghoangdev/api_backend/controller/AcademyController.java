@@ -2,8 +2,11 @@ package com.cuonghoangdev.api_backend.controller;
 
 import com.cuonghoangdev.api_backend.dto.ApiResponse;
 import com.cuonghoangdev.api_backend.dto.CreateSemesterRequest;
+import com.cuonghoangdev.api_backend.dto.GradeSubmissionRequest;
 import com.cuonghoangdev.api_backend.dto.SemesterDto;
 import com.cuonghoangdev.api_backend.dto.UpdateSemesterRequest;
+import com.cuonghoangdev.api_backend.dto.AssignmentSubmissionDto;
+import com.cuonghoangdev.api_backend.dto.SubmissionWithUserDto;
 import com.cuonghoangdev.api_backend.service.AcademyAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -52,5 +55,20 @@ public class AcademyController {
     public ResponseEntity<ApiResponse<Void>> deleteSemester(@PathVariable Long id) {
         academyAdminService.deleteSemester(id);
         return ResponseEntity.ok(ApiResponse.ok("Xoa hoc ky thanh cong", null));
+    }
+
+    @GetMapping("/assignments/{assignmentId}/submissions")
+    @Operation(summary = "[Admin] Danh sach nop bai cua mot assignment")
+    public ResponseEntity<ApiResponse<List<SubmissionWithUserDto>>> getSubmissionsByAssignment(
+            @PathVariable Long assignmentId) {
+        return ResponseEntity.ok(ApiResponse.ok("OK", academyAdminService.getSubmissionsByAssignmentWithUser(assignmentId)));
+    }
+
+    @PostMapping("/assignments/grade")
+    @Operation(summary = "[Admin] Cham diem / tra loi bai nop")
+    public ResponseEntity<ApiResponse<AssignmentSubmissionDto>> gradeSubmission(
+            @Valid @RequestBody GradeSubmissionRequest req) {
+        AssignmentSubmissionDto graded = academyAdminService.gradeSubmission(req);
+        return ResponseEntity.ok(ApiResponse.ok("Cham diem thanh cong", graded));
     }
 }

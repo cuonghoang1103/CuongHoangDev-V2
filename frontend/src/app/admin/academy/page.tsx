@@ -1,9 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, ChevronDown, ChevronRight, ClipboardList, Code2, FileText, FolderTree, GraduationCap, Image as ImageIcon, Link2, Pencil, Plus, Save, Settings, Trash2, Video, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronRight, ClipboardList, Code2, ExternalLink, FileText, FolderTree, GraduationCap, Grading, Image as ImageIcon, Link2, Pencil, Plus, Save, Settings, Trash2, Video, X } from 'lucide-react';
 import { academyApi, adminCoursesApi } from '@/lib/api';
-import type { Assignment, Course, LessonDto, Semester } from '@/types';
+import type { Assignment, Course, LessonDto, Semester, SubmissionWithUser } from '@/types';
 import ImageUpload from '@/components/admin/ImageUpload';
 import RichTextEditor from '@/components/admin/RichTextEditor';
 import { toast } from 'sonner';
@@ -244,6 +244,13 @@ export default function AdminAcademyPage() {
   const [semesterModalOpen, setSemesterModalOpen] = useState(false);
   const [semesterModalData, setSemesterModalData] = useState<Semester | undefined>();
 
+  // Grading panel
+  const [gradingAssignmentId, setGradingAssignmentId] = useState<number | undefined>();
+  const [gradingSubmissions, setGradingSubmissions] = useState<SubmissionWithUser[]>([]);
+  const [loadingGrading, setLoadingGrading] = useState(false);
+  const [gradingForm, setGradingForm] = useState<{ grade: string; feedback: string; status: string }>({ grade: '', feedback: '', status: 'GRADED' });
+  const [savingGrade, setSavingGrade] = useState(false);
+
   useEffect(() => {
     academyApi.getSemesters()
       .then((res) => {
@@ -367,6 +374,43 @@ export default function AdminAcademyPage() {
     }
   };
 
+  const openGrading = async (assignmentId: number) => {
+    setGradingAssignmentId(assignmentId);
+    setLoadingGrading(true);
+    try {
+      const res = await academyApi.getSubmissionsByAssignment(assignmentId);
+      setGradingSubmissions(res.data.data || []);
+      if ((res.data.data || []).length > 0) {
+        const first = res.data.data[0];
+        setGradingForm({ grade: first.grade != null ? String(first.grade) : '', feedback: first.feedback || '', status: first.status || 'GRADED' });
+      } else {
+        setGradingForm({ grade: '', feedback: '', status: 'GRADED' });
+      }
+    } catch {
+      toast.error('Không tải được danh sách nộp bài');
+    } finally {
+      setLoadingGrading(false);
+    }
+  };
+
+  const saveGrade = async (submissionId: number) => {
+    setSavingGrade(true);
+    try {
+      await academyApi.gradeSubmission({
+        submissionId,
+        grade: gradingForm.grade ? parseFloat(gradingForm.grade) : undefined,
+        feedback: gradingForm.feedback || undefined,
+        status: gradingForm.status,
+      });
+      toast.success('Lưu điểm thành công');
+      if (gradingAssignmentId) openGrading(gradingAssignmentId);
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Lưu điểm thất bại');
+    } finally {
+      setSavingGrade(false);
+    }
+  };
+
   const saveCourse = async () => {
     if (!courseForm.title.trim() || !courseForm.semesterId) {
       toast.error('Vui lòng nhập tên môn học và chọn kỳ');
@@ -471,6 +515,7 @@ export default function AdminAcademyPage() {
               deadline: assignment.deadline,
               sortOrder: assignmentIndex,
               isPublished: assignment.isPublished,
+              maxScore: assignment.maxScore,
             };
 
             if (assignment.id) {
@@ -780,12 +825,25 @@ export default function AdminAcademyPage() {
                             <div className="space-y-3">
                               {lesson.assignments.map((assignment, assignmentIndex) => (
                                 <div key={`${assignment.id || 'new'}-${assignmentIndex}`} className="rounded-xl border border-darkborder bg-darkbg p-4 space-y-3">
-                                  <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
-                                    <ClipboardList className="w-4 h-4 text-neon-violet" /> Bài tập {assignmentIndex + 1}
+                                  <div className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
+                                      <ClipboardList className="w-4 h-4 text-neon-violet" /> Bài tập {assignmentIndex + 1}
+                                    </div>
+                                    {assignment.id && (
+                                      <button
+                                        onClick={() => openGrading(assignment.id!)}
+                                        className="text-xs px-3 py-1.5 rounded-lg bg-neon-indigo/15 border border-neon-indigo/30 text-neon-indigo hover:bg-neon-indigo/25 flex items-center gap-1"
+                                      >
+                                        <Grading className="w-3.5 h-3.5" /> Chấm điểm
+                                      </button>
+                                    )}
                                   </div>
                                   <input value={assignment.title} onChange={(e) => updateLesson(sectionIndex, lessonIndex, { assignments: lesson.assignments.map((item, idx) => idx === assignmentIndex ? { ...item, title: e.target.value } : item) })} placeholder="Tiêu đề bài tập" className="w-full px-4 py-3 rounded-xl bg-[#0b0b12] border border-darkborder text-text-primary" />
                                   <textarea value={assignment.instructions || ''} onChange={(e) => updateLesson(sectionIndex, lessonIndex, { assignments: lesson.assignments.map((item, idx) => idx === assignmentIndex ? { ...item, instructions: e.target.value } : item) })} rows={3} placeholder="Yêu cầu bài tập" className="w-full px-4 py-3 rounded-xl bg-[#0b0b12] border border-darkborder text-text-primary" />
-                                  <input type="datetime-local" value={assignment.deadline ? assignment.deadline.slice(0, 16) : ''} onChange={(e) => updateLesson(sectionIndex, lessonIndex, { assignments: lesson.assignments.map((item, idx) => idx === assignmentIndex ? { ...item, deadline: e.target.value ? new Date(e.target.value).toISOString().slice(0, 19) : '' } : item) })} className="w-full px-4 py-3 rounded-xl bg-[#0b0b12] border border-darkborder text-text-primary" />
+                                  <div className="grid gap-3 grid-cols-2">
+                                    <input type="datetime-local" value={assignment.deadline ? assignment.deadline.slice(0, 16) : ''} onChange={(e) => updateLesson(sectionIndex, lessonIndex, { assignments: lesson.assignments.map((item, idx) => idx === assignmentIndex ? { ...item, deadline: e.target.value ? new Date(e.target.value).toISOString().slice(0, 19) : '' } : item) })} className="w-full px-4 py-3 rounded-xl bg-[#0b0b12] border border-darkborder text-text-primary" />
+                                    <input type="number" min={0} step={0.5} value={assignment.maxScore ?? 10} onChange={(e) => updateLesson(sectionIndex, lessonIndex, { assignments: lesson.assignments.map((item, idx) => idx === assignmentIndex ? { ...item, maxScore: parseFloat(e.target.value) || 10 } : item) })} placeholder="Thang diem" className="px-4 py-3 rounded-xl bg-[#0b0b12] border border-darkborder text-text-primary" />
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -811,6 +869,111 @@ export default function AdminAcademyPage() {
           onClose={() => setSemesterModalOpen(false)}
           onSaved={handleSemesterSaved}
         />
+      )}
+
+      {gradingAssignmentId && (
+        <div className="fixed inset-0 z-40 bg-black/40" onClick={() => setGradingAssignmentId(undefined)} />
+      )}
+      {gradingAssignmentId && (
+        <div className="fixed bottom-0 right-0 z-50 w-full max-w-lg h-[85vh] bg-darkcard border border-darkborder border-t-2 border-t-neon-indigo rounded-t-2xl shadow-2xl flex flex-col">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-darkborder">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-text-muted">Academy Admin</p>
+              <h2 className="text-lg font-heading font-bold text-text-primary">Chấm điểm bài nộp</h2>
+            </div>
+            <button onClick={() => setGradingAssignmentId(undefined)} className="p-2 rounded-lg hover:bg-white/10 text-text-muted hover:text-text-primary">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="flex-1 overflow-y-auto p-6 space-y-4">
+            {loadingGrading ? (
+              <p className="text-text-muted text-center py-8">Đang tải...</p>
+            ) : gradingSubmissions.length === 0 ? (
+              <p className="text-text-muted text-center py-8">Chưa có bài nộp nào.</p>
+            ) : (
+              gradingSubmissions.map((sub) => (
+                <div key={sub.id} className="rounded-xl border border-darkborder bg-darkbg p-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold text-text-primary">{sub.studentName || 'Sinh viên'}</p>
+                      <p className="text-xs text-text-muted">{sub.studentEmail}</p>
+                    </div>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${sub.status === 'GRADED' ? 'bg-green-500/15 text-green-400 border border-green-500/30' : sub.status === 'SUBMITTED' ? 'bg-neon-violet/15 text-neon-violet border border-neon-violet/30' : 'bg-yellow-500/15 text-yellow-400 border border-yellow-500/30'}`}>
+                      {sub.status === 'GRADED' ? 'Đã chấm' : sub.status === 'SUBMITTED' ? 'Chờ chấm' : sub.status}
+                    </span>
+                  </div>
+
+                  {sub.submissionUrl && (
+                    <a href={sub.submissionUrl} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-sm text-neon-violet hover:underline">
+                      <ExternalLink className="w-3.5 h-3.5" /> {sub.submissionUrl}
+                    </a>
+                  )}
+                  {sub.notes && <p className="text-sm text-text-secondary italic">"{sub.notes}"</p>}
+
+                  <div className="grid gap-2">
+                    <div className="grid gap-2 grid-cols-3">
+                      <div>
+                        <label className="block text-xs text-text-muted mb-1">Điểm</label>
+                        <input
+                          type="number"
+                          min={0}
+                          step={0.5}
+                          value={sub.grade != null ? String(sub.grade) : ''}
+                          onChange={(e) => setGradingSubmissions((prev) => prev.map((s) => s.id === sub.id ? { ...s, grade: parseFloat(e.target.value) } : s))}
+                          placeholder="0"
+                          className="w-full px-3 py-2 rounded-lg bg-[#0b0b12] border border-darkborder text-text-primary text-center font-bold text-lg"
+                        />
+                      </div>
+                      <div className="col-span-2">
+                        <label className="block text-xs text-text-muted mb-1">Trạng thái</label>
+                        <select
+                          value={sub.status}
+                          onChange={(e) => setGradingSubmissions((prev) => prev.map((s) => s.id === sub.id ? { ...s, status: e.target.value } : s))}
+                          className="w-full px-3 py-2 rounded-lg bg-[#0b0b12] border border-darkborder text-text-primary"
+                        >
+                          <option value="SUBMITTED">Chờ chấm</option>
+                          <option value="GRADED">Đã chấm</option>
+                          <option value="NEED_REVISION">Cần sửa lại</option>
+                        </select>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-xs text-text-muted mb-1">Feedback</label>
+                      <textarea
+                        value={sub.feedback || ''}
+                        onChange={(e) => setGradingSubmissions((prev) => prev.map((s) => s.id === sub.id ? { ...s, feedback: e.target.value } : s))}
+                        rows={3}
+                        placeholder="Nhận xét cho sinh viên..."
+                        className="w-full px-3 py-2 rounded-lg bg-[#0b0b12] border border-darkborder text-text-primary text-sm"
+                      />
+                    </div>
+                    <button
+                      onClick={async () => {
+                        const s = gradingSubmissions.find((x) => x.id === sub.id);
+                        if (!s) return;
+                        setSavingGrade(true);
+                        try {
+                          await academyApi.gradeSubmission({ submissionId: sub.id, grade: s.grade, feedback: s.feedback, status: s.status });
+                          toast.success('Lưu điểm thành công');
+                          if (gradingAssignmentId) openGrading(gradingAssignmentId);
+                        } catch (err: any) {
+                          toast.error(err?.response?.data?.message || 'Lưu thất bại');
+                        } finally {
+                          setSavingGrade(false);
+                        }
+                      }}
+                      disabled={savingGrade}
+                      className="w-full px-4 py-2.5 rounded-xl bg-gradient-to-r from-neon-indigo to-neon-violet text-white text-sm font-medium disabled:opacity-60 flex items-center justify-center gap-2"
+                    >
+                      <Save className="w-4 h-4" /> {savingGrade ? 'Đang lưu...' : 'Lưu điểm'}
+                    </button>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

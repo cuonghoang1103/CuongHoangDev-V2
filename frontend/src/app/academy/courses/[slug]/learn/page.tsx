@@ -352,11 +352,30 @@ export default function AcademyLessonPage() {
                         className="px-4 py-3 rounded-xl bg-[#0b0b12] border border-darkborder text-text-primary"
                       />
                       <div className="flex items-center justify-between gap-3 flex-wrap">
-                        {assignment.mySubmission && <span className="text-sm text-green-400">Đã nộp: {assignment.mySubmission.status}</span>}
+                        {assignment.mySubmission ? (
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${assignment.mySubmission.status === 'GRADED' ? 'bg-green-500/15 text-green-400' : assignment.mySubmission.status === 'NEED_REVISION' ? 'bg-yellow-500/15 text-yellow-400' : 'bg-neon-violet/15 text-neon-violet'}`}>
+                              {assignment.mySubmission.status === 'GRADED' ? 'Đã chấm' : assignment.mySubmission.status === 'NEED_REVISION' ? 'Cần sửa lại' : 'Đã nộp'}
+                            </span>
+                            {assignment.mySubmission.grade != null && (
+                              <span className="text-sm font-bold text-neon-indigo">
+                                {assignment.mySubmission.grade}/{assignment.maxScore ?? 10}
+                              </span>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-sm text-text-muted">Chưa nộp</span>
+                        )}
                         <button onClick={() => submitAssignment(assignment)} className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-neon-indigo to-neon-violet text-white">
-                          <Send className="w-4 h-4" /> Nộp bài
+                          <Send className="w-4 h-4" /> {assignment.mySubmission ? 'Nộp lại' : 'Nộp bài'}
                         </button>
                       </div>
+                      {assignment.mySubmission?.feedback && (
+                        <div className="rounded-xl bg-neon-indigo/10 border border-neon-indigo/20 p-4 mt-2">
+                          <p className="text-xs uppercase tracking-[0.1em] text-neon-indigo font-semibold mb-1">Phản hồi từ giảng viên</p>
+                          <p className="text-sm text-text-secondary whitespace-pre-wrap">{assignment.mySubmission.feedback}</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 )) : <p className="text-text-muted">Chưa có bài tập cho bài học này.</p>}

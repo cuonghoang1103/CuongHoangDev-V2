@@ -350,6 +350,10 @@ export const academyApi = {
     isActive?: boolean;
   }) => api.put(`/academy/semesters/${id}`, data),
   deleteSemester: (id: number) => api.delete(`/academy/semesters/${id}`),
+  getSubmissionsByAssignment: (assignmentId: number) =>
+    api.get(`/academy/assignments/${assignmentId}/submissions`),
+  gradeSubmission: (data: { submissionId: number; grade?: number; feedback?: string; status?: string }) =>
+    api.post('/academy/assignments/grade', data),
 };
 
 // Course Categories API

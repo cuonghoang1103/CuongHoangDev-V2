@@ -14,6 +14,7 @@ public class CreateAssignmentRequest {
     private String deadline;
     private Integer sortOrder;
     private Boolean isPublished = true;
+    private Double maxScore = 10.0;
 
     public Long getLessonId() { return lessonId; }
     public void setLessonId(Long lessonId) { this.lessonId = lessonId; }
@@ -27,4 +28,6 @@ public class CreateAssignmentRequest {
     public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
     public Boolean getIsPublished() { return isPublished; }
     public void setIsPublished(Boolean isPublished) { this.isPublished = isPublished; }
+    public Double getMaxScore() { return maxScore; }
+    public void setMaxScore(Double maxScore) { this.maxScore = maxScore; }
 }

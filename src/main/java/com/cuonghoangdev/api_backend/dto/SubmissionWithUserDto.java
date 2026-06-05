@@ -4,10 +4,11 @@ import com.cuonghoangdev.api_backend.entity.AssignmentSubmission;
 
 import java.time.LocalDateTime;
 
-public class AssignmentSubmissionDto {
+public class SubmissionWithUserDto {
     private Long id;
     private Long assignmentId;
-    private Long userId;
+    private String studentName;
+    private String studentEmail;
     private String submissionUrl;
     private String notes;
     private String status;
@@ -20,8 +21,10 @@ public class AssignmentSubmissionDto {
     public void setId(Long id) { this.id = id; }
     public Long getAssignmentId() { return assignmentId; }
     public void setAssignmentId(Long assignmentId) { this.assignmentId = assignmentId; }
-    public Long getUserId() { return userId; }
-    public void setUserId(Long userId) { this.userId = userId; }
+    public String getStudentName() { return studentName; }
+    public void setStudentName(String studentName) { this.studentName = studentName; }
+    public String getStudentEmail() { return studentEmail; }
+    public void setStudentEmail(String studentEmail) { this.studentEmail = studentEmail; }
     public String getSubmissionUrl() { return submissionUrl; }
     public void setSubmissionUrl(String submissionUrl) { this.submissionUrl = submissionUrl; }
     public String getNotes() { return notes; }
@@ -37,11 +40,10 @@ public class AssignmentSubmissionDto {
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
 
-    public static AssignmentSubmissionDto fromEntity(AssignmentSubmission entity) {
-        AssignmentSubmissionDto dto = new AssignmentSubmissionDto();
+    public static SubmissionWithUserDto fromEntity(AssignmentSubmission entity) {
+        SubmissionWithUserDto dto = new SubmissionWithUserDto();
         dto.setId(entity.getId());
         dto.setAssignmentId(entity.getAssignment() != null ? entity.getAssignment().getId() : null);
-        dto.setUserId(entity.getUser() != null ? entity.getUser().getId() : null);
         dto.setSubmissionUrl(entity.getSubmissionUrl());
         dto.setNotes(entity.getNotes());
         dto.setStatus(entity.getStatus());
@@ -49,6 +51,10 @@ public class AssignmentSubmissionDto {
         dto.setFeedback(entity.getFeedback());
         dto.setSubmittedAt(entity.getSubmittedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
+        if (entity.getUser() != null) {
+            dto.setStudentName(entity.getUser().getFullName() != null ? entity.getUser().getFullName() : entity.getUser().getUsername());
+            dto.setStudentEmail(entity.getUser().getEmail());
+        }
         return dto;
     }
 }

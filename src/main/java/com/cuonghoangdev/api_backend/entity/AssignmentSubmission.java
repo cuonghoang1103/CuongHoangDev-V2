@@ -35,6 +35,12 @@ public class AssignmentSubmission {
     @Column(length = 30)
     private String status = "SUBMITTED";
 
+    @Column
+    private Double grade;
+
+    @Column(columnDefinition = "TEXT")
+    private String feedback;
+
     @CreatedDate
     @Column(name = "submitted_at", updatable = false)
     private LocalDateTime submittedAt;
@@ -55,6 +61,10 @@ public class AssignmentSubmission {
     public void setNotes(String notes) { this.notes = notes; }
     public String getStatus() { return status; }
     public void setStatus(String status) { this.status = status; }
+    public Double getGrade() { return grade; }
+    public void setGrade(Double grade) { this.grade = grade; }
+    public String getFeedback() { return feedback; }
+    public void setFeedback(String feedback) { this.feedback = feedback; }
     public LocalDateTime getSubmittedAt() { return submittedAt; }
     public void setSubmittedAt(LocalDateTime submittedAt) { this.submittedAt = submittedAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

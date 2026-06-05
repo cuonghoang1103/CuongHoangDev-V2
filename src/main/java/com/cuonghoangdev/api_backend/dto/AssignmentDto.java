@@ -12,6 +12,7 @@ public class AssignmentDto {
     private LocalDateTime deadline;
     private Integer sortOrder;
     private Boolean isPublished;
+    private Double maxScore;
     private AssignmentSubmissionDto mySubmission;
 
     public Long getId() { return id; }
@@ -28,6 +29,8 @@ public class AssignmentDto {
     public void setSortOrder(Integer sortOrder) { this.sortOrder = sortOrder; }
     public Boolean getIsPublished() { return isPublished; }
     public void setIsPublished(Boolean isPublished) { this.isPublished = isPublished; }
+    public Double getMaxScore() { return maxScore; }
+    public void setMaxScore(Double maxScore) { this.maxScore = maxScore; }
     public AssignmentSubmissionDto getMySubmission() { return mySubmission; }
     public void setMySubmission(AssignmentSubmissionDto mySubmission) { this.mySubmission = mySubmission; }
 
@@ -40,6 +43,7 @@ public class AssignmentDto {
         dto.setDeadline(entity.getDeadline());
         dto.setSortOrder(entity.getSortOrder());
         dto.setIsPublished(entity.getIsPublished());
+        dto.setMaxScore(entity.getMaxScore());
         return dto;
     }
 }

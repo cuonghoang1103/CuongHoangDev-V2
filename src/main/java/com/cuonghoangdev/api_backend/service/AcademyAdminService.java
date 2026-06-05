@@ -130,6 +130,7 @@ public class AcademyAdminService {
         assignment.setDeadline(parseDateTime(req.getDeadline()));
         assignment.setSortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0);
         assignment.setIsPublished(req.getIsPublished() != null ? req.getIsPublished() : true);
+        assignment.setMaxScore(req.getMaxScore() != null ? req.getMaxScore() : 10.0);
         return AssignmentDto.fromEntity(assignmentRepository.save(assignment));
     }
 
@@ -142,6 +143,7 @@ public class AcademyAdminService {
         if (req.getDeadline() != null) assignment.setDeadline(parseDateTime(req.getDeadline()));
         if (req.getSortOrder() != null) assignment.setSortOrder(req.getSortOrder());
         if (req.getIsPublished() != null) assignment.setIsPublished(req.getIsPublished());
+        if (req.getMaxScore() != null) assignment.setMaxScore(req.getMaxScore());
         return AssignmentDto.fromEntity(assignmentRepository.save(assignment));
     }
 
@@ -182,6 +184,28 @@ public class AcademyAdminService {
                 }
                 return dto;
             })
+            .toList();
+    }
+
+    @Transactional
+    public AssignmentSubmissionDto gradeSubmission(GradeSubmissionRequest req) {
+        AssignmentSubmission submission = assignmentSubmissionRepository.findById(req.getSubmissionId())
+            .orElseThrow(() -> new RuntimeException("Submission not found"));
+        if (req.getGrade() != null) submission.setGrade(req.getGrade());
+        if (req.getFeedback() != null) submission.setFeedback(req.getFeedback());
+        if (req.getStatus() != null) submission.setStatus(req.getStatus());
+        return AssignmentSubmissionDto.fromEntity(assignmentSubmissionRepository.save(submission));
+    }
+
+    public List<AssignmentSubmissionDto> getSubmissionsByAssignment(Long assignmentId) {
+        return assignmentSubmissionRepository.findByAssignmentIdOrderBySubmittedAtDesc(assignmentId).stream()
+            .map(AssignmentSubmissionDto::fromEntity)
+            .toList();
+    }
+
+    public List<SubmissionWithUserDto> getSubmissionsByAssignmentWithUser(Long assignmentId) {
+        return assignmentSubmissionRepository.findByAssignmentIdOrderBySubmittedAtDesc(assignmentId).stream()
+            .map(SubmissionWithUserDto::fromEntity)
             .toList();
     }
 
