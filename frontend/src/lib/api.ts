@@ -354,6 +354,8 @@ export const academyApi = {
     api.get(`/academy/assignments/${assignmentId}/submissions`),
   gradeSubmission: (data: { submissionId: number; grade?: number; feedback?: string; status?: string }) =>
     api.post('/academy/assignments/grade', data),
+  getCourseWithSections: (courseId: number) =>
+    api.get(`/academy/courses/${courseId}`),
 };
 
 // Course Categories API

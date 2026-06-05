@@ -96,9 +96,55 @@ public class AcademyAdminService {
 
     @Transactional(readOnly = true)
     public List<CourseDto> getCoursesBySemester(Long semesterId) {
-        return courseRepository.findBySemesterIdOrderByTitleAsc(semesterId).stream()
-            .map(CourseDto::fromEntity)
+        List<Course> courses = courseRepository.findBySemesterIdOrderByTitleAsc(semesterId);
+        return courses.stream()
+            .map(c -> {
+                CourseDto dto = CourseDto.fromEntity(c);
+                if (c.getSections() != null && Hibernate.isInitialized(c.getSections())) {
+                    dto.setSections(c.getSections().stream()
+                        .sorted((a, b) -> Integer.compare(
+                            a.getSortOrder() != null ? a.getSortOrder() : 0,
+                            b.getSortOrder() != null ? b.getSortOrder() : 0))
+                        .map(section -> {
+                            List<Lesson> lessons = section.getLessons() != null && Hibernate.isInitialized(section.getLessons())
+                                ? section.getLessons().stream()
+                                    .sorted((a, b) -> Integer.compare(
+                                        a.getSortOrder() != null ? a.getSortOrder() : 0,
+                                        b.getSortOrder() != null ? b.getSortOrder() : 0))
+                                    .toList()
+                                : List.of();
+                            return CourseSectionDto.fromEntity(section, lessons, false);
+                        })
+                        .toList());
+                }
+                return dto;
+            })
             .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public CourseDto getCourseWithSections(Long courseId) {
+        Course course = courseRepository.findByIdWithSections(courseId)
+            .orElseThrow(() -> new RuntimeException("Course not found: " + courseId));
+        CourseDto dto = CourseDto.fromEntity(course);
+        if (course.getSections() != null && Hibernate.isInitialized(course.getSections())) {
+            dto.setSections(course.getSections().stream()
+                .sorted((a, b) -> Integer.compare(
+                    a.getSortOrder() != null ? a.getSortOrder() : 0,
+                    b.getSortOrder() != null ? b.getSortOrder() : 0))
+                .map(section -> {
+                    List<Lesson> lessons = section.getLessons() != null && Hibernate.isInitialized(section.getLessons())
+                        ? section.getLessons().stream()
+                            .sorted((a, b) -> Integer.compare(
+                                a.getSortOrder() != null ? a.getSortOrder() : 0,
+                                b.getSortOrder() != null ? b.getSortOrder() : 0))
+                            .toList()
+                        : List.of();
+                    return CourseSectionDto.fromEntity(section, lessons, false);
+                })
+                .toList());
+        }
+        return dto;
     }
 
     @Transactional

@@ -1,12 +1,15 @@
 package com.cuonghoangdev.api_backend.controller;
 
 import com.cuonghoangdev.api_backend.dto.ApiResponse;
+import com.cuonghoangdev.api_backend.dto.CourseDto;
+import com.cuonghoangdev.api_backend.dto.CourseSectionDto;
 import com.cuonghoangdev.api_backend.dto.CreateSemesterRequest;
 import com.cuonghoangdev.api_backend.dto.GradeSubmissionRequest;
 import com.cuonghoangdev.api_backend.dto.SemesterDto;
 import com.cuonghoangdev.api_backend.dto.UpdateSemesterRequest;
 import com.cuonghoangdev.api_backend.dto.AssignmentSubmissionDto;
 import com.cuonghoangdev.api_backend.dto.SubmissionWithUserDto;
+import com.cuonghoangdev.api_backend.entity.Lesson;
 import com.cuonghoangdev.api_backend.service.AcademyAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -55,6 +58,12 @@ public class AcademyController {
     public ResponseEntity<ApiResponse<Void>> deleteSemester(@PathVariable Long id) {
         academyAdminService.deleteSemester(id);
         return ResponseEntity.ok(ApiResponse.ok("Xoa hoc ky thanh cong", null));
+    }
+
+    @GetMapping("/courses/{id}")
+    @Operation(summary = "[Admin] Lay chi tiet mon hoc (voi sections)")
+    public ResponseEntity<ApiResponse<CourseDto>> getCourseWithSections(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok("OK", academyAdminService.getCourseWithSections(id)));
     }
 
     @GetMapping("/assignments/{assignmentId}/submissions")

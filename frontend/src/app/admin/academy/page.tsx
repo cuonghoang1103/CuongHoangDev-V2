@@ -275,61 +275,68 @@ export default function AdminAcademyPage() {
     [courses, selectedCourseId]
   );
 
+  // Fetch full course data when a course is selected for editing
   useEffect(() => {
-    if (!selectedCourse) {
+    if (!selectedCourseId) {
       setCourseForm({ ...emptyCourse, semesterId: selectedSemesterId });
       setSections([]);
+      setExpandedSections([]);
       return;
     }
 
-    setCourseForm({
-      id: selectedCourse.id,
-      title: selectedCourse.title,
-      courseCode: selectedCourse.courseCode || '',
-      shortDescription: selectedCourse.shortDescription || '',
-      description: selectedCourse.description || '',
-      thumbnailUrl: selectedCourse.thumbnailUrl || '',
-      previewVideoUrl: selectedCourse.previewVideoUrl || '',
-      semesterId: selectedCourse.semesterId,
-      academyType: selectedCourse.academyType || 'FPT',
-      level: selectedCourse.level || 'BEGINNER',
-      language: selectedCourse.language || 'Vietnamese',
-      isFree: selectedCourse.isFree,
-      isFeatured: selectedCourse.isFeatured,
-      status: selectedCourse.status || 'DRAFT',
-      requirements: selectedCourse.requirements || '',
-      whatYouLearn: selectedCourse.whatYouLearn || '',
-    });
+    academyApi.getCourseWithSections(selectedCourseId)
+      .then((res) => {
+        const course: Course = res.data.data;
+        setCourseForm({
+          id: course.id,
+          title: course.title,
+          courseCode: course.courseCode || '',
+          shortDescription: course.shortDescription || '',
+          description: course.description || '',
+          thumbnailUrl: course.thumbnailUrl || '',
+          previewVideoUrl: course.previewVideoUrl || '',
+          semesterId: course.semesterId,
+          academyType: course.academyType || 'FPT',
+          level: course.level || 'BEGINNER',
+          language: course.language || 'Vietnamese',
+          isFree: course.isFree,
+          isFeatured: course.isFeatured,
+          status: course.status || 'DRAFT',
+          requirements: course.requirements || '',
+          whatYouLearn: course.whatYouLearn || '',
+        });
 
-    const mappedSections = (selectedCourse.sections || []).map((section, sectionIndex) => ({
-      id: section.id,
-      title: section.title,
-      description: section.description || '',
-      sortOrder: section.sortOrder ?? sectionIndex,
-      isLocked: section.isLocked,
-      lessons: (section.lessons || []).map((lesson, lessonIndex) => ({
-        id: lesson.id,
-        title: lesson.title,
-        slug: lesson.slug || '',
-        description: lesson.description || '',
-        content: lesson.content || '',
-        lessonType: lesson.lessonType || 'VIDEO',
-        videoUrl: lesson.videoUrl || '',
-        videoPlatform: (lesson.videoPlatform as 'EMBED' | 'YOUTUBE_TAB' | 'DIRECT') || 'EMBED',
-        sourceCodeUrl: lesson.sourceCodeUrl || '',
-        teachingNotes: lesson.teachingNotes || '',
-        videoDurationSeconds: lesson.videoDurationSeconds || 0,
-        thumbnailUrl: lesson.thumbnailUrl || '',
-        isFreePreview: lesson.isFreePreview,
-        isPublished: lesson.isPublished,
-        sortOrder: lesson.sortOrder ?? lessonIndex,
-        assignments: lesson.assignments || [],
-      })),
-    }));
+        const mappedSections = (course.sections || []).map((section, sectionIndex) => ({
+          id: section.id,
+          title: section.title,
+          description: section.description || '',
+          sortOrder: section.sortOrder ?? sectionIndex,
+          isLocked: section.isLocked,
+          lessons: (section.lessons || []).map((lesson, lessonIndex) => ({
+            id: lesson.id,
+            title: lesson.title,
+            slug: lesson.slug || '',
+            description: lesson.description || '',
+            content: lesson.content || '',
+            lessonType: lesson.lessonType || 'VIDEO',
+            videoUrl: lesson.videoUrl || '',
+            videoPlatform: (lesson.videoPlatform as 'EMBED' | 'YOUTUBE_TAB' | 'DIRECT') || 'EMBED',
+            sourceCodeUrl: lesson.sourceCodeUrl || '',
+            teachingNotes: lesson.teachingNotes || '',
+            videoDurationSeconds: lesson.videoDurationSeconds || 0,
+            thumbnailUrl: lesson.thumbnailUrl || '',
+            isFreePreview: lesson.isFreePreview,
+            isPublished: lesson.isPublished,
+            sortOrder: lesson.sortOrder ?? lessonIndex,
+            assignments: lesson.assignments || [],
+          })),
+        }));
 
-    setSections(mappedSections);
-    setExpandedSections(mappedSections.map((_, index) => index));
-  }, [selectedCourse, selectedSemesterId]);
+        setSections(mappedSections);
+        setExpandedSections(mappedSections.map((_, index) => index));
+      })
+      .catch(() => toast.error('Không tải được chi tiết môn học'));
+  }, [selectedCourseId]);
 
   const resetForNewCourse = () => {
     setSelectedCourseId(undefined);
