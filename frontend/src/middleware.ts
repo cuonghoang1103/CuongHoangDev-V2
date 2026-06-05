@@ -8,28 +8,70 @@ function debugLog(...args: unknown[]) {
 
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
-  debugLog('pathname:', pathname);
 
   if (!pathname.startsWith('/admin')) {
     return NextResponse.next();
   }
 
-  // Read admin_role cookie (set by /api/auth/login as a non-httpOnly cookie)
-  // Value: "1" = admin, "0" = non-admin
   const cookieHeader = request.headers.get('cookie') ?? '';
+  const backendTokenMatch = cookieHeader.match(/(?:^|;\s*)backend_token=([^;]*)/);
   const adminRoleMatch = cookieHeader.match(/(?:^|;\s*)admin_role=([^;]*)/);
+  const backendToken = backendTokenMatch?.[1] ?? '';
   const adminRole = adminRoleMatch?.[1];
 
-  debugLog('admin_role cookie:', adminRole);
+  debugLog('path:', pathname, 'admin_role:', adminRole, 'has_backend_token:', !!backendToken);
 
-  // Check for admin
-  if (adminRole === '1') {
-    debugLog('Admin access granted');
+  // Quick path: if admin_role=1 AND backend_token exists, let through.
+  // The admin/layout.tsx does a full server-side re-check on every render anyway.
+  if (adminRole === '1' && backendToken) {
+    debugLog('Admin access granted (cookie check)');
     return NextResponse.next();
   }
 
-  // No admin cookie → redirect to login
-  debugLog('No admin cookie or not admin — redirect to /login');
+  // Partial state: have backend_token but no admin_role or not admin.
+  // Re-verify with the server-side admin-check route that reads the httpOnly token.
+  if (backendToken && adminRole !== '1') {
+    try {
+      const apiUrl = new URL('/api/auth/admin-check', request.url).toString();
+      const res = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'Cookie': `backend_token=${backendToken}`,
+          'x-middleware-request': 'admin-check',
+        },
+        credentials: 'include',
+        // Don't use cache — always get fresh data
+        cache: 'no-store',
+      });
+
+      if (res.ok) {
+        const data = await res.json().catch(() => null);
+        const isAdmin = data?.data?.roles?.some(
+          (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
+        );
+
+        if (isAdmin) {
+          debugLog('Admin access granted (server re-check)');
+          // Create a response and set admin_role cookie for future requests
+          const response = NextResponse.next();
+          response.cookies.set('admin_role', '1', {
+            httpOnly: false,
+            secure: process.env.NODE_ENV === 'production',
+            sameSite: 'lax',
+            maxAge: 60 * 60 * 24,
+            path: '/',
+          });
+          return response;
+        }
+      }
+      debugLog('Server re-check failed, redirecting');
+    } catch (err) {
+      debugLog('Server re-check error:', err);
+    }
+  }
+
+  // No valid admin access — redirect to login
+  debugLog('No admin access — redirect to /login');
   const loginUrl = new URL('/login', request.url);
   loginUrl.searchParams.set('redirect', pathname);
   return NextResponse.redirect(loginUrl);

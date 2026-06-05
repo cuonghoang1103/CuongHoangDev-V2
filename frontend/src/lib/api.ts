@@ -189,9 +189,9 @@ export const userApi = {
 
   delete: (id: number) => api.delete(`/admin/users/${id}`),
 
-  lock: (id: number) => api.patch(`/admin/users/${id}/lock`),
+  toggleEnabled: (id: number) => api.patch(`/admin/users/${id}/toggle-enabled`),
 
-  unlock: (id: number) => api.patch(`/admin/users/${id}/unlock`),
+  toggleLocked: (id: number) => api.patch(`/admin/users/${id}/toggle-locked`),
 
   count: () => api.get('/admin/users/count'),
 };

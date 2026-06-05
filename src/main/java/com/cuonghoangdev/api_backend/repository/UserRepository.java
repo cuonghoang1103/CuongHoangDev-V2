@@ -23,4 +23,23 @@ public interface UserRepository extends JpaRepository<User, Long> {
     Optional<User> findByProviderAndProviderId(String provider, String providerId);
 
     Optional<User> findByEmail(String email);
+
+    // Filter by exact provider (google, github, facebook) — excludes credentials users
+    Page<User> findByProvider(String provider, Pageable pageable);
+
+    // Filter by multiple providers (google OR github)
+    Page<User> findByProviderIn(List<String> providers, Pageable pageable);
+
+    // Filter by exact provider AND keyword
+    Page<User> findByProviderAndUsernameContainingIgnoreCaseOrProviderAndEmailContainingIgnoreCase(
+            String provider1, String keyword, String provider2, String keyword, Pageable pageable);
+
+    Page<User> findByProviderInAndUsernameContainingIgnoreCaseOrProviderInAndEmailContainingIgnoreCase(
+            List<String> providers, String usernameKw, List<String> providers2, String emailKw, Pageable pageable);
+
+    // Credentials users only (provider IS NULL)
+    Page<User> findByProviderIsNull(Pageable pageable);
+
+    Page<User> findByProviderIsNullAndUsernameContainingIgnoreCaseOrProviderIsNullAndEmailContainingIgnoreCase(
+            String username, String email, Pageable pageable);
 }

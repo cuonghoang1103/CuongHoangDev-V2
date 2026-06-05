@@ -43,18 +43,41 @@ public class AdminUserController {
     public ResponseEntity<ApiResponse<Page<UserDto>>> getAllUsers(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "20") int size,
-            @RequestParam(required = false) String keyword) {
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) String provider) {
 
         Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
 
+        // Normalise provider: "google" / "github" / "facebook" / "credentials" / null (all)
+        String p = (provider != null && !provider.isBlank()) ? provider.toLowerCase().trim() : null;
+
         Page<User> userPage;
-        if (keyword != null && !keyword.isBlank()) {
-            userPage = userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(keyword, keyword, pageable);
+
+        if (p == null) {
+            // All users
+            if (keyword != null && !keyword.isBlank()) {
+                userPage = userRepository.findByUsernameContainingIgnoreCaseOrEmailContainingIgnoreCase(keyword, keyword, pageable);
+            } else {
+                userPage = userRepository.findAll(pageable);
+            }
+
+        } else if (p.equals("credentials")) {
+            // Credentials users only (provider IS NULL)
+            if (keyword != null && !keyword.isBlank()) {
+                userPage = userRepository.findByProviderIsNullAndUsernameContainingIgnoreCaseOrProviderIsNullAndEmailContainingIgnoreCase(keyword, keyword, pageable);
+            } else {
+                userPage = userRepository.findByProviderIsNull(pageable);
+            }
+
         } else {
-            userPage = userRepository.findAll(pageable);
+            // Specific OAuth provider (google, github, facebook)
+            if (keyword != null && !keyword.isBlank()) {
+                userPage = userRepository.findByProviderAndUsernameContainingIgnoreCaseOrProviderAndEmailContainingIgnoreCase(p, keyword, p, keyword, pageable);
+            } else {
+                userPage = userRepository.findByProvider(p, pageable);
+            }
         }
 
-        // Convert User entities to DTOs so roles serialize as strings and provider is included
         Page<UserDto> dtoPage = userPage.map(UserDto::fromEntity);
         return ResponseEntity.ok(ApiResponse.ok(dtoPage));
     }
