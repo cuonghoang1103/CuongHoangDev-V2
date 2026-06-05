@@ -542,9 +542,12 @@ export default function AdminAcademyPage() {
       const nextCourses = refreshed.data.data || [];
       setCourses(nextCourses);
       if (courseId) setSelectedCourseId(courseId);
-    } catch (error) {
-      console.error(error);
-      toast.error('Lưu chương trình học thất bại');
+    } catch (error: any) {
+      console.error('[saveCourse] Error:', error?.response?.data);
+      const msg = error?.response?.data?.message || 'Lưu chương trình học thất bại';
+      const details = error?.response?.data?.data;
+      const detailStr = details ? JSON.stringify(details, null, 2) : '';
+      toast.error(detailStr ? `${msg}\n${detailStr}` : msg);
     } finally {
       setSavingCourse(false);
     }

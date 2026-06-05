@@ -137,6 +137,11 @@ public class CourseController {
     @Operation(summary = "[Admin] Tao bai giang")
     public ResponseEntity<ApiResponse<LessonDto>> createLesson(
             @Valid @RequestBody CreateLessonRequest request) {
+        CourseService.LOGGER.info("[createLesson] ===== REQUEST =====");
+        CourseService.LOGGER.info("[createLesson] sectionId={}, title='{}', videoUrl='{}', videoPlatform='{}', teachingNotes length={}",
+                request.getSectionId(), request.getTitle(), request.getVideoUrl(),
+                request.getVideoPlatform(),
+                request.getTeachingNotes() != null ? request.getTeachingNotes().length() : 0);
         return ResponseEntity.ok(ApiResponse.ok("Tao bai giang thanh cong!", courseService.createLesson(request)));
     }
 

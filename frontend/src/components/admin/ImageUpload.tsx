@@ -94,17 +94,8 @@ export default function ImageUpload({
   }, []);
 
   const uploadToBackend = useCallback(async (file: File): Promise<string | null> => {
-    // Try Supabase first (handles large files, bypasses Vercel limit)
-    if (isSupabaseConfigured) {
-      try {
-        const url = await uploadViaSupabase(file, folder);
-        if (url) return url;
-      } catch (e) {
-        console.warn('[ImageUpload] Supabase upload failed, falling back to proxy:', e);
-      }
-    }
-
-    // Fallback: upload via Next.js proxy (works for small files < 4.5MB)
+    // Skip Supabase for image uploads — it only supports music-tracks bucket
+    // Use Cloudinary backend proxy for all images
     const formData = new FormData();
     formData.append('file', file);
     formData.append('category', folder);
@@ -126,7 +117,7 @@ export default function ImageUpload({
 
     const data = await res.json();
     return data?.data?.url || null;
-  }, [folder, uploadViaSupabase]);
+  }, [folder]);
 
   const processFile = useCallback(async (file: File) => {
     if (!file.type.startsWith('image/')) {

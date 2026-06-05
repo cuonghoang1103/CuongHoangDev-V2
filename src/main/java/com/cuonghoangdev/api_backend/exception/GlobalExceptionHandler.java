@@ -42,12 +42,14 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Map<String, String>>> handleValidationErrors(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
         ex.getBindingResult().getAllErrors().forEach(error -> {
-            String fieldName = ((FieldError) error).getField();
+            String fieldName = (error instanceof FieldError fe) ? fe.getField() : error.getObjectName();
             String errorMessage = error.getDefaultMessage();
             errors.put(fieldName, errorMessage);
+            LOGGER.warn("[ValidationError] field='{}', message='{}'", fieldName, errorMessage);
         });
+        LOGGER.warn("[ValidationError] Total errors: {}", errors.size());
         return new ResponseEntity<>(
-                ApiResponse.error("Dữ liệu không hợp lệ", errors),
+                ApiResponse.error("Dữ liệu không hợp lệ: " + errors, errors),
                 HttpStatus.BAD_REQUEST
         );
     }
