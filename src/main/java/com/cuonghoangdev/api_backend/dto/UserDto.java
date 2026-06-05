@@ -25,8 +25,6 @@ public class UserDto {
     private Long roleVersion;
     private boolean enabled;
     private Boolean accountNonLocked;
-    /** Derived field: "google" / "github" / "facebook" / null ("credentials") */
-    private String provider;
 
     public static UserDto fromEntity(User user) {
         UserDto dto = new UserDto();

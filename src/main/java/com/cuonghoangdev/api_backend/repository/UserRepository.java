@@ -6,6 +6,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
+import java.util.List;
 import java.util.Optional;
 
 @Repository
@@ -32,7 +33,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // Filter by exact provider AND keyword
     Page<User> findByProviderAndUsernameContainingIgnoreCaseOrProviderAndEmailContainingIgnoreCase(
-            String provider1, String keyword, String provider2, String keyword, Pageable pageable);
+            String provider1, String usernameKw, String provider2, String emailKw, Pageable pageable);
 
     Page<User> findByProviderInAndUsernameContainingIgnoreCaseOrProviderInAndEmailContainingIgnoreCase(
             List<String> providers, String usernameKw, List<String> providers2, String emailKw, Pageable pageable);
