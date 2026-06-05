@@ -1,6 +1,7 @@
 package com.cuonghoangdev.api_backend.dto;
 
 import com.cuonghoangdev.api_backend.entity.Course;
+import org.hibernate.Hibernate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -172,17 +173,17 @@ public class CourseDto {
         dto.setStatus(entity.getStatus());
         dto.setCreatedAt(entity.getCreatedAt());
         dto.setUpdatedAt(entity.getUpdatedAt());
-        if (entity.getCategory() != null) {
+        if (entity.getCategory() != null && Hibernate.isInitialized(entity.getCategory())) {
             dto.setCategoryId(entity.getCategory().getId());
             dto.setCategoryName(entity.getCategory().getName());
             dto.setCategorySlug(entity.getCategory().getSlug());
         }
-        if (entity.getInstructor() != null) {
+        if (entity.getInstructor() != null && Hibernate.isInitialized(entity.getInstructor())) {
             dto.setInstructorId(entity.getInstructor().getId());
             dto.setInstructorName(entity.getInstructor().getFullName());
             dto.setInstructorAvatar(entity.getInstructor().getAvatarUrl());
         }
-        if (entity.getSemester() != null) {
+        if (entity.getSemester() != null && Hibernate.isInitialized(entity.getSemester())) {
             dto.setSemesterId(entity.getSemester().getId());
             dto.setSemesterName(entity.getSemester().getName());
             dto.setSemesterCode(entity.getSemester().getCode());

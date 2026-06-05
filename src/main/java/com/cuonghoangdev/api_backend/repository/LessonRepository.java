@@ -1,6 +1,7 @@
 package com.cuonghoangdev.api_backend.repository;
 
 import com.cuonghoangdev.api_backend.entity.Lesson;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -16,6 +17,9 @@ public interface LessonRepository extends JpaRepository<Lesson, Long> {
     List<Lesson> findBySectionIdOrderBySortOrderAsc(Long sectionId);
 
     Optional<Lesson> findBySectionIdAndSlug(Long sectionId, String slug);
+
+    @EntityGraph(attributePaths = {"section", "section.course", "detail", "documents", "assignments"})
+    Optional<Lesson> findWithRelationsById(Long id);
 
     @Query("SELECT l FROM Lesson l WHERE l.section.course.id = :courseId AND l.isPublished = true ORDER BY l.section.sortOrder ASC, l.sortOrder ASC")
     List<Lesson> findPublishedByCourseId(@Param("courseId") Long courseId);

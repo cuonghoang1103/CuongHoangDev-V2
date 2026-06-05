@@ -269,9 +269,11 @@ public class CourseService {
         detail.setVideoUrl(req.getVideoUrl());
         detail.setSourceCodeUrl(req.getSourceCodeUrl());
         detail.setTeachingNotes(req.getTeachingNotes() != null ? req.getTeachingNotes() : req.getContent());
-        saved.setDetail(lessonDetailRepository.save(detail));
+        lessonDetailRepository.save(detail);
         updateCourseStats(section.getCourse().getId());
-        return LessonDto.fromEntityWithDocuments(lessonRepository.getReferenceById(saved.getId()), true);
+        return lessonRepository.findWithRelationsById(saved.getId())
+            .map(lesson2 -> LessonDto.fromEntityWithDocuments(lesson2, true))
+            .orElseThrow(() -> new RuntimeException("Lesson not found after create"));
     }
 
     @Transactional
@@ -303,7 +305,9 @@ public class CourseService {
         lessonDetailRepository.save(detail);
 
         updateCourseStats(lesson.getSection().getCourse().getId());
-        return LessonDto.fromEntityWithDocuments(lessonRepository.getReferenceById(saved.getId()), true);
+        return lessonRepository.findWithRelationsById(saved.getId())
+            .map(lesson2 -> LessonDto.fromEntityWithDocuments(lesson2, true))
+            .orElseThrow(() -> new RuntimeException("Lesson not found after update"));
     }
 
     @Transactional

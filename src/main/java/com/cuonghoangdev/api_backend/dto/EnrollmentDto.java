@@ -1,6 +1,7 @@
 package com.cuonghoangdev.api_backend.dto;
 
 import com.cuonghoangdev.api_backend.entity.Enrollment;
+import org.hibernate.Hibernate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -140,29 +141,27 @@ public class EnrollmentDto {
     public static EnrollmentDto fromEntity(Enrollment entity) {
         EnrollmentDto dto = new EnrollmentDto();
         dto.setId(entity.getId());
-        dto.setUserId(entity.getUser() != null ? entity.getUser().getId() : null);
-        if (entity.getCourse() != null) {
+        dto.setUserId(Hibernate.isInitialized(entity.getUser()) && entity.getUser() != null ? entity.getUser().getId() : null);
+        if (Hibernate.isInitialized(entity.getCourse()) && entity.getCourse() != null) {
             dto.setCourseId(entity.getCourse().getId());
             dto.setCourseTitle(entity.getCourse().getTitle());
             dto.setCourseSlug(entity.getCourse().getSlug());
             dto.setCourseThumbnail(entity.getCourse().getThumbnailUrl());
+            dto.setCourseCode(entity.getCourse().getCourseCode());
+            if (Hibernate.isInitialized(entity.getCourse().getSemester()) && entity.getCourse().getSemester() != null) {
+                dto.setSemesterName(entity.getCourse().getSemester().getName());
+            }
         }
         dto.setEnrolledAt(entity.getEnrolledAt());
         dto.setExpiresAt(entity.getExpiresAt());
         dto.setStatus(entity.getStatus());
         dto.setProgressPercent(entity.getProgressPercent());
-        if (entity.getLastLesson() != null) {
+        if (Hibernate.isInitialized(entity.getLastLesson()) && entity.getLastLesson() != null) {
             dto.setLastLessonId(entity.getLastLesson().getId());
             dto.setLastLessonTitle(entity.getLastLesson().getTitle());
         }
         dto.setLastAccessedAt(entity.getLastAccessedAt());
-        if (entity.getCourse() != null) {
-            dto.setCourseCode(entity.getCourse().getCourseCode());
-            if (entity.getCourse().getSemester() != null) {
-                dto.setSemesterName(entity.getCourse().getSemester().getName());
-            }
-        }
-        if (entity.getCertificate() != null) {
+        if (Hibernate.isInitialized(entity.getCertificate()) && entity.getCertificate() != null) {
             dto.setCertificateId(entity.getCertificate().getId());
             dto.setCertificateNumber(entity.getCertificate().getCertificateNumber());
         }

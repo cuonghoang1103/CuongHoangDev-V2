@@ -1,6 +1,7 @@
 package com.cuonghoangdev.api_backend.dto;
 
 import com.cuonghoangdev.api_backend.entity.Certificate;
+import org.hibernate.Hibernate;
 
 import java.time.LocalDateTime;
 
@@ -46,16 +47,16 @@ public class CertificateDto {
         dto.setCertificateNumber(entity.getCertificateNumber());
         dto.setIssuedAt(entity.getIssuedAt());
         dto.setCreatedAt(entity.getCreatedAt());
-        if (entity.getUser() != null) {
+        if (Hibernate.isInitialized(entity.getUser()) && entity.getUser() != null) {
             dto.setUserId(entity.getUser().getId());
             dto.setUserName(entity.getUser().getFullName() != null ? entity.getUser().getFullName() : entity.getUser().getUsername());
             dto.setUserEmail(entity.getUser().getEmail());
         }
-        if (entity.getCourse() != null) {
+        if (entity.getCourse() != null && Hibernate.isInitialized(entity.getCourse())) {
             dto.setCourseId(entity.getCourse().getId());
             dto.setCourseTitle(entity.getCourse().getTitle());
             dto.setCourseCode(entity.getCourse().getCourseCode());
-            if (entity.getCourse().getSemester() != null) {
+            if (Hibernate.isInitialized(entity.getCourse().getSemester()) && entity.getCourse().getSemester() != null) {
                 dto.setSemesterName(entity.getCourse().getSemester().getName());
             }
         }

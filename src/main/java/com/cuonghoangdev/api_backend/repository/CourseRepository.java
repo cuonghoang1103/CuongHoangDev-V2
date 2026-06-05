@@ -3,6 +3,7 @@ package com.cuonghoangdev.api_backend.repository;
 import com.cuonghoangdev.api_backend.entity.Course;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
@@ -15,6 +16,7 @@ import java.util.Optional;
 @Repository
 public interface CourseRepository extends JpaRepository<Course, Long> {
 
+    @EntityGraph(attributePaths = {"semester", "category", "instructor"})
     Optional<Course> findBySlug(String slug);
 
     boolean existsBySlug(String slug);
