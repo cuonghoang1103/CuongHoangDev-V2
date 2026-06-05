@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, ChevronDown, ChevronRight, ClipboardList, Code2, ExternalLink, FileText, FolderTree, GraduationCap, Grading, Image as ImageIcon, Link2, Pencil, Plus, Save, Settings, Trash2, Video, X } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronRight, ClipboardList, Code2, ExternalLink, FileText, FolderTree, GraduationCap, Star, Image as ImageIcon, Link2, Pencil, Plus, Save, Settings, Trash2, Video, X } from 'lucide-react';
 import { academyApi, adminCoursesApi } from '@/lib/api';
 import type { Assignment, Course, LessonDto, Semester, SubmissionWithUser } from '@/types';
 import ImageUpload from '@/components/admin/ImageUpload';
@@ -447,7 +447,8 @@ export default function AdminAcademyPage() {
 
       if (!courseId) throw new Error('Course save failed');
 
-      for (const [sectionIndex, section] of sections.entries()) {
+      for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
+        const section = sections[sectionIndex];
         let sectionId = section.id;
         const savedSection = sectionId
           ? await adminCoursesApi.updateSection(sectionId, {
@@ -467,7 +468,8 @@ export default function AdminAcademyPage() {
         sectionId = savedSection.data.data?.id;
         if (!sectionId) continue;
 
-        for (const [lessonIndex, lesson] of section.lessons.entries()) {
+        for (let lessonIndex = 0; lessonIndex < section.lessons.length; lessonIndex++) {
+          const lesson = section.lessons[lessonIndex];
           let lessonId = lesson.id;
           const savedLesson = lessonId
             ? await adminCoursesApi.updateLesson(lessonId, {
@@ -507,7 +509,8 @@ export default function AdminAcademyPage() {
           lessonId = savedLesson.data.data?.id;
           if (!lessonId) continue;
 
-          for (const [assignmentIndex, assignment] of lesson.assignments.entries()) {
+          for (let assignmentIndex = 0; assignmentIndex < lesson.assignments.length; assignmentIndex++) {
+            const assignment = lesson.assignments[assignmentIndex];
             const assignmentPayload = {
               lessonId,
               title: assignment.title,
@@ -834,7 +837,7 @@ export default function AdminAcademyPage() {
                                         onClick={() => openGrading(assignment.id!)}
                                         className="text-xs px-3 py-1.5 rounded-lg bg-neon-indigo/15 border border-neon-indigo/30 text-neon-indigo hover:bg-neon-indigo/25 flex items-center gap-1"
                                       >
-                                        <Grading className="w-3.5 h-3.5" /> Chấm điểm
+                                        <Star className="w-3.5 h-3.5" /> Chấm điểm
                                       </button>
                                     )}
                                   </div>
