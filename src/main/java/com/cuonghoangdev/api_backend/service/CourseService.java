@@ -308,6 +308,13 @@ public class CourseService {
             .orElseThrow(() -> new RuntimeException("Lesson not found after update"));
     }
 
+    @Transactional(readOnly = true)
+    public LessonDto getLessonById(Long id) {
+        return lessonRepository.findWithRelationsById(id)
+            .map(lesson -> LessonDto.fromEntityWithDocuments(lesson, true))
+            .orElseThrow(() -> new RuntimeException("Lesson not found: " + id));
+    }
+
     @Transactional
     public void deleteLesson(Long id) {
         lessonRepository.findById(id).ifPresent(l -> {

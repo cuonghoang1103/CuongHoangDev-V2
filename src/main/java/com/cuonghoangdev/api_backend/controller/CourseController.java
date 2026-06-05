@@ -140,6 +140,14 @@ public class CourseController {
         return ResponseEntity.ok(ApiResponse.ok("Tao bai giang thanh cong!", courseService.createLesson(request)));
     }
 
+    @GetMapping("/{courseId}/lessons/{lessonId}")
+    @Operation(summary = "Chi tiet bai giang")
+    public ResponseEntity<ApiResponse<LessonDto>> getLesson(
+            @PathVariable Long courseId,
+            @PathVariable Long lessonId) {
+        return ResponseEntity.ok(ApiResponse.ok("OK", courseService.getLessonById(lessonId)));
+    }
+
     @PutMapping("/lessons/{id}")
     @Operation(summary = "[Admin] Cap nhat bai giang")
     public ResponseEntity<ApiResponse<LessonDto>> updateLesson(

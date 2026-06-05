@@ -31,6 +31,22 @@ function safeSplitLines(value: string | null | undefined): string[] {
   return value.split('\n').filter(Boolean);
 }
 
+function toEmbedUrl(raw?: string): string {
+  if (!raw) return '';
+  if (raw.includes('youtube.com/embed/')) return raw;
+  const watchMatch = raw.match(/[?&]v=([^&]+)/);
+  if (watchMatch?.[1]) return `https://www.youtube.com/embed/${watchMatch[1]}`;
+  const shortMatch = raw.match(/youtu\.be\/([^?&]+)/);
+  if (shortMatch?.[1]) return `https://www.youtube.com/embed/${shortMatch[1]}`;
+  if (/^[a-zA-Z0-9_-]{6,}$/.test(raw)) return `https://www.youtube.com/embed/${raw}`;
+  return raw;
+}
+
+function isDirectVideoUrl(url?: string): boolean {
+  if (!url) return false;
+  return /\.(mp4|webm|ogg|mov)(\?.*)?$/i.test(url) || url.startsWith('blob:');
+}
+
 export default function CourseDetailClient({ slug }: CourseDetailClientProps) {
   const [course, setCourse] = useState<Course | null>(null);
   const [reviews, setReviews] = useState<CourseReview[]>([]);
@@ -242,17 +258,20 @@ export default function CourseDetailClient({ slug }: CourseDetailClientProps) {
             {/* Tab content */}
             {activeTab === 'overview' && (
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6">
-                {/* Thumbnail */}
-                <div className="aspect-video rounded-2xl overflow-hidden bg-darkcard border border-darkborder relative group cursor-pointer">
+                {/* Thumbnail / Preview Video */}
+                <div className="aspect-video rounded-2xl overflow-hidden bg-darkcard border border-darkborder relative group">
                   {course.previewVideoUrl ? (
-                    <>
-                      <video src={course.previewVideoUrl} className="w-full h-full object-cover" poster={course.thumbnailUrl} />
-                      <div className="absolute inset-0 bg-black/30 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <div className="w-16 h-16 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-                          <Play className="w-8 h-8 text-white fill-white" />
-                        </div>
-                      </div>
-                    </>
+                    isDirectVideoUrl(course.previewVideoUrl) ? (
+                      <video src={course.previewVideoUrl} className="w-full h-full object-cover" poster={course.thumbnailUrl} controls />
+                    ) : (
+                      <iframe
+                        src={toEmbedUrl(course.previewVideoUrl)}
+                        className="w-full h-full"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        allowFullScreen
+                        title={course.title}
+                      />
+                    )
                   ) : course.thumbnailUrl ? (
                     <>
                       <img src={course.thumbnailUrl} alt={course.title} className="w-full h-full object-cover" />

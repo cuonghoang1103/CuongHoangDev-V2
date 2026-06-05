@@ -606,6 +606,30 @@ export default function AdminAcademyPage() {
       : section));
   };
 
+  const removeAssignment = (sectionIndex: number, lessonIndex: number, assignmentIndex: number) => {
+    setSections((prev) => prev.map((section, sIndex) => sIndex === sectionIndex
+      ? {
+          ...section,
+          lessons: section.lessons.map((lesson, lIndex) => lIndex === lessonIndex
+            ? { ...lesson, assignments: lesson.assignments.filter((_, aIdx) => aIdx !== assignmentIndex) }
+            : lesson),
+        }
+      : section));
+  };
+
+  const removeLesson = (sectionIndex: number, lessonIndex: number) => {
+    if (!confirm('Xóa bài học này?')) return;
+    setSections((prev) => prev.map((section, sIndex) => sIndex === sectionIndex
+      ? { ...section, lessons: section.lessons.filter((_, lIdx) => lIdx !== lessonIndex) }
+      : section));
+  };
+
+  const removeSection = (sectionIndex: number) => {
+    if (!confirm('Xóa chương này và tất cả bài học bên trong?')) return;
+    setSections((prev) => prev.filter((_, sIdx) => sIdx !== sectionIndex));
+    setExpandedSections((prev) => prev.filter((idx) => idx !== sectionIndex));
+  };
+
   const toggleSectionExpand = (sectionIndex: number) => {
     setExpandedSections((prev) => prev.includes(sectionIndex)
       ? prev.filter((index) => index !== sectionIndex)
@@ -763,16 +787,29 @@ export default function AdminAcademyPage() {
               const expanded = expandedSections.includes(sectionIndex);
               return (
                 <div key={`${section.id || 'new'}-${sectionIndex}`} className="border border-darkborder rounded-2xl overflow-hidden bg-darkbg/50">
-                  <button onClick={() => toggleSectionExpand(sectionIndex)} className="w-full px-4 py-4 flex items-center justify-between gap-4 hover:bg-white/5">
-                    <div className="flex items-center gap-3 text-left">
-                      <FolderTree className="w-5 h-5 text-neon-violet" />
-                      <div>
-                        <p className="font-semibold text-text-primary">{section.title || `Chương ${sectionIndex + 1}`}</p>
-                        <p className="text-xs text-text-muted">{section.lessons.length} bài học</p>
+                  <div className="w-full px-4 py-4 flex items-center justify-between gap-4">
+                    <button onClick={() => toggleSectionExpand(sectionIndex)} className="flex items-center gap-3 text-left hover:bg-white/5 rounded-lg px-2 py-1 -ml-2 flex-1">
+                      <div className="flex items-center gap-3 text-left">
+                        <FolderTree className="w-5 h-5 text-neon-violet" />
+                        <div>
+                          <p className="font-semibold text-text-primary">{section.title || `Chương ${sectionIndex + 1}`}</p>
+                          <p className="text-xs text-text-muted">{section.lessons.length} bài học</p>
+                        </div>
                       </div>
+                    </button>
+                    <div className="flex items-center gap-2">
+                      {section.id && (
+                        <button
+                          onClick={() => removeSection(sectionIndex)}
+                          className="p-2 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10"
+                          title="Xóa chương"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
+                      {expanded ? <ChevronDown className="w-4 h-4 text-text-muted" /> : <ChevronRight className="w-4 h-4 text-text-muted" />}
                     </div>
-                    {expanded ? <ChevronDown className="w-4 h-4 text-text-muted" /> : <ChevronRight className="w-4 h-4 text-text-muted" />}
-                  </button>
+                  </div>
 
                   {expanded && (
                     <div className="border-t border-darkborder p-4 space-y-5">
@@ -795,6 +832,11 @@ export default function AdminAcademyPage() {
                               <button onClick={() => addAssignment(sectionIndex, lessonIndex)} className="text-xs px-3 py-1.5 rounded-lg border border-neon-violet/30 text-neon-violet hover:bg-neon-violet/10 flex items-center gap-1">
                                 <ClipboardList className="w-3.5 h-3.5" /> Bài tập
                               </button>
+                              {lesson.id && (
+                                <button onClick={() => removeLesson(sectionIndex, lessonIndex)} className="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 flex items-center gap-1">
+                                  <Trash2 className="w-3.5 h-3.5" /> Xóa
+                                </button>
+                              )}
                             </div>
 
                             <div className="grid gap-3 md:grid-cols-2">
@@ -832,14 +874,23 @@ export default function AdminAcademyPage() {
                                     <div className="flex items-center gap-2 text-sm font-semibold text-text-primary">
                                       <ClipboardList className="w-4 h-4 text-neon-violet" /> Bài tập {assignmentIndex + 1}
                                     </div>
-                                    {assignment.id && (
+                                    <div className="flex gap-2">
                                       <button
-                                        onClick={() => openGrading(assignment.id!)}
-                                        className="text-xs px-3 py-1.5 rounded-lg bg-neon-indigo/15 border border-neon-indigo/30 text-neon-indigo hover:bg-neon-indigo/25 flex items-center gap-1"
+                                        onClick={() => removeAssignment(sectionIndex, lessonIndex, assignmentIndex)}
+                                        className="text-xs px-3 py-1.5 rounded-lg border border-red-500/30 text-red-400 hover:bg-red-500/10 flex items-center gap-1"
+                                        title="Xóa bài tập"
                                       >
-                                        <Star className="w-3.5 h-3.5" /> Chấm điểm
+                                        <Trash2 className="w-3.5 h-3.5" />
                                       </button>
-                                    )}
+                                      {assignment.id && (
+                                        <button
+                                          onClick={() => openGrading(assignment.id!)}
+                                          className="text-xs px-3 py-1.5 rounded-lg bg-neon-indigo/15 border border-neon-indigo/30 text-neon-indigo hover:bg-neon-indigo/25 flex items-center gap-1"
+                                        >
+                                          <Star className="w-3.5 h-3.5" /> Chấm điểm
+                                        </button>
+                                      )}
+                                    </div>
                                   </div>
                                   <input value={assignment.title} onChange={(e) => updateLesson(sectionIndex, lessonIndex, { assignments: lesson.assignments.map((item, idx) => idx === assignmentIndex ? { ...item, title: e.target.value } : item) })} placeholder="Tiêu đề bài tập" className="w-full px-4 py-3 rounded-xl bg-[#0b0b12] border border-darkborder text-text-primary" />
                                   <textarea value={assignment.instructions || ''} onChange={(e) => updateLesson(sectionIndex, lessonIndex, { assignments: lesson.assignments.map((item, idx) => idx === assignmentIndex ? { ...item, instructions: e.target.value } : item) })} rows={3} placeholder="Yêu cầu bài tập" className="w-full px-4 py-3 rounded-xl bg-[#0b0b12] border border-darkborder text-text-primary" />
