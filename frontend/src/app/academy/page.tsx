@@ -160,8 +160,12 @@ export default function AcademyPage() {
                           href={`/academy/courses/${course.slug}/learn`}
                           className="group rounded-2xl border border-darkborder bg-darkbg/70 hover:border-neon-violet/40 transition overflow-hidden"
                         >
-                          <div className="aspect-video bg-gradient-to-br from-neon-indigo/20 via-neon-violet/10 to-transparent flex items-center justify-center">
-                            <PlayCircle className="w-12 h-12 text-white/80 group-hover:scale-110 transition-transform" />
+                          <div className="aspect-video bg-gradient-to-br from-neon-indigo/20 via-neon-violet/10 to-transparent flex items-center justify-center overflow-hidden relative">
+                            {course.thumbnailUrl ? (
+                              <img src={course.thumbnailUrl} alt={course.title} className="absolute inset-0 w-full h-full object-cover opacity-90 group-hover:opacity-100 transition-opacity" />
+                            ) : (
+                              <PlayCircle className="w-12 h-12 text-white/80 group-hover:scale-110 transition-transform relative z-10" />
+                            )}
                           </div>
                           <div className="p-4 space-y-3">
                             <div className="flex items-center justify-between gap-2">

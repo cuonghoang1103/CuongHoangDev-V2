@@ -68,7 +68,7 @@ public class Course {
     private String language = "Vietnamese";
 
     @Column(name = "academy_type", length = 30)
-    private String academyType = "GENERAL";
+    private String academyType = "FPT";
 
     @Column(name = "is_free")
     private Boolean isFree = false;

@@ -104,18 +104,30 @@ public class EnrollmentService {
     }
 
     public LessonDto getLessonForLearning(Long userId, Long courseId, Long lessonId) {
-        Enrollment enrollment = enrollmentRepository.findByUserIdAndCourseId(userId, courseId)
-            .orElseThrow(() -> new RuntimeException("Ban chua dang ky khoa hoc nay"));
-
         Lesson lesson = lessonRepository.findById(lessonId)
             .orElseThrow(() -> new RuntimeException("Lesson not found"));
 
-        boolean canWatch = Boolean.TRUE.equals(lesson.getIsFreePreview()) || "ACTIVE".equals(enrollment.getStatus());
+        boolean canWatch = Boolean.TRUE.equals(lesson.getIsFreePreview());
+        if (canWatch) {
+            LessonDto dto = hydrateLessonDto(lesson, userId, true);
+            dto.setSectionId(lesson.getSection().getId());
+            return dto;
+        }
+
+        if (userId == null) {
+            throw new RuntimeException("Vui long dang nhap de xem bai hoc nay");
+        }
+
+        Enrollment enrollment = enrollmentRepository.findByUserIdAndCourseId(userId, courseId)
+            .orElseThrow(() -> new RuntimeException("Ban chua dang ky khoa hoc nay"));
+
+        canWatch = "ACTIVE".equals(enrollment.getStatus());
         if (!canWatch) {
             throw new RuntimeException("Ban can dang ky khoa hoc de xem bai nay");
         }
 
         LessonDto dto = hydrateLessonDto(lesson, userId, canWatch);
+        dto.setSectionId(lesson.getSection().getId());
 
         enrollment.setLastLesson(lesson);
         enrollment.setLastAccessedAt(LocalDateTime.now());

@@ -72,9 +72,11 @@ public class CourseService {
     public CourseDto getCourseBySlug(String slug, Long userId) {
         Course course = courseRepository.findBySlug(slug)
             .orElseThrow(() -> new RuntimeException("Course not found"));
-        CourseDto dto = CourseDto.fromEntity(course);
 
         List<CourseSection> sections = sectionRepository.findByCourseIdOrderBySortOrderAsc(course.getId());
+        course.setSections(sections);
+        CourseDto dto = CourseDto.fromEntity(course);
+
         boolean isEnrolled = userId != null && enrollmentRepository.existsByUserIdAndCourseId(userId, course.getId());
 
         dto.setSections(sections.stream()
@@ -116,7 +118,7 @@ public class CourseService {
         course.setDescription(req.getDescription());
         course.setThumbnailUrl(req.getThumbnailUrl());
         course.setPreviewVideoUrl(req.getPreviewVideoUrl());
-        course.setAcademyType(req.getAcademyType() != null ? req.getAcademyType() : "GENERAL");
+        course.setAcademyType(req.getAcademyType() != null ? req.getAcademyType() : "FPT");
         if (req.getPrice() != null) course.setPrice(BigDecimal.valueOf(req.getPrice()));
         if (req.getDiscountPrice() != null) course.setDiscountPrice(BigDecimal.valueOf(req.getDiscountPrice()));
         if (req.getLevel() != null) course.setLevel(req.getLevel());

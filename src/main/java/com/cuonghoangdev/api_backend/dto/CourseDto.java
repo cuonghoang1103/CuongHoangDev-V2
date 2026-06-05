@@ -162,6 +162,7 @@ public class CourseDto {
         dto.setLevel(entity.getLevel());
         dto.setLanguage(entity.getLanguage());
         dto.setAcademyType(entity.getAcademyType());
+        dto.setAcademyType(entity.getAcademyType());
         dto.setIsFree(entity.getIsFree());
         dto.setIsFeatured(entity.getIsFeatured());
         dto.setIsPublished(entity.getIsPublished());
