@@ -7,7 +7,9 @@ import org.springframework.data.jpa.domain.support.AuditingEntityListener;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "lessons")
@@ -64,14 +66,14 @@ public class Lesson {
     private LocalDateTime updatedAt;
 
     @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<CourseDocument> documents = new ArrayList<>();
+    private Set<CourseDocument> documents = new HashSet<>();
 
     @OneToOne(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
     private LessonDetail detail;
 
     @OneToMany(mappedBy = "lesson", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("sortOrder ASC, id ASC")
-    private List<Assignment> assignments = new ArrayList<>();
+    private Set<Assignment> assignments = new HashSet<>();
 
     public Lesson() {}
 
@@ -105,10 +107,10 @@ public class Lesson {
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }
     public void setUpdatedAt(LocalDateTime updatedAt) { this.updatedAt = updatedAt; }
-    public List<CourseDocument> getDocuments() { return documents; }
-    public void setDocuments(List<CourseDocument> documents) { this.documents = documents; }
+    public Set<CourseDocument> getDocuments() { return documents; }
+    public void setDocuments(Set<CourseDocument> documents) { this.documents = documents; }
     public LessonDetail getDetail() { return detail; }
     public void setDetail(LessonDetail detail) { this.detail = detail; }
-    public List<Assignment> getAssignments() { return assignments; }
-    public void setAssignments(List<Assignment> assignments) { this.assignments = assignments; }
+    public Set<Assignment> getAssignments() { return assignments; }
+    public void setAssignments(Set<Assignment> assignments) { this.assignments = assignments; }
 }

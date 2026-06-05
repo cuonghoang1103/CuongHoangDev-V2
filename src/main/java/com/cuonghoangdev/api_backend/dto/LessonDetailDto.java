@@ -1,6 +1,7 @@
 package com.cuonghoangdev.api_backend.dto;
 
 import com.cuonghoangdev.api_backend.entity.LessonDetail;
+import org.hibernate.Hibernate;
 
 public class LessonDetailDto {
     private Long id;
@@ -26,7 +27,9 @@ public class LessonDetailDto {
     public static LessonDetailDto fromEntity(LessonDetail entity) {
         LessonDetailDto dto = new LessonDetailDto();
         dto.setId(entity.getId());
-        dto.setLessonId(entity.getLesson() != null ? entity.getLesson().getId() : null);
+        if (Hibernate.isInitialized(entity.getLesson()) && entity.getLesson() != null) {
+            dto.setLessonId(entity.getLesson().getId());
+        }
         dto.setVideoPlatform(entity.getVideoPlatform());
         dto.setVideoUrl(entity.getVideoUrl());
         dto.setSourceCodeUrl(entity.getSourceCodeUrl());

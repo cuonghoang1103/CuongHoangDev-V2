@@ -1,6 +1,7 @@
 package com.cuonghoangdev.api_backend.dto;
 
 import com.cuonghoangdev.api_backend.entity.Lesson;
+import org.hibernate.Hibernate;
 
 import java.util.List;
 
@@ -178,12 +179,12 @@ public class LessonDto {
         if (!includeVideo) {
             dto.setVideoUrl(null);
         }
-        if (entity.getDocuments() != null) {
+        if (Hibernate.isInitialized(entity.getDocuments()) && entity.getDocuments() != null) {
             dto.setDocuments(entity.getDocuments().stream()
                 .map(CourseDocumentDto::fromEntity)
                 .toList());
         }
-        if (entity.getAssignments() != null) {
+        if (Hibernate.isInitialized(entity.getAssignments()) && entity.getAssignments() != null) {
             dto.setAssignments(entity.getAssignments().stream()
                 .filter(a -> Boolean.TRUE.equals(a.getIsPublished()))
                 .map(AssignmentDto::fromEntity)

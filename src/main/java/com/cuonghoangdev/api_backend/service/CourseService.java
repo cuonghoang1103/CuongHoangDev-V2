@@ -78,11 +78,8 @@ public class CourseService {
 
         dto.setSections(sections.stream()
             .map(s -> {
-                CourseSectionDto secDto = CourseSectionDto.fromEntity(s);
                 List<Lesson> lessons = lessonRepository.findBySectionIdOrderBySortOrderAsc(s.getId());
-                secDto.setLessons(lessons.stream()
-                    .map(l -> hydrateLessonDto(l, Boolean.TRUE.equals(l.getIsFreePreview()) || isEnrolled))
-                    .toList());
+                CourseSectionDto secDto = CourseSectionDto.fromEntity(s, lessons, isEnrolled);
                 return secDto;
             })
             .toList());

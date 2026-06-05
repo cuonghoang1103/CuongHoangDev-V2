@@ -1,6 +1,7 @@
 package com.cuonghoangdev.api_backend.dto;
 
 import com.cuonghoangdev.api_backend.entity.CourseSection;
+import com.cuonghoangdev.api_backend.entity.Lesson;
 
 import java.util.List;
 
@@ -79,20 +80,27 @@ public class CourseSectionDto {
     }
 
     public static CourseSectionDto fromEntity(CourseSection entity) {
+        return fromEntity(entity, null, false);
+    }
+
+    public static CourseSectionDto fromEntity(CourseSection entity, List<Lesson> lessons, boolean includeVideo) {
         CourseSectionDto dto = new CourseSectionDto();
         dto.setId(entity.getId());
         dto.setTitle(entity.getTitle());
         dto.setDescription(entity.getDescription());
         dto.setSortOrder(entity.getSortOrder());
         dto.setIsLocked(entity.getIsLocked());
-        dto.setLessonCount(entity.getLessons() != null ? entity.getLessons().size() : 0);
-        int total = 0;
-        if (entity.getLessons() != null) {
-            for (var l : entity.getLessons()) {
+        if (lessons != null) {
+            dto.setLessonCount(lessons.size());
+            int total = 0;
+            for (Lesson l : lessons) {
                 total += l.getVideoDurationSeconds() != null ? l.getVideoDurationSeconds() : 0;
             }
+            dto.setTotalDurationSeconds(total);
+            dto.setLessons(lessons.stream()
+                .map(l -> LessonDto.fromEntityWithDocuments(l, includeVideo))
+                .toList());
         }
-        dto.setTotalDurationSeconds(total);
         return dto;
     }
 }
