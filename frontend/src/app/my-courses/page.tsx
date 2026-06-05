@@ -41,8 +41,8 @@ export default function MyCoursesPage() {
   const loadEnrollments = async () => {
     setLoading(true);
     try {
-      const res = await coursesApi.getMyCourses();
-      setEnrollments(res.data.data?.content || []);
+      const res = await coursesApi.getAllMyCourses();
+      setEnrollments(res.data.data || []);
     } catch {
       setEnrollments([]);
     } finally {

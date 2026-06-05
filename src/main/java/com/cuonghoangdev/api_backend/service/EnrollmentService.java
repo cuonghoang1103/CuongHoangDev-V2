@@ -33,6 +33,7 @@ public class EnrollmentService {
     private final LessonDetailRepository lessonDetailRepository;
     private final AssignmentRepository assignmentRepository;
     private final AssignmentSubmissionRepository assignmentSubmissionRepository;
+    private final CertificateService certificateService;
 
     public EnrollmentService(EnrollmentRepository enrollmentRepository,
                              LessonProgressRepository progressRepository,
@@ -43,7 +44,8 @@ public class EnrollmentService {
                              CourseDocumentRepository documentRepository,
                              LessonDetailRepository lessonDetailRepository,
                              AssignmentRepository assignmentRepository,
-                             AssignmentSubmissionRepository assignmentSubmissionRepository) {
+                             AssignmentSubmissionRepository assignmentSubmissionRepository,
+                             CertificateService certificateService) {
         this.enrollmentRepository = enrollmentRepository;
         this.progressRepository = progressRepository;
         this.courseRepository = courseRepository;
@@ -54,6 +56,7 @@ public class EnrollmentService {
         this.lessonDetailRepository = lessonDetailRepository;
         this.assignmentRepository = assignmentRepository;
         this.assignmentSubmissionRepository = assignmentSubmissionRepository;
+        this.certificateService = certificateService;
     }
 
     @Transactional
@@ -170,6 +173,13 @@ public class EnrollmentService {
             .toList();
     }
 
+    public List<EnrollmentDto> getAllMyEnrollments(Long userId) {
+        List<Enrollment> enrollments = enrollmentRepository.findByUserIdWithCourseAndCertificate(userId);
+        return enrollments.stream()
+                .map(EnrollmentDto::fromEntity)
+                .toList();
+    }
+
     private void updateEnrollmentProgress(Enrollment enrollment) {
         Integer totalLessons = lessonRepository.countPublishedByCourseId(enrollment.getCourse().getId());
         if (totalLessons == null || totalLessons == 0) return;
@@ -183,6 +193,8 @@ public class EnrollmentService {
 
         enrollment.setProgressPercent(percent);
         enrollmentRepository.save(enrollment);
+
+        certificateService.checkAndIssueCertificate(enrollment);
     }
 
     @Transactional

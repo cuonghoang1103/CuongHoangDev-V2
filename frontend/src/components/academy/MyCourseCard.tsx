@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { BookOpen, Clock, PlayCircle, CheckCircle, ArrowRight } from 'lucide-react';
+import { BookOpen, Clock, PlayCircle, CheckCircle, ArrowRight, Award } from 'lucide-react';
 import type { Enrollment } from '@/types';
 
 interface MyCourseCardProps {
@@ -96,22 +96,33 @@ export default function MyCourseCard({ enrollment, index = 0 }: MyCourseCardProp
           )}
 
           {/* CTA */}
-          <Link
-            href={`/academy/courses/${enrollment.courseSlug}`}
-            className="flex items-center justify-center gap-2 w-full py-2.5 bg-gradient-to-r from-neon-indigo to-neon-violet text-white text-sm font-medium rounded-xl hover:opacity-90 transition-opacity"
-          >
-            {isCompleted ? (
-              <>
-                Review Course
-                <ArrowRight className="w-4 h-4" />
-              </>
-            ) : (
-              <>
-                <PlayCircle className="w-4 h-4" />
-                Continue Learning
-              </>
-            )}
-          </Link>
+          {isCompleted && enrollment.certificateNumber ? (
+            <Link
+              href={`/certificates/${enrollment.certificateNumber}`}
+              className="flex items-center justify-center gap-2 w-full py-2.5 bg-green-500/20 border border-green-500/30 text-green-400 text-sm font-medium rounded-xl hover:bg-green-500/30 transition-opacity"
+            >
+              <Award className="w-4 h-4" />
+              Xem Chứng Chỉ
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          ) : (
+            <Link
+              href={`/academy/courses/${enrollment.courseSlug}`}
+              className="flex items-center justify-center gap-2 w-full py-2.5 bg-gradient-to-r from-neon-indigo to-neon-violet text-white text-sm font-medium rounded-xl hover:opacity-90 transition-opacity"
+            >
+              {isCompleted ? (
+                <>
+                  Review Course
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  <PlayCircle className="w-4 h-4" />
+                  Continue Learning
+                </>
+              )}
+            </Link>
+          )}
         </div>
       </div>
     </motion.div>

@@ -423,6 +423,8 @@ export const coursesApi = {
     status?: string;
   }) => api.get('/courses/my', { params }),
 
+  getAllMyCourses: () => api.get('/courses/my/all'),
+
   createReview: (data: {
     courseId: number;
     rating: number;
@@ -577,6 +579,15 @@ export const adminCoursesApi = {
   }>) => api.put(`/courses/assignments/${id}`, data),
 
   deleteAssignment: (id: number) => api.delete(`/courses/assignments/${id}`),
+};
+
+// Certificates API
+export const certificatesApi = {
+  getMyCertificates: () => api.get('/certificates/my'),
+  verifyCertificate: (certificateNumber: string) =>
+    api.get(`/certificates/verify/${certificateNumber}`),
+  getByEnrollment: (enrollmentId: number) =>
+    api.get(`/certificates/enrollment/${enrollmentId}`),
 };
 
 export default api;

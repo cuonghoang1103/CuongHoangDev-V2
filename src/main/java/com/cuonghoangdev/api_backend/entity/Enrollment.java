@@ -51,6 +51,10 @@ public class Enrollment {
     @OneToMany(mappedBy = "enrollment", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<LessonProgress> lessonProgress = new ArrayList<>();
 
+    @OneToOne(fetch = FetchType.LAZY, cascade = CascadeType.ALL)
+    @JoinColumn(name = "certificate_id")
+    private Certificate certificate;
+
     public Enrollment() {}
 
     public Long getId() { return id; }
@@ -73,4 +77,6 @@ public class Enrollment {
     public void setLastAccessedAt(LocalDateTime lastAccessedAt) { this.lastAccessedAt = lastAccessedAt; }
     public List<LessonProgress> getLessonProgress() { return lessonProgress; }
     public void setLessonProgress(List<LessonProgress> lessonProgress) { this.lessonProgress = lessonProgress; }
+    public Certificate getCertificate() { return certificate; }
+    public void setCertificate(Certificate certificate) { this.certificate = certificate; }
 }

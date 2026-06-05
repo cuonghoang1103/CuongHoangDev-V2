@@ -19,6 +19,10 @@ public class EnrollmentDto {
     private Long lastLessonId;
     private String lastLessonTitle;
     private LocalDateTime lastAccessedAt;
+    private Long certificateId;
+    private String certificateNumber;
+    private String courseCode;
+    private String semesterName;
 
     public Long getId() {
         return id;
@@ -124,6 +128,15 @@ public class EnrollmentDto {
         this.lastAccessedAt = lastAccessedAt;
     }
 
+    public Long getCertificateId() { return certificateId; }
+    public void setCertificateId(Long certificateId) { this.certificateId = certificateId; }
+    public String getCertificateNumber() { return certificateNumber; }
+    public void setCertificateNumber(String certificateNumber) { this.certificateNumber = certificateNumber; }
+    public String getCourseCode() { return courseCode; }
+    public void setCourseCode(String courseCode) { this.courseCode = courseCode; }
+    public String getSemesterName() { return semesterName; }
+    public void setSemesterName(String semesterName) { this.semesterName = semesterName; }
+
     public static EnrollmentDto fromEntity(Enrollment entity) {
         EnrollmentDto dto = new EnrollmentDto();
         dto.setId(entity.getId());
@@ -143,6 +156,16 @@ public class EnrollmentDto {
             dto.setLastLessonTitle(entity.getLastLesson().getTitle());
         }
         dto.setLastAccessedAt(entity.getLastAccessedAt());
+        if (entity.getCourse() != null) {
+            dto.setCourseCode(entity.getCourse().getCourseCode());
+            if (entity.getCourse().getSemester() != null) {
+                dto.setSemesterName(entity.getCourse().getSemester().getName());
+            }
+        }
+        if (entity.getCertificate() != null) {
+            dto.setCertificateId(entity.getCertificate().getId());
+            dto.setCertificateNumber(entity.getCertificate().getCertificateNumber());
+        }
         return dto;
     }
 }

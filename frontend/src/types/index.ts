@@ -402,6 +402,8 @@ export interface Enrollment {
   courseTitle: string;
   courseSlug: string;
   courseThumbnail?: string;
+  courseCode?: string;
+  semesterName?: string;
   enrolledAt: string;
   expiresAt?: string;
   status: string;
@@ -409,6 +411,22 @@ export interface Enrollment {
   lastLessonId?: number;
   lastLessonTitle?: string;
   lastAccessedAt?: string;
+  certificateId?: number;
+  certificateNumber?: string;
+}
+
+export interface Certificate {
+  id: number;
+  certificateNumber: string;
+  userId?: number;
+  userName?: string;
+  userEmail?: string;
+  courseId: number;
+  courseTitle: string;
+  courseCode?: string;
+  semesterName?: string;
+  issuedAt?: string;
+  createdAt?: string;
 }
 
 export interface CourseReview {

@@ -42,6 +42,13 @@ public class EnrollmentController {
         return ResponseEntity.ok(ApiResponse.ok("OK", PageResponse.from(result, e -> e)));
     }
 
+    @GetMapping("/my/all")
+    @Operation(summary = "Tat ca khoa hoc cua toi (khong phan trang)")
+    public ResponseEntity<ApiResponse<List<EnrollmentDto>>> getAllMyEnrollments(
+            @AuthenticationPrincipal UserPrincipal user) {
+        return ResponseEntity.ok(ApiResponse.ok("OK", enrollmentService.getAllMyEnrollments(user.getId())));
+    }
+
     @GetMapping("/{courseId}/curriculum")
     @Operation(summary = "Chuong trinh hoc")
     public ResponseEntity<ApiResponse<List<LessonDto>>> getCurriculum(@PathVariable Long courseId) {
