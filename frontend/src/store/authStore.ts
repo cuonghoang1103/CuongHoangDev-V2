@@ -37,9 +37,12 @@ export const useAuthStore = create<AuthState>()(
         };
 
         if (typeof window !== 'undefined') {
-          // Store only user info in localStorage via Zustand persist.
-          // The JWT itself lives in an httpOnly cookie — never in localStorage.
+          // Store user in localStorage for client-side auth checks
           localStorage.setItem('user', JSON.stringify(userObj));
+          // Also store token in localStorage so middleware can read it via
+          // Authorization header on subsequent navigations (e.g. /admin).
+          // The httpOnly cookie is set separately for API calls.
+          localStorage.setItem('token', auth.token);
           window.dispatchEvent(new CustomEvent('auth-changed', { detail: { action: 'login', user: userObj } }));
         }
 
