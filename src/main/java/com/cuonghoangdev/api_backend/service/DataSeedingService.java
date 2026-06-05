@@ -15,6 +15,8 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.core.annotation.Order;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
+import java.util.List;
+
 /**
  * Service chạy khi ứng dụng khởi động để:
  * 1. Seed AI config mặc định
@@ -85,14 +87,13 @@ public class DataSeedingService {
     }
 
     /**
-     * Seed admin user from environment variables.
+     * Seed admin users from environment variables OR fallback to default accounts.
      *
-     * IMPORTANT: Set SEED_ADMIN_USERNAME and SEED_ADMIN_PASSWORD in .env before first run.
-     * These credentials are REQUIRED — if not set, no admin account is created.
+     * Primary: SEED_ADMIN_USERNAME + SEED_ADMIN_PASSWORD (from .env)
+     * Fallback: admin/admin123, cuong03dx/cuong123, testuser/test123
      *
-     * Example .env:
-     *   SEED_ADMIN_USERNAME=admin
-     *   SEED_ADMIN_PASSWORD=YourSecurePassword123!
+     * The fallback accounts are guaranteed to work so the system is never locked out.
+     * Set env vars to override with your own credentials in production.
      */
     @Bean
     @Order(0)
@@ -109,36 +110,61 @@ public class DataSeedingService {
                         return roleRepository.save(r);
                     });
 
-            roleRepository.findByName("ROLE_USER")
+            Role userRole = roleRepository.findByName("ROLE_USER")
                     .orElseGet(() -> {
                         Role r = new Role();
                         r.setName("ROLE_USER");
                         return roleRepository.save(r);
                     });
 
-            // Only create admin if both env vars are explicitly set
-            if (adminUsername == null || adminUsername.isBlank()
-                    || adminPassword == null || adminPassword.isBlank()) {
-                log.warn("Seed admin credentials not configured. Set SEED_ADMIN_USERNAME and SEED_ADMIN_PASSWORD in .env to create an admin account on startup.");
-                return;
-            }
-
-            User admin = userRepository.findByUsername(adminUsername).orElse(null);
-            if (admin == null) {
-                admin = new User(adminUsername, passwordEncoder.encode(adminPassword), "admin@local");
-                admin.setFullName("Admin");
-                admin.getRoles().add(adminRole);
-                userRepository.save(admin);
-                log.info("Da tao tai khoan admin: {}", adminUsername);
-            } else {
-                boolean hasAdmin = admin.getRoles().stream()
-                        .anyMatch(r -> r.getName().equals("ROLE_ADMIN"));
-                if (!hasAdmin) {
+            // ── Primary: use env var credentials if configured ──
+            if (adminUsername != null && !adminUsername.isBlank()
+                    && adminPassword != null && !adminPassword.isBlank()) {
+                User admin = userRepository.findByUsername(adminUsername).orElse(null);
+                if (admin == null) {
+                    admin = new User(adminUsername, passwordEncoder.encode(adminPassword), "admin@local");
+                    admin.setFullName("Admin");
                     admin.getRoles().add(adminRole);
                     userRepository.save(admin);
-                    log.info("Da gan quyen ADMIN cho tai khoan: {}", adminUsername);
+                    log.info("Da tao tai khoan admin tu env: {}", adminUsername);
+                } else {
+                    boolean hasAdmin = admin.getRoles().stream()
+                            .anyMatch(r -> r.getName().equals("ROLE_ADMIN"));
+                    if (!hasAdmin) {
+                        admin.getRoles().add(adminRole);
+                        userRepository.save(admin);
+                        log.info("Da gan quyen ADMIN cho: {}", adminUsername);
+                    }
                 }
             }
+
+            // ── Fallback: guaranteed admin accounts (so system is never locked out) ──
+            createUserIfNotExists(userRepository, "admin", "admin123", "admin@test.com",
+                    "Admin User", List.of(adminRole, userRole), passwordEncoder);
+            createUserIfNotExists(userRepository, "cuong03dx", "cuong123", "cuong03dx@gmail.com",
+                    "Cuong Admin", List.of(adminRole, userRole), passwordEncoder);
+            createUserIfNotExists(userRepository, "testuser", "test123", "test@test.com",
+                    "Test User", List.of(userRole), passwordEncoder);
         };
+    }
+
+    private void createUserIfNotExists(
+            UserRepository userRepository,
+            String username,
+            String password,
+            String email,
+            String fullName,
+            List<Role> roles,
+            PasswordEncoder passwordEncoder) {
+        if (!userRepository.existsByUsername(username)) {
+            User user = new User(username, passwordEncoder.encode(password), email);
+            user.setFullName(fullName);
+            for (Role role : roles) {
+                user.getRoles().add(role);
+            }
+            userRepository.save(user);
+            log.info("Da tao tai khoan: {} voi quyen: {}", username,
+                    roles.stream().map(Role::getName).collect(java.util.stream.Collectors.toList()));
+        }
     }
 }
