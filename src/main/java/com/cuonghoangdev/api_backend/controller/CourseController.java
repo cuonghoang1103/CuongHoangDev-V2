@@ -7,6 +7,8 @@ import com.cuonghoangdev.api_backend.service.CourseService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -17,6 +19,8 @@ import java.util.List;
 @RequestMapping("/api/v1/courses")
 @Tag(name = "Courses", description = "API khoa hoc")
 public class CourseController {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CourseController.class);
 
     private final CourseService courseService;
     private final AcademyAdminService academyAdminService;
@@ -137,8 +141,8 @@ public class CourseController {
     @Operation(summary = "[Admin] Tao bai giang")
     public ResponseEntity<ApiResponse<LessonDto>> createLesson(
             @Valid @RequestBody CreateLessonRequest request) {
-        CourseService.LOGGER.info("[createLesson] ===== REQUEST =====");
-        CourseService.LOGGER.info("[createLesson] sectionId={}, title='{}', videoUrl='{}', videoPlatform='{}', teachingNotes length={}",
+        LOGGER.info("[createLesson] ===== REQUEST =====");
+        LOGGER.info("[createLesson] sectionId={}, title='{}', videoUrl='{}', videoPlatform='{}', teachingNotes length={}",
                 request.getSectionId(), request.getTitle(), request.getVideoUrl(),
                 request.getVideoPlatform(),
                 request.getTeachingNotes() != null ? request.getTeachingNotes().length() : 0);
