@@ -579,6 +579,13 @@ export const adminCoursesApi = {
   }>) => api.put(`/courses/assignments/${id}`, data),
 
   deleteAssignment: (id: number) => api.delete(`/courses/assignments/${id}`),
+
+  updateLessonDetail: (lessonId: number, data: {
+    videoPlatform?: string;
+    videoUrl?: string;
+    sourceCodeUrl?: string;
+    teachingNotes?: string;
+  }) => api.put(`/courses/lessons/${lessonId}/detail`, data),
 };
 
 // Certificates API

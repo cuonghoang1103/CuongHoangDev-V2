@@ -23,6 +23,9 @@ public class LessonDetail {
     @Column(name = "video_platform", length = 30)
     private String videoPlatform = "EMBED";
 
+    @Column(name = "video_url", length = 500)
+    private String videoUrl;
+
     @Column(name = "source_code_url", length = 500)
     private String sourceCodeUrl;
 
@@ -43,6 +46,8 @@ public class LessonDetail {
     public void setLesson(Lesson lesson) { this.lesson = lesson; }
     public String getVideoPlatform() { return videoPlatform; }
     public void setVideoPlatform(String videoPlatform) { this.videoPlatform = videoPlatform; }
+    public String getVideoUrl() { return videoUrl; }
+    public void setVideoUrl(String videoUrl) { this.videoUrl = videoUrl; }
     public String getSourceCodeUrl() { return sourceCodeUrl; }
     public void setSourceCodeUrl(String sourceCodeUrl) { this.sourceCodeUrl = sourceCodeUrl; }
     public String getTeachingNotes() { return teachingNotes; }

@@ -155,6 +155,14 @@ public class CourseController {
         return ResponseEntity.ok(ApiResponse.ok("Xoa thanh cong!", null));
     }
 
+    @PutMapping("/lessons/{lessonId}/detail")
+    @Operation(summary = "[Admin] Cap nhat lesson detail (video, source code, teaching notes)")
+    public ResponseEntity<ApiResponse<LessonDetailDto>> updateLessonDetail(
+            @PathVariable Long lessonId,
+            @RequestBody UpdateLessonDetailRequest req) {
+        return ResponseEntity.ok(ApiResponse.ok("Cap nhat thanh cong", courseService.updateLessonDetail(lessonId, req)));
+    }
+
     @PostMapping("/documents")
     @Operation(summary = "[Admin] Tao tai lieu")
     public ResponseEntity<ApiResponse<CourseDocumentDto>> createDocument(

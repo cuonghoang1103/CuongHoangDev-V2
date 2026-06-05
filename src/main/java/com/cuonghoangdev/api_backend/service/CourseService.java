@@ -365,9 +365,26 @@ public class CourseService {
             return created;
         });
         detail.setVideoPlatform(req.getVideoPlatform() != null ? req.getVideoPlatform() : "EMBED");
+        detail.setVideoUrl(req.getVideoUrl());
         detail.setSourceCodeUrl(req.getSourceCodeUrl());
         detail.setTeachingNotes(req.getTeachingNotes() != null ? req.getTeachingNotes() : req.getContent());
         lesson.setDetail(lessonDetailRepository.save(detail));
+    }
+
+    @Transactional
+    public LessonDetailDto updateLessonDetail(Long lessonId, UpdateLessonDetailRequest req) {
+        Lesson lesson = lessonRepository.findById(lessonId)
+            .orElseThrow(() -> new RuntimeException("Lesson not found: " + lessonId));
+        LessonDetail detail = lessonDetailRepository.findByLessonId(lessonId).orElseGet(() -> {
+            LessonDetail created = new LessonDetail();
+            created.setLesson(lesson);
+            return created;
+        });
+        if (req.getVideoPlatform() != null) detail.setVideoPlatform(req.getVideoPlatform());
+        if (req.getVideoUrl() != null) detail.setVideoUrl(req.getVideoUrl());
+        if (req.getSourceCodeUrl() != null) detail.setSourceCodeUrl(req.getSourceCodeUrl());
+        if (req.getTeachingNotes() != null) detail.setTeachingNotes(req.getTeachingNotes());
+        return LessonDetailDto.fromEntity(lessonDetailRepository.save(detail));
     }
 
     private LessonDto hydrateLessonDto(Lesson lesson, boolean includeVideo) {

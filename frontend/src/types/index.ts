@@ -303,6 +303,7 @@ export interface LessonDetail {
   id: number;
   lessonId?: number;
   videoPlatform?: 'EMBED' | 'YOUTUBE_TAB' | 'DIRECT' | string;
+  videoUrl?: string;
   sourceCodeUrl?: string;
   teachingNotes?: string;
 }

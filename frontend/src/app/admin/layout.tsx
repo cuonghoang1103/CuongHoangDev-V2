@@ -12,6 +12,7 @@ import {
 const adminNav = [
   { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
   { label: 'FPT Academy LMS', href: '/admin/academy', icon: GraduationCap },
+  { label: 'Quan ly Bai Giang', href: '/admin/lessons', icon: BookOpen },
   { label: 'Quan ly Nhac', href: '/admin/music', icon: Music },
   { label: 'Quản lý Khoá học', href: '/admin/courses', icon: BookOpen },
   { label: 'Danh mục Khoá học', href: '/admin/course-categories', icon: Sparkles },
