@@ -1,10 +1,13 @@
 package com.cuonghoangdev.api_backend.dto;
 
 import com.cuonghoangdev.api_backend.entity.Course;
+import com.cuonghoangdev.api_backend.entity.CourseSection;
+import com.cuonghoangdev.api_backend.entity.Lesson;
 import org.hibernate.Hibernate;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.Comparator;
 import java.util.List;
 
 public class CourseDto {
@@ -189,6 +192,20 @@ public class CourseDto {
             dto.setSemesterCode(entity.getSemester().getCode());
             dto.setSemesterOrdinal(entity.getSemester().getOrdinal());
             dto.setSemester(SemesterDto.fromEntity(entity.getSemester()));
+        }
+        if (Hibernate.isInitialized(entity.getSections()) && entity.getSections() != null) {
+            dto.setSections(entity.getSections().stream()
+                .sorted(Comparator.comparingInt(s -> s.getSortOrder() != null ? s.getSortOrder() : 0))
+                .map(section -> {
+                    List<Lesson> sortedLessons = null;
+                    if (Hibernate.isInitialized(section.getLessons()) && section.getLessons() != null) {
+                        sortedLessons = section.getLessons().stream()
+                            .sorted(Comparator.comparingInt(l -> l.getSortOrder() != null ? l.getSortOrder() : 0))
+                            .toList();
+                    }
+                    return CourseSectionDto.fromEntity(section, sortedLessons, false);
+                })
+                .toList());
         }
         return dto;
     }

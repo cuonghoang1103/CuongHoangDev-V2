@@ -68,6 +68,7 @@ public class CourseService {
         });
     }
 
+    @Transactional(readOnly = true)
     public CourseDto getCourseBySlug(String slug, Long userId) {
         Course course = courseRepository.findBySlug(slug)
             .orElseThrow(() -> new RuntimeException("Course not found"));

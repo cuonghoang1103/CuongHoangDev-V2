@@ -94,6 +94,7 @@ public class AcademyAdminService {
         semesterRepository.deleteById(id);
     }
 
+    @Transactional(readOnly = true)
     public List<CourseDto> getCoursesBySemester(Long semesterId) {
         return courseRepository.findBySemesterIdOrderByTitleAsc(semesterId).stream()
             .map(CourseDto::fromEntity)
