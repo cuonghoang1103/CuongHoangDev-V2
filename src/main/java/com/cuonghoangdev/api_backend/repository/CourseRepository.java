@@ -29,6 +29,7 @@ public interface CourseRepository extends JpaRepository<Course, Long> {
 
     Page<Course> findByIsPublishedTrueAndCategorySlug(String categorySlug, Pageable pageable);
 
+    @EntityGraph(attributePaths = {"semester", "sections", "sections.lessons", "sections.lessons.detail", "sections.lessons.documents", "sections.lessons.assignments"})
     List<Course> findBySemesterIdOrderByTitleAsc(Long semesterId);
 
     List<Course> findByIsFeaturedTrueAndIsPublishedTrue(Pageable pageable);
