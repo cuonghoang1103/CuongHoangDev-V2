@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useSession } from 'next-auth/react';
 import {
   LayoutDashboard, FileText, Users, Code2, Sparkles,
   LogOut, Menu, X, ChevronRight, Shield,
@@ -29,7 +28,6 @@ const adminNav = [
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { data: session } = useSession();
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [currentUser, setCurrentUser] = useState<{ name: string; email: string } | null>(null);
@@ -37,54 +35,41 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     const checkAuth = async () => {
-      // Read token from the httpOnly backend_token cookie (set by /api/auth/login).
-      // Token is NEVER in localStorage — this avoids XSS token theft.
+      // Read admin_role cookie (set by /api/auth/login)
+      const adminRoleCookie = typeof document !== 'undefined'
+        ? document.cookie.match(/(?:^|;)\s*admin_role=([^;]*)/)?.[1]
+        : null;
+
+      // Middleware already verified admin_role=1 cookie before rendering this layout.
+      // We just need to verify the backend token is valid and get user info.
       const cookieToken = typeof document !== 'undefined'
         ? document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] ?? ''
         : '';
-      const token = cookieToken;
 
-      // ── Credentials user: verify via backend token ──
-      if (token) {
+      if (cookieToken && adminRoleCookie === '1') {
         try {
+          // Call profile API through the proxy - it reads token from cookie
           const res = await fetch('/api/v1/profile', {
             credentials: 'include',
-            headers: { Authorization: `Bearer ${token}` },
           });
-          if (!res.ok) throw new Error('Unauthorized');
-          const data = await res.json();
-          const user = data.data;
-          const roles: string[] = user?.roles || [];
-          const isAdmin = roles.some(
-            (r: string) => (r || '').replace('ROLE_', '').toUpperCase() === 'ADMIN'
-          );
-          if (!isAdmin) { router.push('/'); return; }
-          setCurrentUser({ name: user?.fullName || user?.username || 'Admin', email: user?.email || '' });
-          setAuthChecked(true);
-          return;
+          if (res.ok) {
+            const data = await res.json();
+            const user = data.data;
+            setCurrentUser({ name: user?.fullName || user?.username || 'Admin', email: user?.email || '' });
+            setAuthChecked(true);
+            return;
+          }
         } catch (err) {
-          console.warn('[admin-layout] Token validation failed, falling through to session check:', err);
-          // Don't redirect yet — fall through to session check below
+          console.warn('[admin-layout] Profile fetch failed:', err);
         }
       }
 
-      // ── OAuth user (NextAuth): trust the session ──
-      // Middleware already verified role = ADMIN before rendering this layout.
-      // We just read the session data to display the user name.
-      if (session?.user) {
-        const name = session.user.name || session.user.username || 'Admin';
-        const email = session.user.email || '';
-        setCurrentUser({ name, email });
-        setAuthChecked(true);
-        return;
-      }
-
-      // No session, no valid token → redirect to login
+      // No valid auth → redirect to login
       router.push('/login?redirect=' + pathname);
     };
 
     checkAuth();
-  }, [pathname, router, session]);
+  }, [pathname, router]);
 
   const handleLogout = async () => {
     try {
