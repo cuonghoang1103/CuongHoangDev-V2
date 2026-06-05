@@ -15,6 +15,7 @@ export async function GET(request: NextRequest) {
   const token = request.cookies.get("backend_token")?.value;
   const path = request.nextUrl.pathname.replace("/api/v1", "");
   const search = request.nextUrl.search;
+  console.log('[proxy GET]', `${BACKEND_URL}/api/v1${path}${search}`, 'token present:', !!token, 'token len:', token?.length);
 
   const response = await fetch(`${BACKEND_URL}/api/v1${path}${search}`, {
     method: "GET",
@@ -25,6 +26,7 @@ export async function GET(request: NextRequest) {
     credentials: "include",
   });
 
+  console.log('[proxy GET] backend status:', response.status);
   const data = await response.json();
   return NextResponse.json(data, { status: response.status });
 }

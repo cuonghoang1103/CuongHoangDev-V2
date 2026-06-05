@@ -35,16 +35,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   useEffect(() => {
     const checkAuth = async () => {
-      // Read admin_role cookie (set by /api/auth/login)
-      const adminRoleCookie = typeof document !== 'undefined'
-        ? document.cookie.match(/(?:^|;)\s*admin_role=([^;]*)/)?.[1]
-        : null;
+      if (typeof document === 'undefined') return;
 
-      // Middleware already verified admin_role=1 cookie before rendering this layout.
-      // We just need to verify the backend token is valid and get user info.
-      const cookieToken = typeof document !== 'undefined'
-        ? document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] ?? ''
-        : '';
+      // Read admin_role cookie (set by /api/auth/login)
+      const adminRoleCookie = document.cookie.match(/(?:^|;)\s*admin_role=([^;]*)/)?.[1];
+      // Read backend_token cookie (httpOnly)
+      const cookieToken = document.cookie.match(/(?:^|;)\s*backend_token=([^;]*)/)?.[1] ?? '';
+
+      console.log('[admin-layout] admin_role:', adminRoleCookie);
+      console.log('[admin-layout] backend_token exists:', !!cookieToken, 'length:', cookieToken.length);
+      console.log('[admin-layout] pathname:', pathname);
 
       if (cookieToken && adminRoleCookie === '1') {
         try {
@@ -52,19 +52,26 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           const res = await fetch('/api/v1/profile', {
             credentials: 'include',
           });
+          console.log('[admin-layout] profile status:', res.status);
           if (res.ok) {
             const data = await res.json();
             const user = data.data;
+            console.log('[admin-layout] profile OK, user:', user?.username);
             setCurrentUser({ name: user?.fullName || user?.username || 'Admin', email: user?.email || '' });
             setAuthChecked(true);
             return;
+          } else {
+            console.warn('[admin-layout] profile non-ok, status:', res.status);
           }
         } catch (err) {
-          console.warn('[admin-layout] Profile fetch failed:', err);
+          console.error('[admin-layout] Profile fetch failed:', err);
         }
+      } else {
+        console.log('[admin-layout] Missing cookie - token:', !!cookieToken, 'role:', adminRoleCookie);
       }
 
       // No valid auth → redirect to login
+      console.log('[admin-layout] Redirecting to /login');
       router.push('/login?redirect=' + pathname);
     };
 
