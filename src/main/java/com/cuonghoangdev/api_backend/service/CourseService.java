@@ -226,7 +226,7 @@ public class CourseService {
     }
 
     @Transactional
-    public CourseSectionDto updateSection(Long id, CreateSectionRequest req) {
+    public CourseSectionDto updateSection(Long id, UpdateSectionRequest req) {
         CourseSection section = sectionRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Section not found"));
         if (req.getTitle() != null) section.setTitle(req.getTitle());
@@ -274,6 +274,40 @@ public class CourseService {
         return lessonRepository.findWithRelationsById(saved.getId())
             .map(lesson2 -> LessonDto.fromEntityWithDocuments(lesson2, true))
             .orElseThrow(() -> new RuntimeException("Lesson not found after create"));
+    }
+
+    @Transactional
+    public LessonDto updateLesson(Long id, UpdateLessonRequest req) {
+        Lesson lesson = lessonRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Lesson not found"));
+        if (req.getTitle() != null) lesson.setTitle(req.getTitle());
+        if (req.getSlug() != null) lesson.setSlug(req.getSlug());
+        if (req.getDescription() != null) lesson.setDescription(req.getDescription());
+        if (req.getContent() != null) lesson.setContent(req.getContent());
+        if (req.getLessonType() != null) lesson.setLessonType(req.getLessonType());
+        if (req.getVideoUrl() != null) lesson.setVideoUrl(req.getVideoUrl());
+        if (req.getVideoDurationSeconds() != null) lesson.setVideoDurationSeconds(req.getVideoDurationSeconds());
+        if (req.getThumbnailUrl() != null) lesson.setThumbnailUrl(req.getThumbnailUrl());
+        if (req.getIsFreePreview() != null) lesson.setIsFreePreview(req.getIsFreePreview());
+        if (req.getIsPublished() != null) lesson.setIsPublished(req.getIsPublished());
+        if (req.getSortOrder() != null) lesson.setSortOrder(req.getSortOrder());
+        Lesson saved = lessonRepository.save(lesson);
+
+        LessonDetail detail = lessonDetailRepository.findByLessonId(saved.getId()).orElseGet(() -> {
+            LessonDetail created = new LessonDetail();
+            created.setLesson(saved);
+            return created;
+        });
+        if (req.getVideoPlatform() != null) detail.setVideoPlatform(req.getVideoPlatform());
+        if (req.getVideoUrl() != null) detail.setVideoUrl(req.getVideoUrl());
+        if (req.getSourceCodeUrl() != null) detail.setSourceCodeUrl(req.getSourceCodeUrl());
+        if (req.getTeachingNotes() != null) detail.setTeachingNotes(req.getTeachingNotes());
+        lessonDetailRepository.save(detail);
+
+        updateCourseStats(lesson.getSection().getCourse().getId());
+        return lessonRepository.findWithRelationsById(saved.getId())
+            .map(lesson2 -> LessonDto.fromEntityWithDocuments(lesson2, true))
+            .orElseThrow(() -> new RuntimeException("Lesson not found after update"));
     }
 
     @Transactional

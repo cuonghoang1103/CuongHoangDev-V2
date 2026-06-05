@@ -122,7 +122,7 @@ public class CourseController {
     @Operation(summary = "[Admin] Cap nhat chuong")
     public ResponseEntity<ApiResponse<CourseSectionDto>> updateSection(
             @PathVariable Long id,
-            @Valid @RequestBody CreateSectionRequest request) {
+            @RequestBody UpdateSectionRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Cap nhat thanh cong!", courseService.updateSection(id, request)));
     }
 
@@ -144,7 +144,7 @@ public class CourseController {
     @Operation(summary = "[Admin] Cap nhat bai giang")
     public ResponseEntity<ApiResponse<LessonDto>> updateLesson(
             @PathVariable Long id,
-            @Valid @RequestBody CreateLessonRequest request) {
+            @RequestBody UpdateLessonRequest request) {
         return ResponseEntity.ok(ApiResponse.ok("Cap nhat thanh cong!", courseService.updateLesson(id, request)));
     }
 
