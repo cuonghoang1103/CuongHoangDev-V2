@@ -69,6 +69,17 @@ export async function POST(request: NextRequest) {
       path: "/",
     });
 
+    // Also set a non-httpOnly role cookie that middleware can read
+    // (not httpOnly so Edge Runtime middleware can access it)
+    // Value is "1" for admin, "0" for non-admin
+    response.cookies.set("admin_role", role === "ROLE_ADMIN" ? "1" : "0", {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      maxAge: 60 * 60 * 24 * 7,
+      path: "/",
+    });
+
     return response;
   } catch (err) {
     console.error("[login] Error:", err);
