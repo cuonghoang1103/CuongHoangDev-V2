@@ -121,7 +121,7 @@ app:
   base-url: ${APP_BASE_URL:}
   admin-emails: ${ADMIN_EMAILS:}
   file:
-    storage-path: ${APP_FILE_STORAGE_PATH:/app/uploads}
+    storage-path: ${APP_FILE_STORAGE_PATH:./uploads}
   email:
     from: ${APP_EMAIL_FROM:noreply@cuonghoangdev.com}
   contact:
