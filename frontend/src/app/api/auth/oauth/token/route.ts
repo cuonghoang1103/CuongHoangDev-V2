@@ -15,50 +15,75 @@ const BACKEND_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8082";
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  let session;
   try {
-    const session = await auth();
-    if (!session?.user?.email) {
-      return NextResponse.json({ success: false, message: "Unauthorized" }, { status: 401 });
-    }
+    session = await auth();
+    console.log("[oauth/token] Session:", JSON.stringify(session?.user));
+  } catch (err) {
+    console.error("[oauth/token] auth() failed:", err);
+    return NextResponse.json({ success: false, message: "Auth session error" }, { status: 500 });
+  }
 
-    const user = session.user as any;
-    const res = await fetch(`${BACKEND_URL}/api/v1/auth/oauth/token`, {
+  if (!session?.user?.email) {
+    console.warn("[oauth/token] No session or email. Session:", JSON.stringify(session));
+    return NextResponse.json({ success: false, message: "Unauthorized - no session" }, { status: 401 });
+  }
+
+  const user = session.user as any;
+  const email = session.user.email;
+  const fullName = session.user.name ?? email.split("@")[0];
+  const provider = user.provider ?? "google";
+  const userId = user.id ?? "";
+
+  let backendRes;
+  try {
+    backendRes = await fetch(`${BACKEND_URL}/api/v1/auth/oauth/token`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        email: session.user.email,
-        fullName: session.user.name ?? session.user.email.split("@")[0],
-        provider: user.provider ?? "google",
-        providerId: user.id ?? "",
-      }),
+      body: JSON.stringify({ email, fullName, provider, providerId: userId }),
     });
-
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      console.error("[oauth/token] Backend error:", err);
-      return NextResponse.json({ success: false, message: "Failed to generate token" }, { status: 500 });
-    }
-
-    const data = await res.json();
-    const token = data.data?.token ?? "";
-
-    if (!token) {
-      return NextResponse.json({ success: false, message: "No token received" }, { status: 500 });
-    }
-
-    // Set backend_token cookie (httpOnly, 7 days)
-    const response = NextResponse.json({ success: true, token });
-    response.cookies.set("backend_token", token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      sameSite: "lax",
-      maxAge: 60 * 60 * 24 * 7,
-      path: "/",
-    });
-
-    return response;
   } catch (err) {
-    console.error("[oauth/token] Error:", err);
-    return NextResponse.json({ success: false, message: "Server error" }, { status: 500 });
+    console.error("[oauth/token] Backend fetch error:", err);
+    return NextResponse.json({ success: false, message: "Backend unreachable" }, { status: 500 });
   }
+
+  if (!backendRes.ok) {
+    const err = await backendRes.json().catch(() => ({}));
+    console.error("[oauth/token] Backend error:", err);
+    return NextResponse.json({ success: false, message: "Failed to generate token" }, { status: 500 });
+  }
+
+  const data = await backendRes.json();
+  const token = data.data?.token ?? "";
+
+  if (!token) {
+    return NextResponse.json({ success: false, message: "No token received" }, { status: 500 });
+  }
+
+  // Also read the admin_role from backend response and set it as a cookie
+  const roles: string[] = data.data?.roles ?? [data.data?.role ?? "ROLE_USER"];
+  const isAdmin = roles.some(
+    (r: string) => (r || "").replace("ROLE_", "").toUpperCase() === "ADMIN"
+  );
+
+  // Set backend_token cookie (httpOnly, 7 days)
+  const response = NextResponse.json({ success: true, token });
+  response.cookies.set("backend_token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7,
+    path: "/",
+  });
+
+  // Also set admin_role cookie so middleware allows /admin access for OAuth admins
+  response.cookies.set("admin_role", isAdmin ? "1" : "0", {
+    httpOnly: false,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "lax",
+    maxAge: 60 * 60 * 24 * 7,
+    path: "/",
+  });
+
+  return response;
 }
