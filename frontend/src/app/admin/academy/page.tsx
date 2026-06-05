@@ -1,12 +1,148 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { BookOpen, ChevronDown, ChevronRight, ClipboardList, Code2, FileText, FolderTree, GraduationCap, Image as ImageIcon, Link2, Plus, Save, Trash2, Video } from 'lucide-react';
+import { BookOpen, ChevronDown, ChevronRight, ClipboardList, Code2, FileText, FolderTree, GraduationCap, Image as ImageIcon, Link2, Pencil, Plus, Save, Settings, Trash2, Video, X } from 'lucide-react';
 import { academyApi, adminCoursesApi } from '@/lib/api';
 import type { Assignment, Course, LessonDto, Semester } from '@/types';
 import ImageUpload from '@/components/admin/ImageUpload';
 import RichTextEditor from '@/components/admin/RichTextEditor';
 import { toast } from 'sonner';
+
+interface SemesterFormState {
+  name: string;
+  code: string;
+  ordinal: number;
+  description: string;
+  isActive: boolean;
+}
+
+const emptySemesterForm: SemesterFormState = {
+  name: '',
+  code: '',
+  ordinal: 0,
+  description: '',
+  isActive: true,
+};
+
+function SemesterModal({
+  semester,
+  onClose,
+  onSaved,
+}: {
+  semester?: Semester;
+  onClose: () => void;
+  onSaved: (saved: Semester) => void;
+}) {
+  const [form, setForm] = useState<SemesterFormState>(
+    semester
+      ? { name: semester.name, code: semester.code, ordinal: semester.ordinal, description: semester.description || '', isActive: semester.isActive ?? true }
+      : emptySemesterForm
+  );
+  const [saving, setSaving] = useState(false);
+
+  const handleSave = async () => {
+    if (!form.name.trim() || !form.code.trim() || form.ordinal <= 0) {
+      toast.error('Vui lòng nhập đầy đủ tên, mã và thứ tự học kỳ');
+      return;
+    }
+    setSaving(true);
+    try {
+      let saved: Semester;
+      if (semester?.id) {
+        const res = await academyApi.updateSemester(semester.id, form);
+        saved = res.data.data;
+      } else {
+        const res = await academyApi.createSemester(form);
+        saved = res.data.data;
+      }
+      toast.success(semester?.id ? 'Cập nhật học kỳ thành công' : 'Tạo học kỳ thành công');
+      onSaved(saved);
+      onClose();
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Lưu thất bại');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+      <div className="relative bg-darkcard border border-darkborder rounded-2xl p-6 w-full max-w-md shadow-2xl">
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-xl font-heading font-bold text-text-primary">
+            {semester?.id ? 'Chỉnh sửa học kỳ' : 'Tạo học kỳ mới'}
+          </h2>
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-white/10 text-text-muted hover:text-text-primary">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1.5">Tên học kỳ</label>
+            <input
+              value={form.name}
+              onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+              placeholder="Kỳ 1"
+              className="w-full px-4 py-3 rounded-xl bg-darkbg border border-darkborder text-text-primary"
+            />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1.5">Mã học kỳ</label>
+              <input
+                value={form.code}
+                onChange={(e) => setForm((p) => ({ ...p, code: e.target.value }))}
+                placeholder="S1"
+                className="w-full px-4 py-3 rounded-xl bg-darkbg border border-darkborder text-text-primary"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-text-secondary mb-1.5">Thứ tự</label>
+              <input
+                type="number"
+                min={1}
+                value={form.ordinal}
+                onChange={(e) => setForm((p) => ({ ...p, ordinal: parseInt(e.target.value) || 0 }))}
+                placeholder="1"
+                className="w-full px-4 py-3 rounded-xl bg-darkbg border border-darkborder text-text-primary"
+              />
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-text-secondary mb-1.5">Mô tả</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+              rows={3}
+              placeholder="Mô tả học kỳ (tuỳ chọn)"
+              className="w-full px-4 py-3 rounded-xl bg-darkbg border border-darkborder text-text-primary"
+            />
+          </div>
+          <label className="flex items-center gap-3 px-4 py-3 rounded-xl border border-darkborder bg-darkbg cursor-pointer">
+            <input
+              type="checkbox"
+              checked={form.isActive}
+              onChange={(e) => setForm((p) => ({ ...p, isActive: e.target.checked }))}
+              className="w-4 h-4 rounded accent-neon-violet"
+            />
+            <span className="text-sm text-text-primary">Kích hoạt</span>
+          </label>
+        </div>
+
+        <div className="flex gap-3 mt-6">
+          <button onClick={onClose} className="flex-1 px-4 py-3 rounded-xl border border-darkborder text-text-secondary hover:bg-white/5">
+            Huỷ
+          </button>
+          <button onClick={handleSave} disabled={saving} className="flex-1 px-4 py-3 rounded-xl bg-gradient-to-r from-neon-indigo to-neon-violet text-white disabled:opacity-60">
+            {saving ? 'Đang lưu...' : 'Lưu'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 interface CourseFormState {
   id?: number;
@@ -104,6 +240,10 @@ export default function AdminAcademyPage() {
   const [savingCourse, setSavingCourse] = useState(false);
   const [loadingCourses, setLoadingCourses] = useState(false);
 
+  // Semester management modal
+  const [semesterModalOpen, setSemesterModalOpen] = useState(false);
+  const [semesterModalData, setSemesterModalData] = useState<Semester | undefined>();
+
   useEffect(() => {
     academyApi.getSemesters()
       .then((res) => {
@@ -189,6 +329,42 @@ export default function AdminAcademyPage() {
     setCourseForm({ ...emptyCourse, semesterId: selectedSemesterId });
     setSections([]);
     setExpandedSections([]);
+  };
+
+  const openCreateSemester = () => {
+    setSemesterModalData(undefined);
+    setSemesterModalOpen(true);
+  };
+
+  const openEditSemester = (semester: Semester, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSemesterModalData(semester);
+    setSemesterModalOpen(true);
+  };
+
+  const handleSemesterSaved = (saved: Semester) => {
+    setSemesters((prev) => {
+      const exists = prev.some((s) => s.id === saved.id);
+      if (exists) return prev.map((s) => (s.id === saved.id ? saved : s));
+      return [...prev, saved].sort((a, b) => a.ordinal - b.ordinal);
+    });
+    setSelectedSemesterId(saved.id);
+  };
+
+  const deleteSemester = async (semester: Semester, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm(`Xoá học kỳ "${semester.name}"?`)) return;
+    try {
+      await academyApi.deleteSemester(semester.id);
+      toast.success('Đã xoá học kỳ');
+      setSemesters((prev) => prev.filter((s) => s.id !== semester.id));
+      if (selectedSemesterId === semester.id) {
+        setSelectedSemesterId(undefined);
+        setSelectedCourseId(undefined);
+      }
+    } catch (err: any) {
+      toast.error(err?.response?.data?.message || 'Xoá thất bại');
+    }
   };
 
   const saveCourse = async () => {
@@ -403,24 +579,53 @@ export default function AdminAcademyPage() {
           {semesters.map((semester) => {
             const active = selectedSemesterId === semester.id;
             return (
-              <button
+              <div
                 key={semester.id}
-                onClick={() => {
-                  setSelectedSemesterId(semester.id);
-                  setSelectedCourseId(undefined);
-                }}
-                className={`w-full text-left px-4 py-3 rounded-xl border transition ${active ? 'border-neon-violet bg-neon-violet/10 text-neon-violet' : 'border-darkborder bg-darkbg text-text-secondary hover:border-neon-violet/40'}`}
+                className={`group relative rounded-xl border transition ${active ? 'border-neon-violet bg-neon-violet/10' : 'border-darkborder bg-darkbg hover:border-neon-violet/30'}`}
               >
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="font-semibold">{semester.name}</p>
-                    <p className="text-xs opacity-70">{semester.code}</p>
+                <button
+                  onClick={() => {
+                    setSelectedSemesterId(semester.id);
+                    setSelectedCourseId(undefined);
+                  }}
+                  className="w-full text-left px-4 py-3"
+                >
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-text-primary">{semester.name}</p>
+                      <p className="text-xs opacity-70 text-text-muted">{semester.code}</p>
+                    </div>
+                    <span className="text-xs px-2 py-1 rounded-full bg-white/5 text-text-muted">#{semester.ordinal}</span>
                   </div>
-                  <span className="text-xs px-2 py-1 rounded-full bg-white/5">#{semester.ordinal}</span>
+                </button>
+                <div className="absolute top-2 right-8 flex gap-1 opacity-0 group-hover:opacity-100 transition">
+                  <button
+                    onClick={(e) => openEditSemester(semester, e)}
+                    className="p-1 rounded-md bg-darkcard border border-darkborder text-text-muted hover:text-neon-violet hover:border-neon-violet/40"
+                    title="Chỉnh sửa"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                  <button
+                    onClick={(e) => deleteSemester(semester, e)}
+                    className="p-1 rounded-md bg-darkcard border border-darkborder text-text-muted hover:text-red-400 hover:border-red-500/40"
+                    title="Xoá"
+                  >
+                    <Trash2 className="w-3 h-3" />
+                  </button>
                 </div>
-              </button>
+              </div>
             );
           })}
+        </div>
+
+        <div className="mt-4 pt-4 border-t border-darkborder">
+          <button
+            onClick={openCreateSemester}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-dashed border-neon-violet/40 text-neon-violet hover:bg-neon-violet/10 transition text-sm font-medium"
+          >
+            <Plus className="w-4 h-4" /> Tạo học kỳ mới
+          </button>
         </div>
 
         <div className="mt-6 pt-4 border-t border-darkborder">
@@ -599,6 +804,14 @@ export default function AdminAcademyPage() {
           </div>
         </div>
       </section>
+
+      {semesterModalOpen && (
+        <SemesterModal
+          semester={semesterModalData}
+          onClose={() => setSemesterModalOpen(false)}
+          onSaved={handleSemesterSaved}
+        />
+      )}
     </div>
   );
 }

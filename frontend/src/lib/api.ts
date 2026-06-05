@@ -335,6 +335,21 @@ export const academyApi = {
   getLessonAssignments: (lessonId: number) => api.get(`/courses/lessons/${lessonId}/assignments`),
   submitAssignment: (data: { assignmentId: number; submissionUrl: string; notes?: string }) =>
     api.post('/courses/assignments/submit', data),
+  createSemester: (data: {
+    name: string;
+    code: string;
+    ordinal: number;
+    description?: string;
+    isActive?: boolean;
+  }) => api.post('/academy/semesters', data),
+  updateSemester: (id: number, data: {
+    name: string;
+    code: string;
+    ordinal?: number;
+    description?: string;
+    isActive?: boolean;
+  }) => api.put(`/academy/semesters/${id}`, data),
+  deleteSemester: (id: number) => api.delete(`/academy/semesters/${id}`),
 };
 
 // Course Categories API

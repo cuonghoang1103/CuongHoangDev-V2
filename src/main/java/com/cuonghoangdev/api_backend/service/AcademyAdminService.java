@@ -45,6 +45,55 @@ public class AcademyAdminService {
             .toList();
     }
 
+    @Transactional
+    public SemesterDto createSemester(CreateSemesterRequest req) {
+        if (semesterRepository.existsByCode(req.getCode())) {
+            throw new RuntimeException("Ma hoc ky '" + req.getCode() + "' da ton tai");
+        }
+        if (semesterRepository.existsByOrdinal(req.getOrdinal())) {
+            throw new RuntimeException("Thu tu hoc ky #" + req.getOrdinal() + " da ton tai");
+        }
+
+        Semester semester = new Semester();
+        semester.setName(req.getName());
+        semester.setCode(req.getCode());
+        semester.setOrdinal(req.getOrdinal());
+        semester.setDescription(req.getDescription());
+        semester.setIsActive(req.getIsActive() != null ? req.getIsActive() : true);
+        return SemesterDto.fromEntity(semesterRepository.save(semester));
+    }
+
+    @Transactional
+    public SemesterDto updateSemester(Long id, UpdateSemesterRequest req) {
+        Semester semester = semesterRepository.findById(id)
+            .orElseThrow(() -> new RuntimeException("Hoc ky khong tim thay: " + id));
+
+        if (semesterRepository.existsByCodeAndIdNot(req.getCode(), id)) {
+            throw new RuntimeException("Ma hoc ky '" + req.getCode() + "' da ton tai");
+        }
+        if (req.getOrdinal() != null && semesterRepository.existsByOrdinalAndIdNot(req.getOrdinal(), id)) {
+            throw new RuntimeException("Thu tu hoc ky #" + req.getOrdinal() + " da ton tai");
+        }
+
+        semester.setName(req.getName());
+        semester.setCode(req.getCode());
+        if (req.getOrdinal() != null) semester.setOrdinal(req.getOrdinal());
+        if (req.getDescription() != null) semester.setDescription(req.getDescription());
+        if (req.getIsActive() != null) semester.setIsActive(req.getIsActive());
+        return SemesterDto.fromEntity(semesterRepository.save(semester));
+    }
+
+    @Transactional
+    public void deleteSemester(Long id) {
+        if (!semesterRepository.existsById(id)) {
+            throw new RuntimeException("Hoc ky khong tim thay: " + id);
+        }
+        if (semesterRepository.existsByCoursesSemesterId(id)) {
+            throw new RuntimeException("Khong the xoa hoc ky dang co mon hoc. Vui long xoa cac mon hoc truoc.");
+        }
+        semesterRepository.deleteById(id);
+    }
+
     public List<CourseDto> getCoursesBySemester(Long semesterId) {
         return courseRepository.findBySemesterIdOrderByTitleAsc(semesterId).stream()
             .map(CourseDto::fromEntity)
