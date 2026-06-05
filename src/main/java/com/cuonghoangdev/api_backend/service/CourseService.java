@@ -3,6 +3,8 @@ package com.cuonghoangdev.api_backend.service;
 import com.cuonghoangdev.api_backend.dto.*;
 import com.cuonghoangdev.api_backend.entity.*;
 import com.cuonghoangdev.api_backend.repository.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -15,6 +17,8 @@ import java.util.List;
 
 @Service
 public class CourseService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(CourseService.class);
 
     private final CourseRepository courseRepository;
     private final CourseSectionRepository sectionRepository;
@@ -247,8 +251,10 @@ public class CourseService {
 
     @Transactional
     public LessonDto createLesson(CreateLessonRequest req) {
+        LOGGER.info("[createLesson] sectionId={}, title='{}', lessonType={}",
+                req.getSectionId(), req.getTitle(), req.getLessonType());
         CourseSection section = sectionRepository.findById(req.getSectionId())
-            .orElseThrow(() -> new RuntimeException("Section not found"));
+            .orElseThrow(() -> new RuntimeException("Section not found: " + req.getSectionId()));
         Lesson lesson = new Lesson();
         lesson.setSection(section);
         lesson.setTitle(req.getTitle());
@@ -263,6 +269,7 @@ public class CourseService {
         lesson.setIsPublished(req.getIsPublished() != null ? req.getIsPublished() : false);
         lesson.setSortOrder(req.getSortOrder() != null ? req.getSortOrder() : 0);
         Lesson saved = lessonRepository.save(lesson);
+        LOGGER.info("[createLesson] Saved lesson id={}, title='{}'", saved.getId(), saved.getTitle());
         LessonDetail detail = new LessonDetail();
         detail.setLesson(saved);
         detail.setVideoPlatform(req.getVideoPlatform() != null ? req.getVideoPlatform() : "EMBED");

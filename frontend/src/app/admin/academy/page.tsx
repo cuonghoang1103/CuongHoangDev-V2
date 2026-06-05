@@ -425,6 +425,8 @@ export default function AdminAcademyPage() {
     }
 
     setSavingCourse(true);
+    const errors: string[] = [];
+
     try {
       let courseId = courseForm.id;
       const payload = {
@@ -453,33 +455,51 @@ export default function AdminAcademyPage() {
       }
 
       if (!courseId) throw new Error('Course save failed');
+      console.log('[saveCourse] Course saved, id=', courseId);
+
+      // Save sections and lessons independently so one failure doesn't lose all
+      const sectionIdMap: Record<number, number> = {};
 
       for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
         const section = sections[sectionIndex];
         let sectionId = section.id;
-        const savedSection = sectionId
-          ? await adminCoursesApi.updateSection(sectionId, {
+
+        try {
+          if (sectionId) {
+            const r = await adminCoursesApi.updateSection(sectionId, {
               title: section.title,
               description: section.description,
               sortOrder: sectionIndex,
               isLocked: section.isLocked,
-            })
-          : await adminCoursesApi.createSection({
+            });
+            sectionId = r.data.data?.id;
+          } else {
+            const r = await adminCoursesApi.createSection({
               courseId,
               title: section.title,
               description: section.description,
               sortOrder: sectionIndex,
               isLocked: section.isLocked,
             });
+            sectionId = r.data.data?.id;
+          }
 
-        sectionId = savedSection.data.data?.id;
-        if (!sectionId) continue;
+          if (!sectionId) { errors.push(`Chương ${sectionIndex + 1}: không tạo được ID`); continue; }
+          sectionIdMap[sectionIndex] = sectionId;
+          console.log(`[saveCourse] Section ${sectionIndex} saved, id=`, sectionId);
+        } catch (err: any) {
+          console.error(`[saveCourse] Section ${sectionIndex} failed:`, err?.response?.data);
+          errors.push(`Chương ${sectionIndex + 1}: ${err?.response?.data?.message || err.message}`);
+          continue;
+        }
 
         for (let lessonIndex = 0; lessonIndex < section.lessons.length; lessonIndex++) {
           const lesson = section.lessons[lessonIndex];
           let lessonId = lesson.id;
-          const savedLesson = lessonId
-            ? await adminCoursesApi.updateLesson(lessonId, {
+
+          try {
+            if (lessonId) {
+              const r = await adminCoursesApi.updateLesson(lessonId, {
                 title: lesson.title,
                 slug: lesson.slug,
                 description: lesson.description,
@@ -494,8 +514,10 @@ export default function AdminAcademyPage() {
                 isFreePreview: lesson.isFreePreview,
                 isPublished: lesson.isPublished,
                 sortOrder: lessonIndex,
-              })
-            : await adminCoursesApi.createLesson({
+              });
+              lessonId = r.data.data?.id;
+            } else {
+              const r = await adminCoursesApi.createLesson({
                 sectionId,
                 title: lesson.title,
                 slug: lesson.slug,
@@ -512,38 +534,53 @@ export default function AdminAcademyPage() {
                 isPublished: lesson.isPublished,
                 sortOrder: lessonIndex,
               });
-
-          lessonId = savedLesson.data.data?.id;
-          if (!lessonId) continue;
-
-          for (let assignmentIndex = 0; assignmentIndex < lesson.assignments.length; assignmentIndex++) {
-            const assignment = lesson.assignments[assignmentIndex];
-            const assignmentPayload = {
-              lessonId,
-              title: assignment.title,
-              instructions: assignment.instructions,
-              deadline: assignment.deadline,
-              sortOrder: assignmentIndex,
-              isPublished: assignment.isPublished,
-              maxScore: assignment.maxScore,
-            };
-
-            if (assignment.id) {
-              await adminCoursesApi.updateAssignment(assignment.id, assignmentPayload);
-            } else {
-              await adminCoursesApi.createAssignment(assignmentPayload);
+              lessonId = r.data.data?.id;
             }
+
+            if (!lessonId) { errors.push(`Bài ${lessonIndex + 1} (${lesson.title || 'không tên'}): không tạo được ID`); continue; }
+            console.log(`[saveCourse] Lesson ${lessonIndex} saved, id=`, lessonId);
+
+            for (let assignmentIndex = 0; assignmentIndex < lesson.assignments.length; assignmentIndex++) {
+              const assignment = lesson.assignments[assignmentIndex];
+              const assignmentPayload = {
+                lessonId,
+                title: assignment.title,
+                instructions: assignment.instructions,
+                deadline: assignment.deadline,
+                sortOrder: assignmentIndex,
+                isPublished: assignment.isPublished,
+                maxScore: assignment.maxScore,
+              };
+              try {
+                if (assignment.id) {
+                  await adminCoursesApi.updateAssignment(assignment.id, assignmentPayload);
+                } else {
+                  await adminCoursesApi.createAssignment(assignmentPayload);
+                }
+              } catch (err: any) {
+                errors.push(`Bài tập ${assignmentIndex + 1} (${assignment.title}): ${err?.response?.data?.message || err.message}`);
+              }
+            }
+          } catch (err: any) {
+            console.error(`[saveCourse] Lesson ${lessonIndex} failed:`, err?.response?.data);
+            const errMsg = err?.response?.data?.message || err?.response?.data?.data ? JSON.stringify(err?.response?.data?.data) : err.message;
+            errors.push(`Bài ${lessonIndex + 1} (${lesson.title || 'không tên'}): ${errMsg}`);
           }
         }
       }
 
-      toast.success('Đã lưu chương trình học');
+      if (errors.length > 0) {
+        toast.error(`Lưu thất bại:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n...' : ''}`);
+      } else {
+        toast.success('Đã lưu chương trình học');
+      }
+
       const refreshed = await academyApi.getCoursesBySemester(courseForm.semesterId);
       const nextCourses = refreshed.data.data || [];
       setCourses(nextCourses);
       if (courseId) setSelectedCourseId(courseId);
     } catch (error: any) {
-      console.error('[saveCourse] Error:', error?.response?.data);
+      console.error('[saveCourse] Fatal error:', error?.response?.data);
       const msg = error?.response?.data?.message || 'Lưu chương trình học thất bại';
       const details = error?.response?.data?.data;
       const detailStr = details ? JSON.stringify(details, null, 2) : '';
