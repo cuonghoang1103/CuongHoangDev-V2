@@ -299,6 +299,21 @@ export default function BlogCard({ post, index = 0, variant = 'default', onCardC
           (e.currentTarget as HTMLDivElement).style.boxShadow = 'none';
         }}
       >
+        {/* ── Thumbnail Image ── */}
+        {post.thumbnailUrl && (
+          <div className="relative overflow-hidden" style={{ height: '180px' }}>
+            <img
+              src={post.thumbnailUrl}
+              alt={post.title}
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none';
+              }}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-darkbg/80 to-transparent" />
+          </div>
+        )}
+
         {/* ── Glassmorphic Code Window Header ── */}
         <div className="px-4 py-3 flex items-center gap-2" style={{ background: C.codeBg, borderBottom: `1px solid ${C.border}` }}>
           <div className="flex items-center gap-1.5">
