@@ -171,6 +171,11 @@ public class LessonDto {
             dto.setTeachingNotes(entity.getDetail().getTeachingNotes());
             dto.setDetail(LessonDetailDto.fromEntity(entity.getDetail()));
         }
+        if (Hibernate.isInitialized(entity.getAssignments()) && entity.getAssignments() != null) {
+            dto.setAssignments(entity.getAssignments().stream()
+                .map(AssignmentDto::fromEntity)
+                .toList());
+        }
         return dto;
     }
 

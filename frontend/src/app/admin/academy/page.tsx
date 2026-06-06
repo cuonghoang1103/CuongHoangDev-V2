@@ -653,8 +653,17 @@ export default function AdminAcademyPage() {
       setSections(newSections);
       setExpandedSections(newSections.map((_, i) => i));
 
-      const refreshed = await academyApi.getCoursesBySemester(courseForm.semesterId);
-      setCourses(refreshed.data.data || []);
+      // Reload only the course that was saved — getCourseWithSections returns
+      // full data (sections + lessons + assignments). Using getCoursesBySemester
+      // here would re-fetch the semester list without lessons, causing React to
+      // re-render selectedCourse with stale/empty lesson data on next tick.
+      const refreshed = await academyApi.getCourseWithSections(courseId);
+      const updatedCourse = refreshed.data.data;
+      if (updatedCourse) {
+        setCourses((prev) =>
+          prev.map((c) => c.id === courseId ? updatedCourse : c)
+        );
+      }
     } catch (error: any) {
       console.error('[saveCourse] Fatal error:', error?.response?.data);
       const msg = error?.response?.data?.message || 'Lưu chương trình học thất bại';
