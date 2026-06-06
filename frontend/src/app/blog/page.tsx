@@ -8,6 +8,7 @@ import { blogApi } from '@/lib/api';
 import type { Post, Category, PageResponse } from '@/types';
 import BlogCard from '@/components/blog/BlogCard';
 import CategorySidebar from '@/components/blog/CategorySidebar';
+import AgentActivityLog from '@/components/blog/CategorySidebar';
 
 const ALL_TAGS = ['JavaScript', 'React', 'TypeScript', 'Next.js', 'Spring Boot', 'AI', 'Node.js', 'Python', 'CSS', 'Docker', 'PostgreSQL', 'DevOps'];
 
@@ -250,21 +251,21 @@ function BlogContent() {
         </div>
       )}
 
-      {/* Empty */}
+      {/* Empty — AI Agent Activity Log */}
       {!loading && !error && posts.length === 0 && (
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12 text-center py-16">
-          <FileText className="w-16 h-16 text-text-muted/20 mx-auto mb-4" />
-          <h3 className="text-xl font-heading font-bold text-text-primary mb-2">No posts found</h3>
-          <p className="text-text-muted mb-6">
-            {categorySlug ? 'This category has no posts yet.' : hasActiveFilters ? 'Try adjusting your search or filters.' : 'Be the first to write a post!'}
-          </p>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-12">
+          <div className="max-w-lg mx-auto">
+            <AgentActivityLog />
+          </div>
           {hasActiveFilters && (
-            <button
-              onClick={clearFilters}
-              className="px-6 py-2.5 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-medium rounded-xl hover:opacity-90 transition-opacity"
-            >
-              Clear Filters
-            </button>
+            <div className="text-center mt-6">
+              <button
+                onClick={clearFilters}
+                className="px-6 py-2.5 bg-gradient-to-r from-neon-indigo to-neon-violet text-white font-medium rounded-xl hover:opacity-90 transition-opacity"
+              >
+                Clear Filters
+              </button>
+            </div>
           )}
         </div>
       )}
