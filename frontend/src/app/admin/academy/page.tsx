@@ -999,6 +999,31 @@ export default function AdminAcademyPage() {
                               <input value={lesson.slug} onChange={(e) => updateLesson(sectionIndex, lessonIndex, { slug: e.target.value })} placeholder="Slug bài học" className="px-4 py-3 rounded-xl bg-darkbg border border-darkborder text-text-primary" />
                             </div>
 
+                            <div className="grid gap-3 md:grid-cols-2">
+                              <div className="flex items-center gap-2 px-4 py-3 rounded-xl bg-darkbg border border-darkborder text-sm text-text-secondary">
+                                <span className="text-text-muted text-xs shrink-0">Loại:</span>
+                                <select value={lesson.lessonType} onChange={(e) => updateLesson(sectionIndex, lessonIndex, { lessonType: e.target.value })} className="bg-transparent text-text-primary outline-none w-full">
+                                  <option value="VIDEO">VIDEO</option>
+                                  <option value="TEXT">TEXT</option>
+                                  <option value="QUIZ">QUIZ</option>
+                                  <option value="PROJECT">PROJECT</option>
+                                </select>
+                              </div>
+                              <div className="flex items-center gap-3 px-4 py-3 rounded-xl bg-darkbg border border-darkborder">
+                                <span className="text-sm text-text-secondary">Hiển thị:</span>
+                                <button
+                                  type="button"
+                                  onClick={() => updateLesson(sectionIndex, lessonIndex, { isPublished: !lesson.isPublished })}
+                                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${lesson.isPublished ? 'bg-emerald-500' : 'bg-darkborder'}`}
+                                >
+                                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${lesson.isPublished ? 'translate-x-6' : 'translate-x-1'}`} />
+                                </button>
+                                <span className={`text-xs font-medium ${lesson.isPublished ? 'text-emerald-400' : 'text-text-muted'}`}>
+                                  {lesson.isPublished ? 'Published' : 'Draft'}
+                                </span>
+                              </div>
+                            </div>
+
                             <textarea value={lesson.description} onChange={(e) => updateLesson(sectionIndex, lessonIndex, { description: e.target.value })} rows={2} placeholder="Mô tả bài học" className="w-full px-4 py-3 rounded-xl bg-darkbg border border-darkborder text-text-primary" />
 
                             <div className="grid gap-3 lg:grid-cols-3">
@@ -1051,7 +1076,19 @@ export default function AdminAcademyPage() {
                                   <textarea value={assignment.instructions || ''} onChange={(e) => updateLesson(sectionIndex, lessonIndex, { assignments: lesson.assignments.map((item, idx) => idx === assignmentIndex ? { ...item, instructions: e.target.value } : item) })} rows={3} placeholder="Yêu cầu bài tập" className="w-full px-4 py-3 rounded-xl bg-[#0b0b12] border border-darkborder text-text-primary" />
                                   <div className="grid gap-3 grid-cols-2">
                                     <input type="datetime-local" value={assignment.deadline ? assignment.deadline.slice(0, 16) : ''} onChange={(e) => updateLesson(sectionIndex, lessonIndex, { assignments: lesson.assignments.map((item, idx) => idx === assignmentIndex ? { ...item, deadline: e.target.value ? new Date(e.target.value).toISOString().slice(0, 19) : '' } : item) })} className="w-full px-4 py-3 rounded-xl bg-[#0b0b12] border border-darkborder text-text-primary" />
-                                    <input type="number" min={0} step={0.5} value={assignment.maxScore ?? 10} onChange={(e) => updateLesson(sectionIndex, lessonIndex, { assignments: lesson.assignments.map((item, idx) => idx === assignmentIndex ? { ...item, maxScore: parseFloat(e.target.value) || 10 } : item) })} placeholder="Thang diem" className="px-4 py-3 rounded-xl bg-[#0b0b12] border border-darkborder text-text-primary" />
+                                    <div className="flex items-center gap-2">
+                                      <input type="number" min={0} step={0.5} value={assignment.maxScore ?? 10} onChange={(e) => updateLesson(sectionIndex, lessonIndex, { assignments: lesson.assignments.map((item, idx) => idx === assignmentIndex ? { ...item, maxScore: parseFloat(e.target.value) || 10 } : item) })} placeholder="Điểm" className="flex-1 px-4 py-3 rounded-xl bg-[#0b0b12] border border-darkborder text-text-primary" />
+                                      <div className="flex items-center gap-2 px-3 py-3 rounded-xl bg-[#0b0b12] border border-darkborder">
+                                        <span className={`text-xs font-medium ${assignment.isPublished ? 'text-emerald-400' : 'text-text-muted'}`}>Pub</span>
+                                        <button
+                                          type="button"
+                                          onClick={() => updateLesson(sectionIndex, lessonIndex, { assignments: lesson.assignments.map((item, idx) => idx === assignmentIndex ? { ...item, isPublished: !item.isPublished } : item) })}
+                                          className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${assignment.isPublished ? 'bg-emerald-500' : 'bg-darkborder'}`}
+                                        >
+                                          <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${assignment.isPublished ? 'translate-x-4' : 'translate-x-1'}`} />
+                                        </button>
+                                      </div>
+                                    </div>
                                   </div>
                                 </div>
                               ))}
