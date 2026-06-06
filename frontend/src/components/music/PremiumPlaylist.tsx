@@ -222,8 +222,8 @@ export default function PremiumPlaylist({ isNight = true }: PremiumPlaylistProps
             ))}
           </div>
 
-          {/* All Tracks pill — always visible on tracks tab while viewing a playlist */}
-          {activeTab === 'tracks' && savedAllTracks.length > 0 && tracks.length !== savedAllTracks.length && (
+          {/* All Tracks pill — always visible on tracks tab */}
+          {activeTab === 'tracks' && savedAllTracks.length > 0 && (
             <motion.button
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}

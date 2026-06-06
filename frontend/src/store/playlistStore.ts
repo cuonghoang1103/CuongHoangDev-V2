@@ -28,7 +28,7 @@ interface PlaylistState {
   setPendingTrack: (track: Track | null) => void;
 
   // CRUD operations
-  createPlaylist: (name: string) => Promise<PlaylistItem | null>;
+  createPlaylist: (name: string, coverUrl?: string) => Promise<PlaylistItem | null>;
   deletePlaylist: (id: number) => Promise<void>;
   addTrackToPlaylist: (playlistId: number, track: Track) => Promise<void>;
   removeTrackFromPlaylist: (playlistId: number, trackId: string) => Promise<void>;

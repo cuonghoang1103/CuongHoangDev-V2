@@ -144,14 +144,16 @@ export const useMusicStore = create<MusicState>()((set, get) => {
     },
 
     addTrack: (track) => {
-      const { allTracks } = get();
+      const { allTracks, savedAllTracks } = get();
       set((s) => {
         const newTracks = [...s.tracks, track];
         const newAllTracks = [...allTracks, track];
+        const newSaved = [...savedAllTracks, track];
         const wasEmpty = s.tracks.length === 0;
         return {
           tracks: newTracks,
           allTracks: newAllTracks,
+          savedAllTracks: newSaved,
           queue: newTracks,
           currentTrack: wasEmpty ? track : s.currentTrack,
           currentIndex: wasEmpty ? 0 : s.currentIndex,
@@ -272,11 +274,12 @@ export const useMusicStore = create<MusicState>()((set, get) => {
             const ci = shuffled.findIndex((t) => t.id === s.currentTrack!.id);
             if (ci > 0) { [shuffled[0], shuffled[ci]] = [shuffled[ci], shuffled[0]]; }
           }
-          set({ isShuffled: true, queue: shuffled, tracks: shuffled });
+          savePersisted({ ...p, isShuffled: true });
+          return { isShuffled: true, queue: shuffled, tracks: shuffled };
         } else {
-          set({ isShuffled: false, tracks: s.queue, queue: s.queue });
+          savePersisted({ ...p, isShuffled: false });
+          return { isShuffled: false, tracks: s.queue, queue: s.queue };
         }
-        savePersisted({ ...p, isShuffled: newShuffle });
       }),
 
     cycleRepeat: () => {
