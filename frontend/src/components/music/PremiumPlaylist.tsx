@@ -17,7 +17,7 @@ interface PremiumPlaylistProps {
 }
 
 export default function PremiumPlaylist({ isNight = true }: PremiumPlaylistProps) {
-  const { tracks, currentTrack, isPlaying, playTrackAtIndex, currentIndex, allTracks, setAllTracks, restoreAllTracks } = useMusicStore();
+  const { tracks, currentTrack, isPlaying, playTrackAtIndex, currentIndex, allTracks, savedAllTracks, setAllTracks, restoreAllTracks } = useMusicStore();
   const [search, setSearch] = useState('');
   const [isLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'tracks' | 'playlists'>('tracks');
@@ -222,17 +222,13 @@ export default function PremiumPlaylist({ isNight = true }: PremiumPlaylistProps
             ))}
           </div>
 
-          {/* All Tracks pill — only when showing a playlist */}
-          {showingPlaylistId && activeTab === 'tracks' && (
+          {/* All Tracks pill — always visible on tracks tab while viewing a playlist */}
+          {activeTab === 'tracks' && savedAllTracks.length > 0 && tracks.length !== savedAllTracks.length && (
             <motion.button
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
               whileTap={{ scale: 0.97 }}
-              onClick={() => {
-                restoreAllTracks();
-                setShowingPlaylistId(null);
-              }}
+              onClick={() => restoreAllTracks()}
               className="py-2 px-3 rounded-xl text-xs font-medium flex items-center gap-1.5 shrink-0"
               style={{
                 background: `${c.tertiary}20`,

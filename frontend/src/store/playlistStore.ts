@@ -167,12 +167,11 @@ export const usePlaylistStore = create<PlaylistState>()((set, get) => ({
   },
 
   playPlaylist: (playlist: PlaylistItem) => {
-    // Import dynamically to avoid circular deps
     const { useMusicStore } = require('@/store/musicStore');
     const tracks = playlist.tracks ?? [];
     if (tracks.length === 0) return;
     const store = useMusicStore.getState();
-    // Save current allTracks before switching to playlist
+    // Preserve the current full track list (e.g. 50 tracks) before switching to playlist
     store.setAllTracks(store.tracks);
     store.setTracks(tracks);
     store.playTrackAtIndex(0);

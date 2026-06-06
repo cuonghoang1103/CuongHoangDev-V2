@@ -50,8 +50,10 @@ interface MusicState {
   isShuffled: boolean;
   repeatMode: RepeatMode;
   queue: Track[];
-  // Tracks the original full track list for "All Tracks" restoration
+  // The default full track list loaded at app start (e.g. 50 tracks)
   allTracks: Track[];
+  // Saved snapshot of allTracks before a playlist was loaded — used to restore
+  savedAllTracks: Track[];
   // Tracks which playlist is currently loaded so we can restore it
   lastPlaylistId: string | null;
 
@@ -110,12 +112,12 @@ export const useMusicStore = create<MusicState>()((set, get) => {
     repeatMode: persisted.repeatMode,
     queue: [],
     allTracks: [],
+    savedAllTracks: [],
     lastPlaylistId: persisted.lastPlaylistId,
 
     setTracks: (tracks) => {
       const p = loadPersisted();
       const first = tracks[0] || null;
-      // Try to restore the previously playing track
       let restored: Track | null = null;
       let restoredIdx = -1;
       if (p.currentTrackId && tracks.length > 0) {
@@ -124,7 +126,9 @@ export const useMusicStore = create<MusicState>()((set, get) => {
       }
       set({
         tracks,
+        // Save the incoming tracks as the default "all tracks" snapshot
         allTracks: tracks,
+        savedAllTracks: tracks,
         queue: tracks,
         currentTrack: restored ?? first,
         currentIndex: restoredIdx >= 0 ? restoredIdx : (first ? 0 : -1),
@@ -134,9 +138,9 @@ export const useMusicStore = create<MusicState>()((set, get) => {
     },
 
     setAllTracks: (tracks) => {
-      // Called before a playlist is loaded — save the full list
       const { currentTrack } = get();
-      set({ allTracks: tracks, tracks, queue: tracks, currentTrack });
+      // Also update savedAllTracks so restoreAllTracks can recover the original list
+      set({ allTracks: tracks, savedAllTracks: tracks, tracks, queue: tracks, currentTrack });
     },
 
     addTrack: (track) => {
@@ -311,12 +315,11 @@ export const useMusicStore = create<MusicState>()((set, get) => {
     stop: () => set({ isPlaying: false, currentTime: 0 }),
 
     restoreAllTracks: () => {
-      const { allTracks, currentTrack } = get();
-      if (allTracks.length === 0) return;
-      // Restore the full track list but keep the current track
-      let idx = allTracks.findIndex((t) => t.id === currentTrack?.id);
+      const { savedAllTracks, currentTrack } = get();
+      if (savedAllTracks.length === 0) return;
+      let idx = savedAllTracks.findIndex((t) => t.id === currentTrack?.id);
       if (idx < 0) idx = 0;
-      set({ tracks: allTracks, queue: allTracks, currentIndex: idx });
+      set({ tracks: savedAllTracks, allTracks: savedAllTracks, queue: savedAllTracks, currentIndex: idx });
     },
   };
 });
