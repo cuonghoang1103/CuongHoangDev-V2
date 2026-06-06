@@ -163,7 +163,9 @@ public class EnrollmentService {
         }
         progressRepository.save(progress);
 
-        updateEnrollmentProgress(enrollment);
+        // Use courseId directly — avoids lazy-loading enrollment.getCourse()
+        // when called inside a @Transactional boundary that already has the session open.
+        updateEnrollmentProgress(enrollment.getId(), courseId);
         return LessonProgressDto.of(
             req.getLessonId(),
             progress.getIsCompleted(),
@@ -199,21 +201,22 @@ public class EnrollmentService {
                 .toList();
     }
 
-    private void updateEnrollmentProgress(Enrollment enrollment) {
-        Integer totalLessons = lessonRepository.countPublishedByCourseId(enrollment.getCourse().getId());
+    private void updateEnrollmentProgress(Long enrollmentId, Long courseId) {
+        Integer totalLessons = lessonRepository.countPublishedByCourseId(courseId);
         if (totalLessons == null || totalLessons == 0) return;
 
-        Integer completed = progressRepository.countCompletedByEnrollmentId(enrollment.getId());
+        Integer completed = progressRepository.countCompletedByEnrollmentId(enrollmentId);
         if (completed == null) completed = 0;
 
         BigDecimal percent = BigDecimal.valueOf(completed)
             .multiply(BigDecimal.valueOf(100))
             .divide(BigDecimal.valueOf(totalLessons), 2, RoundingMode.HALF_UP);
 
-        enrollment.setProgressPercent(percent);
-        enrollmentRepository.save(enrollment);
-
-        certificateService.checkAndIssueCertificate(enrollment);
+        enrollmentRepository.findById(enrollmentId).ifPresent(enrollment -> {
+            enrollment.setProgressPercent(percent);
+            enrollmentRepository.save(enrollment);
+            certificateService.checkAndIssueCertificate(enrollment);
+        });
     }
 
     @Transactional
