@@ -575,10 +575,16 @@ export default function AdminAcademyPage() {
         toast.success('Đã lưu chương trình học');
       }
 
+      // Force refresh: toggle selectedCourseId to undefined then back
+      // This triggers the useEffect to re-fetch fresh data from the server
+      // instead of relying on potentially stale mapped state
+      const savedCourseId = courseId!;
+      setSelectedCourseId(undefined);
+      setSelectedCourseId(savedCourseId);
+
       const refreshed = await academyApi.getCoursesBySemester(courseForm.semesterId);
       const nextCourses = refreshed.data.data || [];
       setCourses(nextCourses);
-      if (courseId) setSelectedCourseId(courseId);
     } catch (error: any) {
       console.error('[saveCourse] Fatal error:', error?.response?.data);
       const msg = error?.response?.data?.message || 'Lưu chương trình học thất bại';
