@@ -173,18 +173,22 @@ public class EnrollmentService {
     }
 
     public List<LessonProgressDto> getLessonProgress(Long userId, Long courseId) {
-        if (userId == null) {
+        if (userId == null || courseId == null) {
             return List.of();
         }
         return enrollmentRepository.findByUserIdAndCourseId(userId, courseId)
-            .map(enrollment -> progressRepository.findByEnrollmentId(enrollment.getId()).stream()
-                .map(p -> LessonProgressDto.of(
-                    p.getLesson().getId(),
-                    p.getIsCompleted(),
-                    p.getWatchTimeSeconds(),
-                    p.getLastPositionSeconds()
-                ))
-                .toList())
+            .map(enrollment -> {
+                List<LessonProgress> progressList = progressRepository.findByEnrollmentId(enrollment.getId());
+                return progressList.stream()
+                    .filter(p -> p != null && p.getLesson() != null)
+                    .map(p -> LessonProgressDto.of(
+                        p.getLesson().getId(),
+                        p.getIsCompleted() != null && p.getIsCompleted(),
+                        p.getWatchTimeSeconds() != null ? p.getWatchTimeSeconds() : 0,
+                        p.getLastPositionSeconds() != null ? p.getLastPositionSeconds() : 0
+                    ))
+                    .toList();
+            })
             .orElse(List.of());
     }
 
