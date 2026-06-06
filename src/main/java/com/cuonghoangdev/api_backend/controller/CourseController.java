@@ -119,7 +119,10 @@ public class CourseController {
     @Operation(summary = "[Admin] Tao chuong")
     public ResponseEntity<ApiResponse<CourseSectionDto>> createSection(
             @Valid @RequestBody CreateSectionRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Tao chuong thanh cong!", courseService.createSection(request)));
+        CourseSectionDto result = courseService.createSection(request);
+        LOGGER.info("[createSection] RESPONSE: id={}, title='{}', courseId={}",
+            result.getId(), result.getTitle(), request.getCourseId());
+        return ResponseEntity.ok(ApiResponse.ok("Tao chuong thanh cong!", result));
     }
 
     @PutMapping("/sections/{id}")
@@ -127,7 +130,10 @@ public class CourseController {
     public ResponseEntity<ApiResponse<CourseSectionDto>> updateSection(
             @PathVariable Long id,
             @RequestBody UpdateSectionRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Cap nhat thanh cong!", courseService.updateSection(id, request)));
+        CourseSectionDto result = courseService.updateSection(id, request);
+        LOGGER.info("[updateSection] RESPONSE: pathId={}, resultId={}, title='{}'",
+            id, result.getId(), result.getTitle());
+        return ResponseEntity.ok(ApiResponse.ok("Cap nhat thanh cong!", result));
     }
 
     @DeleteMapping("/sections/{id}")
@@ -146,7 +152,11 @@ public class CourseController {
                 request.getSectionId(), request.getTitle(), request.getVideoUrl(),
                 request.getVideoPlatform(),
                 request.getTeachingNotes() != null ? request.getTeachingNotes().length() : 0);
-        return ResponseEntity.ok(ApiResponse.ok("Tao bai giang thanh cong!", courseService.createLesson(request)));
+        LessonDto result = courseService.createLesson(request);
+        LOGGER.info("[createLesson] ===== RESPONSE =====");
+        LOGGER.info("[createLesson] resultId={}, title='{}', sectionId={}",
+            result.getId(), result.getTitle(), result.getSectionId());
+        return ResponseEntity.ok(ApiResponse.ok("Tao bai giang thanh cong!", result));
     }
 
     @PutMapping("/lessons/{id}")
@@ -154,7 +164,16 @@ public class CourseController {
     public ResponseEntity<ApiResponse<LessonDto>> updateLesson(
             @PathVariable Long id,
             @RequestBody UpdateLessonRequest request) {
-        return ResponseEntity.ok(ApiResponse.ok("Cap nhat thanh cong!", courseService.updateLesson(id, request)));
+        LOGGER.info("[updateLesson] ===== REQUEST =====");
+        LOGGER.info("[updateLesson] pathId={}, title='{}', content length={}, teachingNotes length={}",
+            id, request.getTitle(),
+            request.getContent() != null ? request.getContent().length() : 0,
+            request.getTeachingNotes() != null ? request.getTeachingNotes().length() : 0);
+        LessonDto result = courseService.updateLesson(id, request);
+        LOGGER.info("[updateLesson] ===== RESPONSE =====");
+        LOGGER.info("[updateLesson] pathId={}, resultId={}, title='{}'",
+            id, result.getId(), result.getTitle());
+        return ResponseEntity.ok(ApiResponse.ok("Cap nhat thanh cong!", result));
     }
 
     @DeleteMapping("/lessons/{id}")
