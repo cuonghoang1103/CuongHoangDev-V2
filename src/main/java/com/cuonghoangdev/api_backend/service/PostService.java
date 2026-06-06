@@ -111,21 +111,6 @@ public class PostService {
         Post post = postRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Post", "id", id));
         PostDto dto = toDto(post);
-        if (post.getComments() != null) {
-            dto.setCommentCount(post.getComments().size());
-            List<PostDto.CommentDto> commentDtos = post.getComments().stream()
-                    .map(c -> {
-                        PostDto.CommentDto cd = new PostDto.CommentDto();
-                        cd.setId(c.getId());
-                        cd.setUserName(c.getUserName());
-                        cd.setUserAvatar(c.getUserAvatar());
-                        cd.setCommentText(c.getCommentText());
-                        cd.setCreatedAt(c.getCreatedAt());
-                        return cd;
-                    })
-                    .collect(Collectors.toList());
-            // Store comments in a separate field if needed
-        }
         dto.setCommentCount(commentRepository.countByPostId(id));
         return dto;
     }

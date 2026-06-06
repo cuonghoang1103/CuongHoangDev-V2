@@ -79,7 +79,7 @@ public class Post {
     private Integer downloadCount = 0;
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
-    private List<Comment> comments = new ArrayList<>();
+    private List<BlogComment> comments = new ArrayList<>();
 
     public Post() {
     }
@@ -129,6 +129,6 @@ public class Post {
     public void setSourceUrl(String sourceUrl) { this.sourceUrl = sourceUrl; }
     public Integer getDownloadCount() { return downloadCount; }
     public void setDownloadCount(Integer downloadCount) { this.downloadCount = downloadCount; }
-    public List<Comment> getComments() { return comments; }
-    public void setComments(List<Comment> comments) { this.comments = comments; }
+    public List<BlogComment> getComments() { return comments; }
+    public void setComments(List<BlogComment> comments) { this.comments = comments; }
 }
