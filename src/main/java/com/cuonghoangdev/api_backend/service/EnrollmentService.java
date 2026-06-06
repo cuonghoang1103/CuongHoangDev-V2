@@ -173,6 +173,9 @@ public class EnrollmentService {
     }
 
     public List<LessonProgressDto> getLessonProgress(Long userId, Long courseId) {
+        if (userId == null) {
+            return List.of();
+        }
         Enrollment enrollment = enrollmentRepository.findByUserIdAndCourseId(userId, courseId)
             .orElseThrow(() -> new RuntimeException("Ban chua dang ky khoa hoc nay"));
         return progressRepository.findByEnrollmentId(enrollment.getId()).stream()

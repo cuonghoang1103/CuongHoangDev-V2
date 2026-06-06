@@ -21,16 +21,16 @@ public interface LessonRepository extends JpaRepository<Lesson, Long> {
     @EntityGraph(attributePaths = {"section", "section.course", "detail", "documents", "assignments"})
     Optional<Lesson> findWithRelationsById(Long id);
 
-    @Query("SELECT l FROM Lesson l WHERE l.section.course.id = :courseId AND l.isPublished = true ORDER BY l.section.sortOrder ASC, l.sortOrder ASC")
+    @Query("SELECT l FROM Lesson l WHERE l.section.course.id = :courseId AND (l.isPublished = true OR l.section.course.status = 'PUBLISHED') ORDER BY l.section.sortOrder ASC, l.sortOrder ASC")
     List<Lesson> findPublishedByCourseId(@Param("courseId") Long courseId);
 
-    @Query("SELECT COALESCE(SUM(l.videoDurationSeconds), 0) FROM Lesson l WHERE l.section.course.id = :courseId AND l.isPublished = true")
+    @Query("SELECT COALESCE(SUM(l.videoDurationSeconds), 0) FROM Lesson l WHERE l.section.course.id = :courseId AND (l.isPublished = true OR l.section.course.status = 'PUBLISHED')")
     Integer sumDurationByCourseId(@Param("courseId") Long courseId);
 
-    @Query("SELECT COUNT(l) FROM Lesson l WHERE l.section.course.id = :courseId AND l.isPublished = true")
+    @Query("SELECT COUNT(l) FROM Lesson l WHERE l.section.course.id = :courseId AND (l.isPublished = true OR l.section.course.status = 'PUBLISHED')")
     Integer countPublishedByCourseId(@Param("courseId") Long courseId);
 
-    @Query("SELECT l FROM Lesson l WHERE l.section.course.id = :courseId AND l.isPublished = true ORDER BY l.section.sortOrder ASC, l.sortOrder ASC")
+    @Query("SELECT l FROM Lesson l WHERE l.section.course.id = :courseId AND (l.isPublished = true OR l.section.course.status = 'PUBLISHED') ORDER BY l.section.sortOrder ASC, l.sortOrder ASC")
     List<Lesson> findAllPublishedOrdered(@Param("courseId") Long courseId);
 
     @Modifying

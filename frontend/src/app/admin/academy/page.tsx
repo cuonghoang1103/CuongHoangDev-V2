@@ -428,6 +428,7 @@ export default function AdminAcademyPage() {
     const errors: string[] = [];
 
     try {
+      const previousSections = sections.filter((section) => section.id);
       let courseId = courseForm.id;
       const payload = {
         title: courseForm.title,
@@ -457,19 +458,69 @@ export default function AdminAcademyPage() {
       if (!courseId) throw new Error('Course save failed');
       console.log('[saveCourse] Course saved, id=', courseId);
 
-      // Build new sections array with real DB IDs from the server
-      // This is the source of truth after save — no useEffect re-fetch needed
+      // Delete removed sections/lessons/assignments from DB first.
+      // Without this, old records stay in DB and reappear after reload.
+      const currentSectionIds = new Set(sections.map((section) => section.id).filter(Boolean));
+      for (const prevSection of previousSections) {
+        const prevSectionId = prevSection.id;
+        if (!prevSectionId) continue;
+
+        if (!currentSectionIds.has(prevSectionId)) {
+          try {
+            await adminCoursesApi.deleteSection(prevSectionId);
+            console.log('[saveCourse] Deleted removed section id=', prevSectionId);
+          } catch (err: any) {
+            errors.push(`Không xoá được chương cũ ${prevSection.title}: ${err?.response?.data?.message || err.message}`);
+          }
+          continue;
+        }
+
+        const currentSection = sections.find((section) => section.id === prevSectionId);
+        if (!currentSection) continue;
+
+        const currentLessonIds = new Set(currentSection.lessons.map((lesson) => lesson.id).filter(Boolean));
+        for (const prevLesson of prevSection.lessons) {
+          const prevLessonId = prevLesson.id;
+          if (!prevLessonId) continue;
+
+          if (!currentLessonIds.has(prevLessonId)) {
+            try {
+              await adminCoursesApi.deleteLesson(prevLessonId);
+              console.log('[saveCourse] Deleted removed lesson id=', prevLessonId);
+            } catch (err: any) {
+              errors.push(`Không xoá được bài cũ ${prevLesson.title}: ${err?.response?.data?.message || err.message}`);
+            }
+            continue;
+          }
+
+          const currentLesson = currentSection.lessons.find((lesson) => lesson.id === prevLessonId);
+          if (!currentLesson) continue;
+
+          const currentAssignmentIds = new Set(currentLesson.assignments.map((assignment) => assignment.id).filter(Boolean));
+          for (const prevAssignment of prevLesson.assignments) {
+            const prevAssignmentId = prevAssignment.id;
+            if (!prevAssignmentId) continue;
+            if (!currentAssignmentIds.has(prevAssignmentId)) {
+              try {
+                await adminCoursesApi.deleteAssignment(prevAssignmentId);
+                console.log('[saveCourse] Deleted removed assignment id=', prevAssignmentId);
+              } catch (err: any) {
+                errors.push(`Không xoá được bài tập cũ ${prevAssignment.title}: ${err?.response?.data?.message || err.message}`);
+              }
+            }
+          }
+        }
+      }
+
       const newSections: SectionFormState[] = [];
-      const newSectionIds: (number | undefined)[] = [];
 
       for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
         const section = sections[sectionIndex];
-        let sectionId = section.id;
         let savedSectionId: number | undefined;
 
         try {
-          if (sectionId) {
-            const r = await adminCoursesApi.updateSection(sectionId, {
+          if (section.id) {
+            const r = await adminCoursesApi.updateSection(section.id, {
               title: section.title,
               description: section.description,
               sortOrder: sectionIndex,
@@ -487,13 +538,14 @@ export default function AdminAcademyPage() {
             savedSectionId = r.data.data?.id;
           }
 
-          if (!savedSectionId) { errors.push(`Chương ${sectionIndex + 1}: không tạo được ID`); continue; }
+          if (!savedSectionId) {
+            errors.push(`Chương ${sectionIndex + 1}: không tạo được ID`);
+            continue;
+          }
           console.log(`[saveCourse] Section ${sectionIndex} saved, id=`, savedSectionId);
-          newSectionIds.push(savedSectionId);
         } catch (err: any) {
           console.error(`[saveCourse] Section ${sectionIndex} failed:`, err?.response?.data);
           errors.push(`Chương ${sectionIndex + 1}: ${err?.response?.data?.message || err.message}`);
-          newSectionIds.push(undefined);
           continue;
         }
 
@@ -523,7 +575,7 @@ export default function AdminAcademyPage() {
               lessonId = r.data.data?.id;
             } else {
               const r = await adminCoursesApi.createLesson({
-                sectionId: savedSectionId!,
+                sectionId: savedSectionId,
                 title: lesson.title,
                 slug: lesson.slug,
                 description: lesson.description,
@@ -542,10 +594,13 @@ export default function AdminAcademyPage() {
               lessonId = r.data.data?.id;
             }
 
-            if (!lessonId) { errors.push(`Bài ${lessonIndex + 1} (${lesson.title || 'không tên'}): không tạo được ID`); continue; }
+            if (!lessonId) {
+              errors.push(`Bài ${lessonIndex + 1} (${lesson.title || 'không tên'}): không tạo được ID`);
+              continue;
+            }
             console.log(`[saveCourse] Lesson ${lessonIndex} saved, id=`, lessonId);
-            newLessons.push({ ...lesson, id: lessonId, sortOrder: lessonIndex });
 
+            const newAssignments: Assignment[] = [];
             for (let assignmentIndex = 0; assignmentIndex < lesson.assignments.length; assignmentIndex++) {
               const assignment = lesson.assignments[assignmentIndex];
               const assignmentPayload = {
@@ -558,23 +613,34 @@ export default function AdminAcademyPage() {
                 maxScore: assignment.maxScore,
               };
               try {
-                if (assignment.id && typeof assignment.id === 'number') {
-                  await adminCoursesApi.updateAssignment(assignment.id as number, assignmentPayload);
+                let savedAssignment = assignment;
+                if (assignment.id) {
+                  const res = await adminCoursesApi.updateAssignment(assignment.id, assignmentPayload);
+                  savedAssignment = res.data.data || assignment;
                 } else {
-                  await adminCoursesApi.createAssignment(assignmentPayload);
+                  const res = await adminCoursesApi.createAssignment(assignmentPayload);
+                  savedAssignment = res.data.data || assignment;
                 }
+                newAssignments.push({
+                  ...assignment,
+                  id: savedAssignment.id,
+                  lessonId: savedAssignment.lessonId ?? lessonId,
+                  sortOrder: savedAssignment.sortOrder ?? assignmentIndex,
+                });
               } catch (err: any) {
                 errors.push(`Bài tập ${assignmentIndex + 1} (${assignment.title}): ${err?.response?.data?.message || err.message}`);
               }
             }
+
+            newLessons.push({ ...lesson, id: lessonId, sortOrder: lessonIndex, assignments: newAssignments });
           } catch (err: any) {
             console.error(`[saveCourse] Lesson ${lessonIndex} failed:`, err?.response?.data);
-            const errMsg = err?.response?.data?.message || err?.response?.data?.data ? JSON.stringify(err?.response?.data?.data) : err.message;
+            const errMsg = err?.response?.data?.message || (err?.response?.data?.data ? JSON.stringify(err?.response?.data?.data) : err.message);
             errors.push(`Bài ${lessonIndex + 1} (${lesson.title || 'không tên'}): ${errMsg}`);
           }
         }
 
-        newSections.push({ ...section, id: savedSectionId, lessons: newLessons });
+        newSections.push({ ...section, id: savedSectionId, sortOrder: sectionIndex, lessons: newLessons });
       }
 
       if (errors.length > 0) {
@@ -583,7 +649,6 @@ export default function AdminAcademyPage() {
         toast.success('Đã lưu chương trình học');
       }
 
-      // Update local state with real DB IDs so form always shows fresh data
       setCourseForm((prev) => ({ ...prev, id: courseId }));
       setSections(newSections);
       setExpandedSections(newSections.map((_, i) => i));
@@ -651,7 +716,6 @@ export default function AdminAcademyPage() {
             ? {
                 ...lesson,
                 assignments: [...lesson.assignments, {
-                  id: Date.now(),
                   title: '',
                   instructions: '',
                   deadline: '',

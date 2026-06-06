@@ -61,8 +61,9 @@ public class EnrollmentController {
             @AuthenticationPrincipal UserPrincipal user,
             @PathVariable Long courseId,
             @PathVariable Long lessonId) {
+        Long userId = user != null ? user.getId() : null;
         return ResponseEntity.ok(ApiResponse.ok("OK",
-            enrollmentService.getLessonForLearning(user.getId(), courseId, lessonId)));
+            enrollmentService.getLessonForLearning(userId, courseId, lessonId)));
     }
 
     @GetMapping("/{courseId}/progress")
@@ -70,7 +71,11 @@ public class EnrollmentController {
     public ResponseEntity<ApiResponse<List<LessonProgressDto>>> getProgress(
             @AuthenticationPrincipal UserPrincipal user,
             @PathVariable Long courseId) {
-        return ResponseEntity.ok(ApiResponse.ok("OK", enrollmentService.getLessonProgress(user.getId(), courseId)));
+        Long userId = user != null ? user.getId() : null;
+        if (userId == null) {
+            return ResponseEntity.ok(ApiResponse.ok("OK", List.of()));
+        }
+        return ResponseEntity.ok(ApiResponse.ok("OK", enrollmentService.getLessonProgress(userId, courseId)));
     }
 
     @PostMapping("/{courseId}/progress")
@@ -79,6 +84,9 @@ public class EnrollmentController {
             @AuthenticationPrincipal UserPrincipal user,
             @PathVariable Long courseId,
             @Valid @RequestBody LessonProgressRequest request) {
+        if (user == null) {
+            throw new RuntimeException("Vui long dang nhap de cap nhat tien do hoc tap");
+        }
         return ResponseEntity.ok(ApiResponse.ok("OK",
             enrollmentService.updateProgress(user.getId(), courseId, request)));
     }

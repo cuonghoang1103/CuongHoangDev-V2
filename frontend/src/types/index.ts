@@ -288,7 +288,7 @@ export interface SubmissionWithUser {
 }
 
 export interface Assignment {
-  id: number;
+  id?: number;
   lessonId?: number;
   title: string;
   instructions?: string;
