@@ -1,5 +1,7 @@
 package com.cuonghoangdev.api_backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -12,6 +14,7 @@ import java.util.Set;
 @Entity
 @Table(name = "users")
 @EntityListeners(AuditingEntityListener.class)
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class User {
 
     @Id
@@ -21,6 +24,7 @@ public class User {
     @Column(name = "username", nullable = false, unique = true, length = 50)
     private String username;
 
+    @JsonIgnore
     @Column(name = "password", nullable = false, length = 255)
     private String password;
 

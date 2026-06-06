@@ -1,5 +1,6 @@
 package com.cuonghoangdev.api_backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.jpa.domain.support.AuditingEntityListener;
@@ -9,6 +10,7 @@ import java.time.LocalDateTime;
 @Entity
 @Table(name = "comments")
 @EntityListeners(AuditingEntityListener.class)
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class BlogComment {
 
     @Id
@@ -17,6 +19,7 @@ public class BlogComment {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "post_id", nullable = false)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "tags", "comments", "category", "author"})
     private Post post;
 
     @Column(name = "user_name", nullable = false, length = 100)

@@ -1,5 +1,6 @@
 package com.cuonghoangdev.api_backend.entity;
 
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import jakarta.persistence.*;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
@@ -14,6 +15,7 @@ import java.util.Set;
 @Entity
 @Table(name = "posts")
 @EntityListeners(AuditingEntityListener.class)
+@JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
 public class Post {
 
     @Id
@@ -69,6 +71,7 @@ public class Post {
             joinColumns = @JoinColumn(name = "post_id"),
             inverseJoinColumns = @JoinColumn(name = "tag_id")
     )
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "posts"})
     private Set<Tag> tags = new HashSet<>();
 
     // ── Dev Sharing & Source Code Hub ──────────────────────────────────────────
@@ -79,6 +82,7 @@ public class Post {
     private Integer downloadCount = 0;
 
     @OneToMany(mappedBy = "post", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    @JsonIgnoreProperties({"hibernateLazyInitializer", "handler", "post"})
     private List<BlogComment> comments = new ArrayList<>();
 
     public Post() {
