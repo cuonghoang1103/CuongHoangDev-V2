@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ShoppingCart, Eye, Flame, Sparkles, Package, TrendingUp, AlertCircle, Zap, ShieldCheck, FileCode, HardDrive, License } from 'lucide-react';
+import { ShoppingCart, Eye, Flame, Sparkles, Package, TrendingUp, AlertCircle, Zap, ShieldCheck, FileCode, HardDrive, Tag } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 import type { Product } from '@/types';
@@ -137,7 +137,7 @@ function MicroFilePreview({ product, meta, isSpotlight }: { product: Product; me
             ~{meta.sizeKb}KB
           </span>
           <span className="flex items-center gap-0.5 shrink-0" style={{ color: '#94a3b8' }}>
-            <License className="w-3 h-3" />
+            <Tag className="w-3 h-3" />
             {meta.license}
           </span>
         </div>
