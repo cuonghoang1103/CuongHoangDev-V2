@@ -1,12 +1,10 @@
 package com.cuonghoangdev.api_backend.dto;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.time.LocalDateTime;
 import java.util.List;
 
 @JsonIgnoreProperties({"hibernateLazyInitializer", "handler"})
-@JsonTypeInfo(use = JsonTypeInfo.Id.NAME, property = "_type")
 public class PostCardDto {
     private Long id;
     private String title;
