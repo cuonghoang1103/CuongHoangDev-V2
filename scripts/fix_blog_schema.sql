@@ -22,18 +22,40 @@ ALTER TABLE posts ALTER COLUMN download_count SET NOT NULL;
 
 -- Step 2: Create comments table for blog post discussions
 -- Matches BlogComment entity: @Table(name = "comments")
-CREATE TABLE IF NOT EXISTS comments (
-    id           BIGSERIAL PRIMARY KEY,
-    post_id      BIGINT REFERENCES posts(id) ON DELETE CASCADE,
-    user_name    VARCHAR(100) NOT NULL,
-    user_avatar  VARCHAR(255),
-    comment_text TEXT NOT NULL,
-    created_at   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
-);
+-- Note: V29 may have created it with INT post_id; fix to BIGINT for JPA compatibility
+DO $$
+BEGIN
+    -- Drop existing FK/index so we can alter column type safely
+    IF EXISTS (
+        SELECT 1 FROM information_schema.table_constraints
+        WHERE constraint_name = 'comments_post_id_fkey'
+    ) THEN
+        ALTER TABLE comments DROP CONSTRAINT comments_post_id_fkey;
+    END IF;
 
-CREATE INDEX IF NOT EXISTS idx_comments_post_id ON comments(post_id);
+    IF EXISTS (
+        SELECT 1 FROM pg_indexes WHERE indexname = 'idx_comments_post_id'
+    ) THEN
+        DROP INDEX idx_comments_post_id;
+    END IF;
+
+    -- Drop and recreate with correct schema (BIGINT post_id)
+    DROP TABLE IF EXISTS comments;
+
+    CREATE TABLE comments (
+        id           BIGSERIAL PRIMARY KEY,
+        post_id      BIGINT REFERENCES posts(id) ON DELETE CASCADE,
+        user_name    VARCHAR(100) NOT NULL,
+        user_avatar  VARCHAR(255),
+        comment_text TEXT NOT NULL,
+        created_at   TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP
+    );
+
+    CREATE INDEX idx_comments_post_id ON comments(post_id);
+END $$;
 
 -- Step 3: Ensure categories table has updated_at for JPA auditing
+-- (added as NOT NULL with DEFAULT so existing rows get a value)
 ALTER TABLE categories ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP;
 
 -- Step 4: Ensure tags table has updated_at for consistency

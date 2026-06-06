@@ -17,6 +17,6 @@ public interface BlogCommentRepository extends JpaRepository<BlogComment, Long> 
     int countByPostId(Long postId);
 
     @Modifying
-    @Query("UPDATE Post p SET p.downloadCount = p.downloadCount + 1 WHERE p.id = :postId")
+    @Query("UPDATE BlogComment c SET c.post.downloadCount = c.post.downloadCount + 1 WHERE c.post.id = :postId")
     void incrementDownloadCount(@Param("postId") Long postId);
 }
