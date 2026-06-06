@@ -512,23 +512,27 @@ export default function AdminAcademyPage() {
         }
       }
 
-      // Deduplicate sections: if sections array has multiple entries with the same
-      // section.id (e.g. backend returned duplicates from getCourseWithSections),
-      // skip re-saving ones we've already processed in this loop.
+      // Deduplicate sections: skip by id (backend dup rows) or by title (user-added dupes).
+      const seenSectionTitles = new Set<string>();
       const processedSectionIds = new Set<number>();
       const newSections: SectionFormState[] = [];
 
       for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
         const section = sections[sectionIndex];
+        const titleKey = (section.title || '').trim().toLowerCase();
 
-        // Skip if this section.id was already processed in a previous iteration
+        // Skip if already processed by id (backend duplicates)
         if (section.id != null && processedSectionIds.has(section.id)) {
           console.log('[saveCourse] Skipping duplicate section id=', section.id, 'title=', section.title);
           continue;
         }
-        if (section.id != null) {
-          processedSectionIds.add(section.id);
+        // Skip if same title already seen in this run (user added duplicate section)
+        if (titleKey && seenSectionTitles.has(titleKey)) {
+          console.log('[saveCourse] Skipping duplicate section title=', section.title);
+          continue;
         }
+        if (section.id != null) processedSectionIds.add(section.id);
+        if (titleKey) seenSectionTitles.add(titleKey);
 
         let savedSectionId: number | undefined;
 
@@ -564,18 +568,18 @@ export default function AdminAcademyPage() {
         }
 
         const newLessons: LessonFormState[] = [];
-        const processedLessonIds = new Set<number>();
+        // Deduplicate lessons by title: two lessons with same title and id=undefined means
+        // user clicked "add lesson" twice without renaming — skip the duplicate.
+        const seenLessonTitles = new Set<string>();
         for (let lessonIndex = 0; lessonIndex < section.lessons.length; lessonIndex++) {
           const lesson = section.lessons[lessonIndex];
+          const titleKey = (lesson.title || '').trim().toLowerCase();
 
-          // Skip duplicates within the same section
-          if (lesson.id != null && processedLessonIds.has(lesson.id)) {
-            console.log('[saveCourse] Skipping duplicate lesson id=', lesson.id, 'in section', savedSectionId);
+          if (titleKey && seenLessonTitles.has(titleKey)) {
+            console.log('[saveCourse] Skipping duplicate lesson title=', lesson.title, 'in section', savedSectionId);
             continue;
           }
-          if (lesson.id != null) {
-            processedLessonIds.add(lesson.id);
-          }
+          seenLessonTitles.add(titleKey);
 
           let lessonId = lesson.id;
 
