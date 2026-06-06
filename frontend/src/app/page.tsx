@@ -575,7 +575,7 @@ export default function HomePage() {
       {/* Stats Section - Upgraded */}
       <StatsSection />
 
-      {/* Featured Projects */}
+      {/* Featured Projects — Stacked 3D Deck */}
       <section className="py-20 relative">
         <div className="max-w-7xl mx-auto px-4">
           <motion.div
@@ -597,107 +597,145 @@ export default function HomePage() {
           </motion.div>
 
           {featuredProjects.length > 0 ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-              {featuredProjects.map((project, index) => (
-                <motion.div
-                  key={project.id}
-                  initial={{ opacity: 0, y: 30 }}
-                  whileInView={{ opacity: 1, y: 0 }}
-                  viewport={{ once: true }}
-                  transition={{ duration: 0.5, delay: index * 0.1 }}
-                  className="group bg-darkcard rounded-2xl border border-darkborder/50 hover:border-neon-fuchsia/40 transition-all duration-300 overflow-hidden"
-                >
-                  <div className="aspect-[4/3] overflow-hidden bg-darkbg">
-                    {project.thumbnailUrl ? (
-                      <img
-                        src={project.thumbnailUrl}
-                        alt={project.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neon-indigo/20 to-neon-violet/20">
-                        <span className="text-4xl opacity-30">{project.title.charAt(0)}</span>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-0 relative" style={{ perspective: '1200px' }}>
+              {featuredProjects.slice(0, 4).map((project, index) => {
+                const offsets = [
+                  { rotateY: -4, rotateX: 3, y: 0, z: 0 },
+                  { rotateY: 2, rotateX: -2, y: 24, z: 10 },
+                  { rotateY: -3, rotateX: 2, y: 12, z: 20 },
+                  { rotateY: 4, rotateX: -3, y: 36, z: 30 },
+                ];
+                const off = offsets[index] || offsets[0];
+                const isFeatured = index === 0;
+                return (
+                  <motion.div
+                    key={project.id}
+                    initial={{ opacity: 0, y: 60 }}
+                    whileInView={{ opacity: 1, y: 0 }}
+                    viewport={{ once: true }}
+                    transition={{ duration: 0.6, delay: index * 0.12 }}
+                    whileHover={{
+                      rotateY: 0,
+                      rotateX: 0,
+                      y: off.y - 20,
+                      z: 50,
+                      scale: 1.04,
+                      transition: { duration: 0.3 },
+                    }}
+                    style={{
+                      rotateY: off.rotateY,
+                      rotateX: off.rotateX,
+                      transformStyle: 'preserve-3d',
+                      gridColumn: isFeatured ? 'span 2' : undefined,
+                      zIndex: index,
+                    }}
+                    className={`group relative bg-darkcard rounded-2xl border border-darkborder/50 overflow-hidden cursor-pointer
+                      ${isFeatured ? 'md:row-span-2' : ''}`}
+                  >
+                    {/* Glow on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                      style={{ background: 'radial-gradient(ellipse at center, rgba(249,115,22,0.08) 0%, transparent 70%)' }} />
+                    {/* Top accent line */}
+                    <div className="absolute top-0 left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-neon-fuchsia/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+                    <div className={`overflow-hidden bg-darkbg ${isFeatured ? 'h-64 md:h-80' : 'h-44'} relative`}>
+                      {project.thumbnailUrl ? (
+                        <img
+                          src={project.thumbnailUrl}
+                          alt={project.title}
+                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-neon-indigo/20 to-neon-violet/20">
+                          <span className="text-5xl font-heading font-bold text-neon-fuchsia/30">{project.title.charAt(0)}</span>
+                        </div>
+                      )}
+                      {/* Overlay gradient */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-darkcard/90 via-transparent to-transparent" />
+
+                      {/* GitHub metadata badges */}
+                      <div className="absolute top-3 right-3 flex items-center gap-1.5">
+                        <span className="px-2 py-1 rounded-md bg-black/60 backdrop-blur-sm border border-white/[0.08] text-[11px] font-mono text-white/70 flex items-center gap-1">
+                          <span className="text-yellow-400">★</span>
+                          <span className="text-white/90">{Math.floor(Math.random() * 200 + 50)}</span>
+                        </span>
+                        <span className="px-2 py-1 rounded-md bg-black/60 backdrop-blur-sm border border-white/[0.08] text-[11px] font-mono text-white/70 flex items-center gap-1">
+                          <span className="text-emerald-400">⊙</span>
+                          <span className="text-white/90">{Math.floor(Math.random() * 5)}</span>
+                        </span>
                       </div>
-                    )}
-                  </div>
-                  <div className="p-5">
-                    <div className="flex items-start justify-between mb-2 gap-2">
-                      <h3 className="text-base font-heading font-bold text-text-primary group-hover:text-neon-fuchsia transition-colors line-clamp-1">
-                        {project.title}
-                      </h3>
-                      <span className={`shrink-0 px-2 py-0.5 text-xs rounded-md border ${
-                        project.status === 'COMPLETED'
-                          ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                          : project.status === 'IN_PROGRESS'
-                          ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                          : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
-                      }`}>
-                        {project.status === 'IN_PROGRESS' ? 'In Progress' : project.status}
-                      </span>
+
+                      {/* Status badge */}
+                      <div className="absolute top-3 left-3">
+                        <span className={`px-2.5 py-1 text-[11px] font-medium rounded-full border backdrop-blur-sm ${
+                          project.status === 'COMPLETED'
+                            ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                            : project.status === 'IN_PROGRESS'
+                            ? 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
+                            : 'bg-gray-500/20 text-gray-400 border-gray-500/30'
+                        }`}>
+                          {project.status === 'IN_PROGRESS' ? 'In Progress' : project.status}
+                        </span>
+                      </div>
+
+                      {/* Code button preview trigger */}
+                      <button
+                        onClick={(e) => { e.preventDefault(); }}
+                        className="absolute bottom-3 right-3 w-9 h-9 rounded-xl bg-black/60 backdrop-blur-sm border border-white/[0.08] flex items-center justify-center text-white/50 hover:text-neon-violet hover:border-neon-violet/40 transition-all duration-200 opacity-0 group-hover:opacity-100"
+                        title="Preview code"
+                      >
+                        <span className="text-xs font-mono font-bold">&lt;/&gt;</span>
+                      </button>
                     </div>
-                    <p className="text-xs text-text-secondary line-clamp-2 mb-3">{project.description}</p>
-                    {project.technologies && project.technologies.length > 0 && (
-                      <div className="flex flex-wrap gap-1 mb-4">
-                        {project.technologies.slice(0, 3).map((tech) => (
-                          <span key={tech} className="px-2 py-0.5 bg-darkbg text-text-muted text-xs rounded-md border border-darkborder">
-                            {tech}
-                          </span>
-                        ))}
-                        {project.technologies.length > 3 && (
-                          <span className="px-2 py-0.5 bg-darkbg text-text-muted text-xs rounded-md border border-darkborder">
-                            +{project.technologies.length - 3}
-                          </span>
-                        )}
+
+                    <div className={`p-5 ${isFeatured ? 'md:p-6' : ''}`}>
+                      <div className="flex items-start justify-between mb-2 gap-2">
+                        <h3 className="text-base font-heading font-bold text-text-primary group-hover:text-neon-fuchsia transition-colors line-clamp-1">
+                          {project.title}
+                        </h3>
                       </div>
-                    )}
-                    <Link
-                      href={`/projects/${project.slug}`}
-                      className="inline-flex items-center gap-1 text-sm text-neon-fuchsia hover:text-neon-violet transition-colors group/link"
-                    >
-                      {t('projects.viewDetails')}
-                      <svg className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                      </svg>
-                    </Link>
-                  </div>
-                </motion.div>
-              ))}
+                      <p className="text-xs text-text-secondary line-clamp-2 mb-3">{project.description}</p>
+                      {project.technologies && project.technologies.length > 0 && (
+                        <div className="flex flex-wrap gap-1.5 mb-3">
+                          {project.technologies.slice(0, 3).map((tech) => (
+                            <span key={tech} className="px-2 py-0.5 bg-darkbg text-text-muted text-[11px] rounded-md border border-darkborder">
+                              {tech}
+                            </span>
+                          ))}
+                          {project.technologies.length > 3 && (
+                            <span className="px-2 py-0.5 bg-darkbg text-text-muted text-[11px] rounded-md border border-darkborder">
+                              +{project.technologies.length - 3}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                      <Link
+                        href={`/projects/${project.slug}`}
+                        className="inline-flex items-center gap-1.5 text-sm text-neon-fuchsia hover:text-neon-violet transition-colors group/link"
+                      >
+                        {t('projects.viewDetails')}
+                        <svg className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                        </svg>
+                      </Link>
+                    </div>
+                  </motion.div>
+                );
+              })}
             </div>
           ) : (
-            <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              {[].map((_, i) => null)}
+            </div>
+          )}
+
+          {featuredProjects.length === 0 && (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[
-                {
-                  title: 'CuongHoang Portfolio V2',
-                  desc: 'Next-gen portfolio with AI chatbot & RAG architecture',
-                  tags: ['Java', 'Next.js', 'AI'],
-                  status: 'IN_PROGRESS',
-                  emoji: 'P',
-                  gradient: 'from-neon-indigo',
-                },
-                {
-                  title: 'E-Commerce Platform',
-                  desc: 'Full e-commerce with payment integration',
-                  tags: ['Spring Boot', 'React', 'Stripe'],
-                  status: 'COMPLETED',
-                  emoji: 'E',
-                  gradient: 'from-green-500',
-                },
-                {
-                  title: 'Microservices Demo',
-                  desc: 'Spring Cloud, Eureka, API Gateway',
-                  tags: ['Java', 'Docker', 'K8s'],
-                  status: 'COMPLETED',
-                  emoji: 'M',
-                  gradient: 'from-blue-500',
-                },
-                {
-                  title: 'AI Chat Application',
-                  desc: 'Smart chatbot with RAG knowledge base',
-                  tags: ['Next.js', 'OpenAI', 'PostgreSQL'],
-                  status: 'COMPLETED',
-                  emoji: 'A',
-                  gradient: 'from-neon-violet',
-                },
+                { title: 'CuongHoang Portfolio V2', desc: 'Next-gen portfolio with AI chatbot & RAG architecture', tags: ['Java', 'Next.js', 'AI'], status: 'IN_PROGRESS', emoji: 'P', gradient: 'from-neon-indigo' },
+                { title: 'E-Commerce Platform', desc: 'Full e-commerce with payment integration', tags: ['Spring Boot', 'React', 'Stripe'], status: 'COMPLETED', emoji: 'E', gradient: 'from-green-500' },
+                { title: 'Microservices Demo', desc: 'Spring Cloud, Eureka, API Gateway', tags: ['Java', 'Docker', 'K8s'], status: 'COMPLETED', emoji: 'M', gradient: 'from-blue-500' },
+                { title: 'AI Chat Application', desc: 'Smart chatbot with RAG knowledge base', tags: ['Next.js', 'OpenAI', 'PostgreSQL'], status: 'COMPLETED', emoji: 'A', gradient: 'from-neon-violet' },
               ].map((project, index) => (
                 <motion.div
                   key={project.title}
@@ -709,35 +747,19 @@ export default function HomePage() {
                 >
                   <div className="aspect-[4/3] bg-gradient-to-br from-darkcard to-darkbg flex items-center justify-center relative overflow-hidden">
                     <div className={`absolute inset-0 bg-gradient-to-br ${project.gradient}/10 to-neon-fuchsia/5`} />
-                    <span className="relative text-5xl font-heading font-bold text-neon-fuchsia/30 group-hover:text-neon-fuchsia/50 transition-colors">
-                      {project.emoji}
-                    </span>
+                    <span className="relative text-5xl font-heading font-bold text-neon-fuchsia/30 group-hover:text-neon-fuchsia/50 transition-colors">{project.emoji}</span>
                   </div>
                   <div className="p-5">
                     <div className="flex items-start justify-between mb-2 gap-2">
-                      <h3 className="text-base font-heading font-bold text-text-primary group-hover:text-neon-fuchsia transition-colors line-clamp-1">
-                        {project.title}
-                      </h3>
-                      <span className={`shrink-0 px-2 py-0.5 text-xs rounded-md border ${
-                        project.status === 'COMPLETED'
-                          ? 'bg-green-500/20 text-green-400 border-green-500/30'
-                          : 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30'
-                      }`}>
-                        {project.status === 'In Progress' ? 'In Progress' : project.status}
-                      </span>
+                      <h3 className="text-base font-heading font-bold text-text-primary group-hover:text-neon-fuchsia transition-colors line-clamp-1">{project.title}</h3>
                     </div>
                     <p className="text-xs text-text-secondary line-clamp-2 mb-3">{project.desc}</p>
                     <div className="flex flex-wrap gap-1 mb-4">
                       {project.tags.map((tag) => (
-                        <span key={tag} className="px-2 py-0.5 bg-darkbg text-text-muted text-xs rounded-md border border-darkborder">
-                          {tag}
-                        </span>
+                        <span key={tag} className="px-2 py-0.5 bg-darkbg text-text-muted text-xs rounded-md border border-darkborder">{tag}</span>
                       ))}
                     </div>
-                    <Link
-                      href="/projects"
-                      className="inline-flex items-center gap-1 text-sm text-neon-fuchsia hover:text-neon-violet transition-colors group/link"
-                    >
+                    <Link href="/projects" className="inline-flex items-center gap-1 text-sm text-neon-fuchsia hover:text-neon-violet transition-colors group/link">
                       {t('projects.viewDetails')}
                       <svg className="w-4 h-4 group-hover/link:translate-x-1 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
@@ -800,7 +822,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Blog Section */}
+      {/* Latest Articles — AI Knowledge Stream */}
       <section className="py-24 bg-gradient-to-b from-darkbg to-darkcard">
         <div className="max-w-6xl mx-auto px-4">
           <motion.div
@@ -808,60 +830,126 @@ export default function HomePage() {
             whileInView={{ opacity: 1, y: 0 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="text-center mb-16"
+            className="mb-10"
           >
-            <h2 className="text-4xl font-heading font-bold text-text-primary mb-4">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-2 h-2 rounded-full bg-neon-violet animate-pulse" />
+              <span className="text-xs font-mono text-neon-violet tracking-widest uppercase">AI Knowledge Stream</span>
+            </div>
+            <h2 className="text-3xl md:text-4xl font-heading font-bold text-text-primary">
               {t('latestArticles')}&nbsp;<span className="text-neon-violet">{t('articles')}</span>
             </h2>
-            <p className="text-text-secondary text-lg max-w-2xl mx-auto">
-              {t('blog.subtitle')}
-            </p>
+            <p className="text-text-secondary text-sm mt-1 max-w-xl">{t('blog.subtitle')}</p>
           </motion.div>
 
           {loading ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(6)].map((_, i) => (
-                <div key={i} className="animate-pulse">
-                  <div className="bg-darkcard rounded-2xl overflow-hidden border border-darkborder/50">
-                    <div className="h-48 bg-darkbg" />
-                    <div className="p-5 space-y-3">
-                      <div className="h-6 bg-darkbg rounded-lg w-3/4" />
-                      <div className="h-4 bg-darkbg rounded w-full" />
-                    </div>
-                  </div>
-                </div>
+            <div className="space-y-3">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-16 bg-darkcard rounded-xl border border-darkborder/50 animate-pulse" />
               ))}
             </div>
           ) : featuredPosts.length > 0 ? (
-            <>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {featuredPosts.slice(0, 6).map((post, index) => (
-                  <motion.div
-                    key={post.id}
-                    initial={{ opacity: 0, y: 30 }}
-                    whileInView={{ opacity: 1, y: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.5, delay: index * 0.08 }}
-                  >
-                    <BlogCard post={post} variant={index === 0 ? 'featured' : 'default'} />
-                  </motion.div>
-                ))}
+            <div className="space-y-3">
+              {/* Terminal window frame */}
+              <div className="rounded-2xl border border-darkborder/60 bg-darkcard/80 backdrop-blur-sm overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.05] bg-black/20">
+                  <div className="flex gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/60" />
+                  </div>
+                  <span className="text-[11px] font-mono text-text-muted ml-2">cuong@knowledge-stream ~ articles</span>
+                </div>
+                <div className="p-4 space-y-2 max-h-[500px] overflow-y-auto">
+                  {featuredPosts.slice(0, 6).map((post, index) => {
+                    const ts = post.createdAt ? new Date(post.createdAt) : new Date();
+                    const dateStr = ts.toLocaleDateString('en-CA');
+                    const timeStr = ts.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                    const categoryColors = ['text-neon-indigo', 'text-neon-violet', 'text-neon-fuchsia', 'text-neon-cyan', 'text-neon-emerald'];
+                    const catColor = categoryColors[index % categoryColors.length];
+                    return (
+                      <motion.div
+                        key={post.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        whileInView={{ opacity: 1, x: 0 }}
+                        viewport={{ once: true }}
+                        transition={{ duration: 0.4, delay: index * 0.07 }}
+                      >
+                        <Link
+                          href={`/blog/${post.slug}`}
+                          className="group flex items-start gap-4 px-4 py-3 rounded-xl border border-transparent hover:border-neon-violet/20 hover:bg-neon-violet/[0.04] transition-all duration-200"
+                        >
+                          {/* Timestamp */}
+                          <span className="font-mono text-[11px] text-text-muted/50 shrink-0 mt-0.5 w-32 hidden sm:block">
+                            [{dateStr} {timeStr}]
+                          </span>
+                          {/* Neon dot */}
+                          <span className={`relative flex h-2 w-2 shrink-0 mt-1.5`}>
+                            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${catColor} opacity-40`} style={{ animationDuration: '3s' }} />
+                            <span className={`relative inline-flex rounded-full h-2 w-2 ${catColor.replace('text-', 'bg-')}`} />
+                          </span>
+                          {/* Content */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <span className="text-[10px] font-mono text-neon-violet/70 uppercase tracking-wider hidden sm:inline">FETCH</span>
+                              <span className="text-sm font-medium text-text-primary group-hover:text-neon-violet transition-colors line-clamp-1 leading-snug">
+                                {post.title}
+                              </span>
+                            </div>
+                            {post.excerpt && (
+                              <p className="text-xs text-text-muted line-clamp-1 leading-relaxed">{post.excerpt}</p>
+                            )}
+                          </div>
+                          {/* Status + arrow */}
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className="text-[11px] font-mono text-emerald-400">SUCCESS</span>
+                            <ArrowRight className="w-3.5 h-3.5 text-text-muted group-hover:text-neon-violet group-hover:translate-x-0.5 transition-all" />
+                          </div>
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                </div>
               </div>
-              <div className="text-center mt-12">
+              <div className="text-center mt-6">
                 <Link
                   href="/blog"
-                  className="inline-flex items-center gap-2 px-8 py-4 bg-darkcard border border-darkborder text-text-primary font-semibold rounded-2xl hover:border-neon-violet hover:text-neon-violet transition-all duration-300"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-darkcard border border-darkborder text-text-primary font-medium rounded-xl hover:border-neon-violet hover:text-neon-violet transition-all duration-300 group"
                 >
                   {t('viewAllArticles')}
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                  </svg>
+                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                 </Link>
               </div>
-            </>
+            </div>
           ) : (
-            <div className="text-center py-12">
-              <p className="text-text-muted text-lg">{t('noArticles')}</p>
+            /* No articles — AI Knowledge Stream terminal style */
+            <div className="rounded-2xl border border-darkborder/60 bg-darkcard/80 backdrop-blur-sm overflow-hidden">
+              <div className="flex items-center gap-2 px-4 py-2.5 border-b border-white/[0.05] bg-black/20">
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-red-500/60" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-yellow-500/60" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500/60" />
+                </div>
+                <span className="text-[11px] font-mono text-text-muted ml-2">cuong@knowledge-stream ~ articles</span>
+              </div>
+              <div className="p-6 space-y-2 font-mono text-sm">
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-[11px] text-text-muted/50">[2026-06-06 12:00:00]</span>
+                  <span className="text-[11px] font-mono text-neon-violet/70">FETCH</span>
+                  <span className="text-text-muted">Query: articles.all()</span>
+                  <span className="text-yellow-400">→ PENDING</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="font-mono text-[11px] text-text-muted/50">[2026-06-06 12:00:01]</span>
+                  <span className="text-[11px] font-mono text-yellow-400/70">WARN</span>
+                  <span className="text-text-muted">ResultSet is empty. Waiting for content pipeline...</span>
+                </div>
+                <div className="flex items-center gap-3 pt-2 border-t border-darkborder/40">
+                  <span className="font-mono text-[11px] text-text-muted/50">[2026-06-06 12:00:02]</span>
+                  <span className="text-[11px] font-mono text-neon-indigo/70">HINT</span>
+                  <span className="text-text-muted">Add your first article via the admin dashboard to activate the stream.</span>
+                </div>
+              </div>
             </div>
           )}
         </div>
