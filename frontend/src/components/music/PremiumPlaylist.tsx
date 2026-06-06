@@ -17,10 +17,12 @@ interface PremiumPlaylistProps {
 }
 
 export default function PremiumPlaylist({ isNight = true }: PremiumPlaylistProps) {
-  const { tracks, currentTrack, isPlaying, playTrackAtIndex, currentIndex } = useMusicStore();
+  const { tracks, currentTrack, isPlaying, playTrackAtIndex, currentIndex, allTracks, setAllTracks, restoreAllTracks } = useMusicStore();
   const [search, setSearch] = useState('');
   const [isLoading] = useState(false);
   const [activeTab, setActiveTab] = useState<'tracks' | 'playlists'>('tracks');
+  // Track if we're currently showing a playlist's track list
+  const [showingPlaylistId, setShowingPlaylistId] = useState<string | null>(null);
 
   // Playlist state
   const { playlists, fetchPlaylists, createPlaylist, playPlaylist } = usePlaylistStore();
@@ -171,17 +173,23 @@ export default function PremiumPlaylist({ isNight = true }: PremiumPlaylistProps
               Music
             </span>
             <h2 className="text-base font-bold truncate mt-0.5" style={{ color: c.text }}>
-              {activeTab === 'tracks' ? 'All Tracks' : 'My Playlists'}
+              {activeTab === 'playlists'
+                ? 'My Playlists'
+                : showingPlaylistId
+                ? playlists.find((p) => p.id === showingPlaylistId)?.name || 'Playlist'
+                : 'All Tracks'}
             </h2>
             <p className="text-[11px] truncate" style={{ color: c.textMuted }}>
               {activeTab === 'tracks'
-                ? `with Cuong Hoang \u2022 ${tracks.length} tracks \u2022 ${formatTotal(totalDuration)}`
+                ? showingPlaylistId
+                  ? `${tracks.length} tracks`
+                  : `All tracks \u2022 ${allTracks.length} \u2022 ${formatTotal(totalDuration)}`
                 : `${playlists.length} playlist${playlists.length !== 1 ? 's' : ''}`}
             </p>
           </div>
         </div>
 
-        {/* Tabs + Play All in one row */}
+        {/* Tabs + All Tracks + Play All in one row */}
         <div className="flex items-center gap-2 mb-4">
           {/* Tab buttons */}
           <div
@@ -214,14 +222,36 @@ export default function PremiumPlaylist({ isNight = true }: PremiumPlaylistProps
             ))}
           </div>
 
-          {/* Play All — only when tracks tab active */}
-          {activeTab === 'tracks' && (
+          {/* All Tracks pill — only when showing a playlist */}
+          {showingPlaylistId && activeTab === 'tracks' && (
+            <motion.button
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.9 }}
+              whileTap={{ scale: 0.97 }}
+              onClick={() => {
+                restoreAllTracks();
+                setShowingPlaylistId(null);
+              }}
+              className="py-2 px-3 rounded-xl text-xs font-medium flex items-center gap-1.5 shrink-0"
+              style={{
+                background: `${c.tertiary}20`,
+                border: `1px solid ${c.tertiary}40`,
+                color: c.tertiary,
+              }}
+            >
+              <ListMusic className="w-3 h-3" />
+              All Tracks
+            </motion.button>
+          )}
+
+          {/* Play All — always available */}
+          {activeTab === 'tracks' && tracks.length > 0 && (
             <motion.button
               whileHover={{ scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => tracks[0] && playTrackAtIndex(0)}
-              disabled={tracks.length === 0}
-              className="ml-auto py-2 px-4 rounded-xl font-bold text-xs text-white flex items-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed shrink-0"
+              className="ml-auto py-2 px-4 rounded-xl font-bold text-xs text-white flex items-center gap-2 shrink-0"
               style={{
                 background: `linear-gradient(135deg, ${c.primary}, ${c.secondary})`,
                 boxShadow: `0 0 20px ${c.glow}`,

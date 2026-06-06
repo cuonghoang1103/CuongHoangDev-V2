@@ -172,6 +172,8 @@ export const usePlaylistStore = create<PlaylistState>()((set, get) => ({
     const tracks = playlist.tracks ?? [];
     if (tracks.length === 0) return;
     const store = useMusicStore.getState();
+    // Save current allTracks before switching to playlist
+    store.setAllTracks(store.tracks);
     store.setTracks(tracks);
     store.playTrackAtIndex(0);
     set({ isOpen: false });
