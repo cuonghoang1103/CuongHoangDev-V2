@@ -138,6 +138,38 @@ export interface Post {
   authorId?: number;
   authorName?: string;
   tagNames?: string[];
+  // Dev Sharing & Source Code Hub
+  sourceUrl?: string;
+  downloadCount?: number;
+  commentCount?: number;
+}
+
+export interface BlogComment {
+  id: number;
+  userName: string;
+  userAvatar?: string;
+  commentText: string;
+  createdAt: string;
+}
+
+// PostCard type for listing (no content)
+export interface PostCard {
+  id: number;
+  title: string;
+  slug: string;
+  excerpt?: string;
+  thumbnailUrl?: string;
+  categoryName?: string;
+  categorySlug?: string;
+  authorName?: string;
+  viewCount: number;
+  isFeatured: boolean;
+  publishedAt?: string;
+  createdAt: string;
+  tagNames?: string[];
+  sourceUrl?: string;
+  downloadCount?: number;
+  commentCount?: number;
 }
 
 // AI Chat types

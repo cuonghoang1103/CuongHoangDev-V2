@@ -29,21 +29,17 @@ public class PostController {
     private CategoryService categoryService;
 
     @GetMapping
-    public ResponseEntity<ApiResponse<PageResponse<PostDto>>> getPosts(
+    public ResponseEntity<ApiResponse<PageResponse<PostCardDto>>> getPosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "createdAt") String sort,
             @RequestParam(defaultValue = "desc") String sortDir) {
-
-        // Public endpoint - only return PUBLISHED posts
-        PageResponse<PostDto> result = postService.getPublishedPosts(page, size, null);
-
+        PageResponse<PostCardDto> result = postService.getPublishedPosts(page, size, null);
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
-    // Admin: get all posts (all statuses)
     @GetMapping("/admin/all")
     @PreAuthorize("hasRole('ADMIN') or hasRole('EDITOR')")
     public ResponseEntity<ApiResponse<PageResponse<PostDto>>> getAllPostsAdmin(
@@ -51,28 +47,26 @@ public class PostController {
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String status) {
-
         PageResponse<PostDto> result;
         if ((keyword != null && !keyword.isBlank()) || (status != null && !status.isBlank())) {
             result = postService.searchPostsAdmin(keyword, status, page, size);
         } else {
             result = postService.getAllPostsForAdmin(page, size);
         }
-
         return ResponseEntity.ok(ApiResponse.ok(result));
     }
 
     @GetMapping("/featured")
-    public ResponseEntity<ApiResponse<List<PostDto>>> getFeaturedPosts(
+    public ResponseEntity<ApiResponse<List<PostCardDto>>> getFeaturedPosts(
             @RequestParam(defaultValue = "5") int limit) {
-        List<PostDto> featured = postService.getFeaturedPosts();
+        List<PostCardDto> featured = postService.getFeaturedPosts();
         return ResponseEntity.ok(ApiResponse.ok(featured));
     }
 
     @GetMapping("/popular")
-    public ResponseEntity<ApiResponse<List<PostDto>>> getPopularPosts(
+    public ResponseEntity<ApiResponse<List<PostCardDto>>> getPopularPosts(
             @RequestParam(defaultValue = "5") int limit) {
-        List<PostDto> popular = postService.getPopularPosts(limit);
+        List<PostCardDto> popular = postService.getPopularPosts(limit);
         return ResponseEntity.ok(ApiResponse.ok(popular));
     }
 
@@ -82,11 +76,11 @@ public class PostController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<ApiResponse<PageResponse<PostDto>>> searchPosts(
+    public ResponseEntity<ApiResponse<PageResponse<PostCardDto>>> searchPosts(
             @RequestParam String keyword,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
-        PageResponse<PostDto> results = postService.searchPosts(keyword, null, page, size);
+        PageResponse<PostCardDto> results = postService.searchPosts(keyword, null, page, size);
         return ResponseEntity.ok(ApiResponse.ok(results));
     }
 
@@ -116,13 +110,11 @@ public class PostController {
         return ResponseEntity.ok(ApiResponse.ok("Da xoa bai viet thanh cong", null));
     }
 
-    // Admin: accept AdminPostRequest (uses category name instead of categoryId)
     @PostMapping("/admin")
     @PreAuthorize("hasRole('ADMIN') or hasRole('EDITOR')")
     public ResponseEntity<ApiResponse<PostDto>> createAdminPost(
             @Valid @RequestBody AdminPostRequest request,
             @AuthenticationPrincipal UserPrincipal currentUser) {
-
         CreatePostRequest createRequest = new CreatePostRequest();
         createRequest.setTitle(request.getTitle());
         createRequest.setSlug(slugify(request.getTitle()));
@@ -137,10 +129,6 @@ public class PostController {
             createRequest.setCategoryId(cat != null ? cat.getId() : null);
         }
 
-        if (request.getPublishedAt() != null && !request.getPublishedAt().isBlank()) {
-            // publishedAt is handled by service based on status
-        }
-
         PostDto post = postService.createPost(createRequest, currentUser.getId());
         return ResponseEntity.ok(ApiResponse.ok("Tao bai viet thanh cong", post));
     }
@@ -150,7 +138,6 @@ public class PostController {
     public ResponseEntity<ApiResponse<PostDto>> updateAdminPost(
             @PathVariable Long id,
             @Valid @RequestBody AdminPostRequest request) {
-
         UpdatePostRequest updateRequest = new UpdatePostRequest();
         updateRequest.setTitle(request.getTitle());
         updateRequest.setContent(request.getContent());

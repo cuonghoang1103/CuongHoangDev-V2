@@ -204,7 +204,11 @@ export const blogApi = {
     category?: string;
   }) => api.get('/blog/posts', { params }),
 
-  getPostBySlug: (slug: string) => api.get(`/blog/posts/${slug}`),
+  // Get full post by id (for modal/detail — includes comments)
+  getPostById: (id: number) => api.get(`/blog/posts/${id}`),
+
+  // Get post by slug (for SEO / full page view)
+  getPostBySlug: (slug: string) => api.get(`/blog/posts/by-slug/${slug}`),
 
   getFeatured: () => api.get('/blog/posts/featured'),
 
@@ -219,6 +223,17 @@ export const blogApi = {
   }) => api.get('/blog/posts/search', { params }),
 
   getCategories: () => api.get('/blog/categories'),
+
+  // Download source code — increments counter then returns URL
+  recordDownload: (postId: number) =>
+    api.post(`/blog/posts/${postId}/download`),
+
+  // Add a comment
+  addComment: (postId: number, payload: {
+    userName?: string;
+    userAvatar?: string;
+    commentText: string;
+  }) => api.post(`/blog/posts/${postId}/comments`, payload),
 };
 
 // AI Chat API

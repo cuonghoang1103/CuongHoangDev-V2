@@ -28,7 +28,7 @@ public class BlogController {
     // ==================== PUBLIC ====================
 
     @GetMapping("/posts")
-    public ResponseEntity<ApiResponse<PageResponse<PostDto>>> getPublishedPosts(
+    public ResponseEntity<ApiResponse<PageResponse<PostCardDto>>> getPublishedPosts(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size,
             @RequestParam(required = false) String category) {
@@ -36,31 +36,63 @@ public class BlogController {
     }
 
     @GetMapping("/posts/featured")
-    public ResponseEntity<ApiResponse<List<PostDto>>> getFeaturedPosts() {
+    public ResponseEntity<ApiResponse<List<PostCardDto>>> getFeaturedPosts() {
         return ResponseEntity.ok(ApiResponse.ok(postService.getFeaturedPosts()));
     }
 
     @GetMapping("/posts/popular")
-    public ResponseEntity<ApiResponse<List<PostDto>>> getPopularPosts(
+    public ResponseEntity<ApiResponse<List<PostCardDto>>> getPopularPosts(
             @RequestParam(defaultValue = "5") int limit) {
         return ResponseEntity.ok(ApiResponse.ok(postService.getPopularPosts(limit)));
     }
 
-    @GetMapping("/posts/{slug}")
+    // By slug (for full article view / SEO)
+    @GetMapping("/posts/by-slug/{slug}")
     public ResponseEntity<ApiResponse<PostDto>> getPostBySlug(@PathVariable String slug) {
         PostDto post = postService.getPostBySlug(slug);
         postService.incrementViewCount(slug);
         return ResponseEntity.ok(ApiResponse.ok(post));
     }
 
+    // By id (for modal/detail view)
+    @GetMapping("/posts/{id}")
+    public ResponseEntity<ApiResponse<PostDto>> getPostById(@PathVariable Long id) {
+        return ResponseEntity.ok(ApiResponse.ok(postService.getPostById(id)));
+    }
+
     @GetMapping("/posts/search")
-    public ResponseEntity<ApiResponse<PageResponse<PostDto>>> searchPosts(
+    public ResponseEntity<ApiResponse<PageResponse<PostCardDto>>> searchPosts(
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String category,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int size) {
         return ResponseEntity.ok(ApiResponse.ok(postService.searchPosts(keyword, category, page, size)));
     }
+
+    // Download source code — increments counter then returns URL
+    @PostMapping("/posts/{id}/download")
+    public ResponseEntity<ApiResponse<Map<String, String>>> recordDownload(@PathVariable Long id) {
+        String url = postService.recordDownloadAndGetUrl(id);
+        return ResponseEntity.ok(ApiResponse.ok(Map.of("url", url != null ? url : "")));
+    }
+
+    // Add a comment to a post
+    @PostMapping("/posts/{id}/comments")
+    public ResponseEntity<ApiResponse<PostDto.CommentDto>> addComment(
+            @PathVariable Long id,
+            @RequestBody Map<String, String> body) {
+        String userName = body.get("userName");
+        String userAvatar = body.get("userAvatar");
+        String commentText = body.get("commentText");
+        if (commentText == null || commentText.isBlank()) {
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error("commentText is required"));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(
+                postService.addComment(id, userName, userAvatar, commentText)));
+    }
+
+    // ==================== CATEGORIES ====================
 
     @GetMapping("/categories")
     public ResponseEntity<ApiResponse<List<CategoryDto>>> getAllCategories() {
