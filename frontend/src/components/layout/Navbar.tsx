@@ -10,7 +10,7 @@ import {
   Menu, X, User, LogOut, Settings, ChevronDown,
   BookOpen, Music, Globe, Phone, Mail, Facebook, ShoppingBag, Gamepad2,
   Home, GraduationCap, ShoppingCart, FileText, FolderOpen, MessageCircle,
-  Receipt, LayoutDashboard,
+  Receipt, LayoutDashboard, Terminal,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import LanguageSwitcher from '@/components/LanguageSwitcher';
@@ -32,6 +32,7 @@ const LABELS = {
   home: { vi: 'Trang chủ', en: 'Home' },
   academy: { vi: 'Học viện', en: 'Academy' },
   blog: { vi: 'Blog', en: 'Blog' },
+  devHub: { vi: 'Dev Hub', en: 'Dev Hub' },
   projects: { vi: 'Dự án', en: 'Projects' },
   games: { vi: 'Trò chơi', en: 'Games' },
   music: { vi: 'Nhạc', en: 'Music' },
@@ -187,6 +188,7 @@ export default function Navbar() {
     { href: '/academy', label: t('academy'), icon: GraduationCap },
     { href: '/shop', label: t('shop'), icon: ShoppingCart, iconNode: <img src="/shop-icon.png" alt="Shop" className="w-4 h-4 object-contain" /> },
     { href: '/blog', label: t('blog'), icon: FileText },
+    { href: '/dev-hub', label: t('devHub'), icon: Terminal },
     { href: '/projects', label: t('projects'), icon: FolderOpen },
     { href: '/games', label: t('games'), icon: Gamepad2, iconNode: <img src="/games-icon.png" alt="Games" className="w-4 h-4 object-contain" /> },
     { href: '/music', label: t('music'), icon: Music },
