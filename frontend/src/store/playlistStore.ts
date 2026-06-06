@@ -171,9 +171,12 @@ export const usePlaylistStore = create<PlaylistState>()((set, get) => ({
     const tracks = playlist.tracks ?? [];
     if (tracks.length === 0) return;
     const store = useMusicStore.getState();
-    // Preserve the current full track list (e.g. 50 tracks) before switching to playlist
-    store.setAllTracks(store.tracks);
+    // Capture the current full track list (50 tracks) BEFORE switching
+    const currentAllTracks = store.tracks;
+    // Switch to playlist tracks (4) — savedAllTracks stays intact
     store.setTracks(tracks);
+    // Now save the captured 50 tracks as the "saved" snapshot
+    store.setAllTracks(currentAllTracks);
     store.playTrackAtIndex(0);
     set({ isOpen: false });
   },

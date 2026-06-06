@@ -117,6 +117,7 @@ export const useMusicStore = create<MusicState>()((set, get) => {
 
     setTracks: (tracks) => {
       const p = loadPersisted();
+      const { savedAllTracks } = get();
       const first = tracks[0] || null;
       let restored: Track | null = null;
       let restoredIdx = -1;
@@ -124,11 +125,12 @@ export const useMusicStore = create<MusicState>()((set, get) => {
         const idx = tracks.findIndex((t) => t.id === p.currentTrackId);
         if (idx >= 0) { restored = tracks[idx]; restoredIdx = idx; }
       }
+      // Initialize savedAllTracks on first load (when empty), then preserve across playlist switches
+      const newSaved = savedAllTracks.length === 0 ? tracks : savedAllTracks;
       set({
         tracks,
-        // Save the incoming tracks as the default "all tracks" snapshot
         allTracks: tracks,
-        savedAllTracks: tracks,
+        savedAllTracks: newSaved,
         queue: tracks,
         currentTrack: restored ?? first,
         currentIndex: restoredIdx >= 0 ? restoredIdx : (first ? 0 : -1),
@@ -139,8 +141,8 @@ export const useMusicStore = create<MusicState>()((set, get) => {
 
     setAllTracks: (tracks) => {
       const { currentTrack } = get();
-      // Also update savedAllTracks so restoreAllTracks can recover the original list
-      set({ allTracks: tracks, savedAllTracks: tracks, tracks, queue: tracks, currentTrack });
+      // Only update the snapshot fields — don't overwrite the currently playing tracks
+      set({ allTracks: tracks, savedAllTracks: tracks, queue: tracks, currentTrack });
     },
 
     addTrack: (track) => {
