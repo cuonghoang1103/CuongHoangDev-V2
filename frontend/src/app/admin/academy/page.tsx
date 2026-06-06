@@ -457,12 +457,15 @@ export default function AdminAcademyPage() {
       if (!courseId) throw new Error('Course save failed');
       console.log('[saveCourse] Course saved, id=', courseId);
 
-      // Save sections and lessons independently so one failure doesn't lose all
-      const sectionIdMap: Record<number, number> = {};
+      // Build new sections array with real DB IDs from the server
+      // This is the source of truth after save — no useEffect re-fetch needed
+      const newSections: SectionFormState[] = [];
+      const newSectionIds: (number | undefined)[] = [];
 
       for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
         const section = sections[sectionIndex];
         let sectionId = section.id;
+        let savedSectionId: number | undefined;
 
         try {
           if (sectionId) {
@@ -472,7 +475,7 @@ export default function AdminAcademyPage() {
               sortOrder: sectionIndex,
               isLocked: section.isLocked,
             });
-            sectionId = r.data.data?.id;
+            savedSectionId = r.data.data?.id;
           } else {
             const r = await adminCoursesApi.createSection({
               courseId,
@@ -481,18 +484,20 @@ export default function AdminAcademyPage() {
               sortOrder: sectionIndex,
               isLocked: section.isLocked,
             });
-            sectionId = r.data.data?.id;
+            savedSectionId = r.data.data?.id;
           }
 
-          if (!sectionId) { errors.push(`Chương ${sectionIndex + 1}: không tạo được ID`); continue; }
-          sectionIdMap[sectionIndex] = sectionId;
-          console.log(`[saveCourse] Section ${sectionIndex} saved, id=`, sectionId);
+          if (!savedSectionId) { errors.push(`Chương ${sectionIndex + 1}: không tạo được ID`); continue; }
+          console.log(`[saveCourse] Section ${sectionIndex} saved, id=`, savedSectionId);
+          newSectionIds.push(savedSectionId);
         } catch (err: any) {
           console.error(`[saveCourse] Section ${sectionIndex} failed:`, err?.response?.data);
           errors.push(`Chương ${sectionIndex + 1}: ${err?.response?.data?.message || err.message}`);
+          newSectionIds.push(undefined);
           continue;
         }
 
+        const newLessons: LessonFormState[] = [];
         for (let lessonIndex = 0; lessonIndex < section.lessons.length; lessonIndex++) {
           const lesson = section.lessons[lessonIndex];
           let lessonId = lesson.id;
@@ -518,7 +523,7 @@ export default function AdminAcademyPage() {
               lessonId = r.data.data?.id;
             } else {
               const r = await adminCoursesApi.createLesson({
-                sectionId,
+                sectionId: savedSectionId!,
                 title: lesson.title,
                 slug: lesson.slug,
                 description: lesson.description,
@@ -539,6 +544,7 @@ export default function AdminAcademyPage() {
 
             if (!lessonId) { errors.push(`Bài ${lessonIndex + 1} (${lesson.title || 'không tên'}): không tạo được ID`); continue; }
             console.log(`[saveCourse] Lesson ${lessonIndex} saved, id=`, lessonId);
+            newLessons.push({ ...lesson, id: lessonId, sortOrder: lessonIndex });
 
             for (let assignmentIndex = 0; assignmentIndex < lesson.assignments.length; assignmentIndex++) {
               const assignment = lesson.assignments[assignmentIndex];
@@ -552,8 +558,8 @@ export default function AdminAcademyPage() {
                 maxScore: assignment.maxScore,
               };
               try {
-                if (assignment.id) {
-                  await adminCoursesApi.updateAssignment(assignment.id, assignmentPayload);
+                if (assignment.id && typeof assignment.id === 'number') {
+                  await adminCoursesApi.updateAssignment(assignment.id as number, assignmentPayload);
                 } else {
                   await adminCoursesApi.createAssignment(assignmentPayload);
                 }
@@ -567,24 +573,23 @@ export default function AdminAcademyPage() {
             errors.push(`Bài ${lessonIndex + 1} (${lesson.title || 'không tên'}): ${errMsg}`);
           }
         }
+
+        newSections.push({ ...section, id: savedSectionId, lessons: newLessons });
       }
 
       if (errors.length > 0) {
-        toast.error(`Lưu thất bại:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n...' : ''}`);
+        toast.error(`Một số mục lưu thất bại:\n${errors.slice(0, 5).join('\n')}${errors.length > 5 ? '\n...' : ''}`);
       } else {
         toast.success('Đã lưu chương trình học');
       }
 
-      // Force refresh: toggle selectedCourseId to undefined then back
-      // This triggers the useEffect to re-fetch fresh data from the server
-      // instead of relying on potentially stale mapped state
-      const savedCourseId = courseId!;
-      setSelectedCourseId(undefined);
-      setSelectedCourseId(savedCourseId);
+      // Update local state with real DB IDs so form always shows fresh data
+      setCourseForm((prev) => ({ ...prev, id: courseId }));
+      setSections(newSections);
+      setExpandedSections(newSections.map((_, i) => i));
 
       const refreshed = await academyApi.getCoursesBySemester(courseForm.semesterId);
-      const nextCourses = refreshed.data.data || [];
-      setCourses(nextCourses);
+      setCourses(refreshed.data.data || []);
     } catch (error: any) {
       console.error('[saveCourse] Fatal error:', error?.response?.data);
       const msg = error?.response?.data?.message || 'Lưu chương trình học thất bại';
