@@ -176,7 +176,7 @@ export default function PremiumPlaylist({ isNight = true }: PremiumPlaylistProps
               {activeTab === 'playlists'
                 ? 'My Playlists'
                 : showingPlaylistId
-                ? playlists.find((p) => p.id === showingPlaylistId)?.name || 'Playlist'
+                ? playlists.find((p) => String(p.id) === showingPlaylistId)?.name || 'Playlist'
                 : 'All Tracks'}
             </h2>
             <p className="text-[11px] truncate" style={{ color: c.textMuted }}>
@@ -425,7 +425,7 @@ export default function PremiumPlaylist({ isNight = true }: PremiumPlaylistProps
                   key={pl.id}
                   whileHover={{ scale: 1.01 }}
                   whileTap={{ scale: 0.99 }}
-                  onClick={() => playPlaylist(pl)}
+                  onClick={() => { setShowingPlaylistId(String(pl.id)); playPlaylist(pl); }}
                   className="w-full flex items-center gap-3 p-3 rounded-xl transition-all text-left"
                   style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${c.border}` }}
                 >
