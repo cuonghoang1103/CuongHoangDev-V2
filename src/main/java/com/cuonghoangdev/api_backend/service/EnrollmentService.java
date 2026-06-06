@@ -176,16 +176,16 @@ public class EnrollmentService {
         if (userId == null) {
             return List.of();
         }
-        Enrollment enrollment = enrollmentRepository.findByUserIdAndCourseId(userId, courseId)
-            .orElseThrow(() -> new RuntimeException("Ban chua dang ky khoa hoc nay"));
-        return progressRepository.findByEnrollmentId(enrollment.getId()).stream()
-            .map(p -> LessonProgressDto.of(
-                p.getLesson().getId(),
-                p.getIsCompleted(),
-                p.getWatchTimeSeconds(),
-                p.getLastPositionSeconds()
-            ))
-            .toList();
+        return enrollmentRepository.findByUserIdAndCourseId(userId, courseId)
+            .map(enrollment -> progressRepository.findByEnrollmentId(enrollment.getId()).stream()
+                .map(p -> LessonProgressDto.of(
+                    p.getLesson().getId(),
+                    p.getIsCompleted(),
+                    p.getWatchTimeSeconds(),
+                    p.getLastPositionSeconds()
+                ))
+                .toList())
+            .orElse(List.of());
     }
 
     public List<EnrollmentDto> getAllMyEnrollments(Long userId) {
