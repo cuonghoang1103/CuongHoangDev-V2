@@ -231,13 +231,16 @@ public class CourseService {
 
     @Transactional
     public CourseSectionDto updateSection(Long id, UpdateSectionRequest req) {
+        LOGGER.info("[updateSection] id={}, title='{}', sortOrder={}", id, req.getTitle(), req.getSortOrder());
         CourseSection section = sectionRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Section not found"));
         if (req.getTitle() != null) section.setTitle(req.getTitle());
         if (req.getDescription() != null) section.setDescription(req.getDescription());
         if (req.getSortOrder() != null) section.setSortOrder(req.getSortOrder());
         if (req.getIsLocked() != null) section.setIsLocked(req.getIsLocked());
-        return CourseSectionDto.fromEntity(sectionRepository.save(section));
+        CourseSection saved = sectionRepository.save(section);
+        LOGGER.info("[updateSection] saved id={}, title='{}'", saved.getId(), saved.getTitle());
+        return CourseSectionDto.fromEntity(saved);
     }
 
     @Transactional
@@ -285,6 +288,10 @@ public class CourseService {
 
     @Transactional
     public LessonDto updateLesson(Long id, UpdateLessonRequest req) {
+        LOGGER.info("[updateLesson] id={}, title='{}', content length={}, teachingNotes length={}",
+            id, req.getTitle(),
+            req.getContent() != null ? req.getContent().length() : 0,
+            req.getTeachingNotes() != null ? req.getTeachingNotes().length() : 0);
         Lesson lesson = lessonRepository.findById(id)
             .orElseThrow(() -> new RuntimeException("Lesson not found"));
         if (req.getTitle() != null) lesson.setTitle(req.getTitle());
