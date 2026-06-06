@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { Zap, Shield, Clock, Star, ShoppingBag, Loader2 } from 'lucide-react';
 import ProductCard from '@/components/shop/ProductCard';
 import ProductFilter from '@/components/shop/ProductFilter';
@@ -156,11 +156,43 @@ export default function ShopPage() {
             <p className="text-text-muted">{t('shop.page.adjustFilters')}</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {filtered.map((product, i) => (
-              <ProductCard key={product.id} product={product} index={i} />
-            ))}
-          </div>
+          <>
+            {/* Hero Spotlight Banner — first/bestseller item */}
+            <motion.div
+              layout
+              className="mb-6"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.4 }}
+            >
+              <ProductCard
+                product={filtered[0]}
+                index={0}
+                isSpotlight={true}
+              />
+            </motion.div>
+
+            {/* Product grid */}
+            <motion.div
+              layout
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+            >
+              <AnimatePresence mode="popLayout">
+                {filtered.slice(1).map((product, i) => (
+                  <motion.div
+                    key={product.id}
+                    layout
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ duration: 0.3, delay: i * 0.04 }}
+                  >
+                    <ProductCard key={product.id} product={product} index={i + 1} />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          </>
         )}
       </div>
 
