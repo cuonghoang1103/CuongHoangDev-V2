@@ -512,10 +512,24 @@ export default function AdminAcademyPage() {
         }
       }
 
+      // Deduplicate sections: if sections array has multiple entries with the same
+      // section.id (e.g. backend returned duplicates from getCourseWithSections),
+      // skip re-saving ones we've already processed in this loop.
+      const processedSectionIds = new Set<number>();
       const newSections: SectionFormState[] = [];
 
       for (let sectionIndex = 0; sectionIndex < sections.length; sectionIndex++) {
         const section = sections[sectionIndex];
+
+        // Skip if this section.id was already processed in a previous iteration
+        if (section.id != null && processedSectionIds.has(section.id)) {
+          console.log('[saveCourse] Skipping duplicate section id=', section.id, 'title=', section.title);
+          continue;
+        }
+        if (section.id != null) {
+          processedSectionIds.add(section.id);
+        }
+
         let savedSectionId: number | undefined;
 
         try {
@@ -550,8 +564,19 @@ export default function AdminAcademyPage() {
         }
 
         const newLessons: LessonFormState[] = [];
+        const processedLessonIds = new Set<number>();
         for (let lessonIndex = 0; lessonIndex < section.lessons.length; lessonIndex++) {
           const lesson = section.lessons[lessonIndex];
+
+          // Skip duplicates within the same section
+          if (lesson.id != null && processedLessonIds.has(lesson.id)) {
+            console.log('[saveCourse] Skipping duplicate lesson id=', lesson.id, 'in section', savedSectionId);
+            continue;
+          }
+          if (lesson.id != null) {
+            processedLessonIds.add(lesson.id);
+          }
+
           let lessonId = lesson.id;
 
           try {
@@ -649,21 +674,16 @@ export default function AdminAcademyPage() {
         toast.success('Đã lưu chương trình học');
       }
 
+      // After save, use the already-built newSections as the source of truth.
+      // The API reload call below is removed — it can re-introduce stale/dup data
+      // from the backend if getCourseWithSections returns duplicates, causing
+      // duplicate sections/lessons to reappear on next render.
       setCourseForm((prev) => ({ ...prev, id: courseId }));
+      if (!selectedCourseId) {
+        setSelectedCourseId(courseId);
+      }
       setSections(newSections);
       setExpandedSections(newSections.map((_, i) => i));
-
-      // Reload only the course that was saved — getCourseWithSections returns
-      // full data (sections + lessons + assignments). Using getCoursesBySemester
-      // here would re-fetch the semester list without lessons, causing React to
-      // re-render selectedCourse with stale/empty lesson data on next tick.
-      const refreshed = await academyApi.getCourseWithSections(courseId);
-      const updatedCourse = refreshed.data.data;
-      if (updatedCourse) {
-        setCourses((prev) =>
-          prev.map((c) => c.id === courseId ? updatedCourse : c)
-        );
-      }
     } catch (error: any) {
       console.error('[saveCourse] Fatal error:', error?.response?.data);
       const msg = error?.response?.data?.message || 'Lưu chương trình học thất bại';
