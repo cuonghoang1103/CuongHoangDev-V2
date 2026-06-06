@@ -18,6 +18,10 @@ import java.util.List;
 @Service
 public class CourseService {
 
+    private static boolean isPresent(String s) {
+        return s != null && !s.isBlank();
+    }
+
     private static final Logger LOGGER = LoggerFactory.getLogger(CourseService.class);
 
     private final CourseRepository courseRepository;
@@ -299,9 +303,12 @@ public class CourseService {
         if (req.getDescription() != null) lesson.setDescription(req.getDescription());
         if (req.getContent() != null) lesson.setContent(req.getContent());
         if (req.getLessonType() != null) lesson.setLessonType(req.getLessonType());
-        if (req.getVideoUrl() != null) lesson.setVideoUrl(req.getVideoUrl());
+        // Only update URL fields if the incoming value is non-blank.
+        // Sending an empty string from the admin form should NOT wipe the
+        // existing URL — it means the field was left unchanged.
+        if (isPresent(req.getVideoUrl())) lesson.setVideoUrl(req.getVideoUrl());
         if (req.getVideoDurationSeconds() != null) lesson.setVideoDurationSeconds(req.getVideoDurationSeconds());
-        if (req.getThumbnailUrl() != null) lesson.setThumbnailUrl(req.getThumbnailUrl());
+        if (isPresent(req.getThumbnailUrl())) lesson.setThumbnailUrl(req.getThumbnailUrl());
         if (req.getIsFreePreview() != null) lesson.setIsFreePreview(req.getIsFreePreview());
         if (req.getIsPublished() != null) lesson.setIsPublished(req.getIsPublished());
         if (req.getSortOrder() != null) lesson.setSortOrder(req.getSortOrder());
@@ -313,8 +320,8 @@ public class CourseService {
             return created;
         });
         if (req.getVideoPlatform() != null) detail.setVideoPlatform(req.getVideoPlatform());
-        if (req.getVideoUrl() != null) detail.setVideoUrl(req.getVideoUrl());
-        if (req.getSourceCodeUrl() != null) detail.setSourceCodeUrl(req.getSourceCodeUrl());
+        if (isPresent(req.getVideoUrl())) detail.setVideoUrl(req.getVideoUrl());
+        if (isPresent(req.getSourceCodeUrl())) detail.setSourceCodeUrl(req.getSourceCodeUrl());
         if (req.getTeachingNotes() != null) detail.setTeachingNotes(req.getTeachingNotes());
         lessonDetailRepository.save(detail);
 
@@ -333,9 +340,12 @@ public class CourseService {
         if (req.getDescription() != null) lesson.setDescription(req.getDescription());
         if (req.getContent() != null) lesson.setContent(req.getContent());
         if (req.getLessonType() != null) lesson.setLessonType(req.getLessonType());
-        if (req.getVideoUrl() != null) lesson.setVideoUrl(req.getVideoUrl());
+        // Only update URL fields if the incoming value is non-blank.
+        // Sending an empty string from the admin form should NOT wipe the
+        // existing URL — it means the field was left unchanged.
+        if (isPresent(req.getVideoUrl())) lesson.setVideoUrl(req.getVideoUrl());
         if (req.getVideoDurationSeconds() != null) lesson.setVideoDurationSeconds(req.getVideoDurationSeconds());
-        if (req.getThumbnailUrl() != null) lesson.setThumbnailUrl(req.getThumbnailUrl());
+        if (isPresent(req.getThumbnailUrl())) lesson.setThumbnailUrl(req.getThumbnailUrl());
         if (req.getIsFreePreview() != null) lesson.setIsFreePreview(req.getIsFreePreview());
         if (req.getIsPublished() != null) lesson.setIsPublished(req.getIsPublished());
         if (req.getSortOrder() != null) lesson.setSortOrder(req.getSortOrder());
@@ -347,8 +357,8 @@ public class CourseService {
             return created;
         });
         if (req.getVideoPlatform() != null) detail.setVideoPlatform(req.getVideoPlatform());
-        if (req.getVideoUrl() != null) detail.setVideoUrl(req.getVideoUrl());
-        if (req.getSourceCodeUrl() != null) detail.setSourceCodeUrl(req.getSourceCodeUrl());
+        if (isPresent(req.getVideoUrl())) detail.setVideoUrl(req.getVideoUrl());
+        if (isPresent(req.getSourceCodeUrl())) detail.setSourceCodeUrl(req.getSourceCodeUrl());
         if (req.getTeachingNotes() != null) detail.setTeachingNotes(req.getTeachingNotes());
         lessonDetailRepository.save(detail);
 

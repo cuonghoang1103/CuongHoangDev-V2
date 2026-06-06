@@ -10,6 +10,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.List;
+import java.util.Set;
+import java.util.HashSet;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 public class AcademyAdminService {
@@ -102,21 +106,24 @@ public class AcademyAdminService {
             .map(c -> {
                 CourseDto dto = CourseDto.fromEntity(c);
                 if (c.getSections() != null && Hibernate.isInitialized(c.getSections())) {
-                    dto.setSections(c.getSections().stream()
+                    Set<Long> seenSections = new HashSet<>();
+                    List<CourseSectionDto> uniqueSections = c.getSections().stream()
                         .sorted((a, b) -> Integer.compare(
                             a.getSortOrder() != null ? a.getSortOrder() : 0,
                             b.getSortOrder() != null ? b.getSortOrder() : 0))
+                        .filter(s -> seenSections.add(s.getId()))
                         .map(section -> {
                             List<Lesson> lessons = section.getLessons() != null && Hibernate.isInitialized(section.getLessons())
                                 ? section.getLessons().stream()
                                     .sorted((a, b) -> Integer.compare(
                                         a.getSortOrder() != null ? a.getSortOrder() : 0,
                                         b.getSortOrder() != null ? b.getSortOrder() : 0))
-                                    .toList()
+                                    .collect(Collectors.toList())
                                 : List.of();
                             return CourseSectionDto.fromEntity(section, lessons, false);
                         })
-                        .toList());
+                        .toList();
+                    dto.setSections(uniqueSections);
                 }
                 return dto;
             })
@@ -129,21 +136,26 @@ public class AcademyAdminService {
             .orElseThrow(() -> new RuntimeException("Course not found: " + courseId));
         CourseDto dto = CourseDto.fromEntity(course);
         if (course.getSections() != null && Hibernate.isInitialized(course.getSections())) {
-            dto.setSections(course.getSections().stream()
+            // Deduplicate by section id: EntityGraph can return duplicate rows
+            // when the same section has multiple lessons loaded (N+1 or cartesian product).
+            Set<Long> seen = new HashSet<>();
+            List<CourseSectionDto> uniqueSections = course.getSections().stream()
                 .sorted((a, b) -> Integer.compare(
                     a.getSortOrder() != null ? a.getSortOrder() : 0,
                     b.getSortOrder() != null ? b.getSortOrder() : 0))
+                .filter(section -> seen.add(section.getId()))
                 .map(section -> {
                     List<Lesson> lessons = section.getLessons() != null && Hibernate.isInitialized(section.getLessons())
                         ? section.getLessons().stream()
                             .sorted((a, b) -> Integer.compare(
                                 a.getSortOrder() != null ? a.getSortOrder() : 0,
                                 b.getSortOrder() != null ? b.getSortOrder() : 0))
-                            .toList()
+                            .collect(Collectors.toList())
                         : List.of();
                     return CourseSectionDto.fromEntity(section, lessons, false);
                 })
-                .toList());
+                .toList();
+            dto.setSections(uniqueSections);
         }
         return dto;
     }

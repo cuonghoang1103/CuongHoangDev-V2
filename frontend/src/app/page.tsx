@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { motion, useMotionValue, useSpring } from 'framer-motion';
 import { blogApi } from '@/lib/api';
 import type { Post, Category } from '@/types';
 import { useProjectStore } from '@/store/projectStore';
@@ -11,10 +11,9 @@ import BlogCard from '@/components/blog/BlogCard';
 import ServicesSection from '@/components/home/ServicesSection';
 import ContactSection from '@/components/home/ContactSection';
 import Footer from '@/components/home/Footer';
-import BenefitCard, { benefits } from '@/components/home/BenefitCard';
 import StatsSection from '@/components/home/StatsSection';
 import { formatNumber } from '@/lib/utils';
-import { ArrowRight, Sparkles, Code2 } from 'lucide-react';
+import { ArrowRight, Sparkles, Code2, Terminal, Zap, Brain, Gem, Search, ChevronRight } from 'lucide-react';
 
 export default function HomePage() {
   const { t, locale } = useTranslation();
@@ -43,29 +42,121 @@ export default function HomePage() {
 
   const featuredProjects = getFeaturedProjects().slice(0, 4);
 
+  // --- Omni-Command Bar ---
+  const [placeholderIdx, setPlaceholderIdx] = useState(0);
+  const [placeholderText, setPlaceholderText] = useState('');
+  const [isTyping, setIsTyping] = useState(true);
+  const placeholderPhrases = [
+    "Type /projects to explore...",
+    "Ask anything about Cuong's stack...",
+    "Type /shop to view AI tools...",
+    "Try /chat for AI assistance...",
+  ];
+  useEffect(() => {
+    const phrase = placeholderPhrases[placeholderIdx];
+    let charIdx = 0;
+    setIsTyping(true);
+    const typeInterval = setInterval(() => {
+      setPlaceholderText(phrase.slice(0, charIdx + 1));
+      charIdx++;
+      if (charIdx >= phrase.length) {
+        clearInterval(typeInterval);
+        setTimeout(() => setIsTyping(false), 2200);
+      }
+    }, 38);
+    return () => clearInterval(typeInterval);
+  }, [placeholderIdx]);
+  useEffect(() => {
+    if (!isTyping) {
+      const t = setTimeout(() => {
+        setPlaceholderIdx((p) => (p + 1) % placeholderPhrases.length);
+      }, 600);
+      return () => clearTimeout(t);
+    }
+  }, [isTyping]);
+
+  // --- Bento Benefit Cards ---
+  const bentoCards = [
+    {
+      icon: Zap,
+      titleKey: 'benefits.fastDelivery.title',
+      desc: 'MVP ready in 2-4 weeks. Ship fast, iterate faster.',
+      color: 'indigo',
+      colSpan: 'col-span-1',
+      accent: '#6366f1',
+    },
+    {
+      icon: Brain,
+      titleKey: 'benefits.aiPowered.title',
+      desc: 'RAG + Gemini + Spring Boot — AI that actually works.',
+      color: 'violet',
+      colSpan: 'col-span-1',
+      accent: '#8b5cf6',
+    },
+    {
+      icon: Gem,
+      titleKey: 'benefits.highQuality.title',
+      desc: 'SonarQube A+, 99% maintainability, clean architecture.',
+      color: 'fuchsia',
+      colSpan: 'col-span-1',
+      accent: '#d946ef',
+    },
+  ];
+
+  // --- Mouse tracking for avatar glow ---
+  const avatarRef = useRef<HTMLDivElement>(null);
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  const springX = useSpring(mouseX, { stiffness: 80, damping: 20 });
+  const springY = useSpring(mouseY, { stiffness: 80, damping: 20 });
+  const handleMouseMove = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!avatarRef.current) return;
+    const rect = avatarRef.current.getBoundingClientRect();
+    mouseX.set(((e.clientX - rect.left) / rect.width - 0.5) * 40);
+    mouseY.set(((e.clientY - rect.top) / rect.height - 0.5) * 40);
+  }, [mouseX, mouseY]);
+
+  // --- Floating tech tags ---
+  const techTags = [
+    { label: 'Next.js', color: 'bg-gray-800 border-gray-600 text-gray-200', x: '12%', y: '8%', delay: 0, float: '-8px' },
+    { label: 'Spring Boot', color: 'bg-green-900/60 border-green-600 text-green-300', x: '80%', y: '15%', delay: 0.4, float: '-12px' },
+    { label: 'TypeScript', color: 'bg-blue-900/60 border-blue-500 text-blue-300', x: '85%', y: '65%', delay: 0.8, float: '-6px' },
+    { label: 'PostgreSQL', color: 'bg-indigo-900/60 border-indigo-500 text-indigo-300', x: '5%', y: '70%', delay: 1.2, float: '-10px' },
+    { label: 'Gemini AI', color: 'bg-purple-900/60 border-purple-500 text-purple-300', x: '50%', y: '0%', delay: 1.6, float: '-7px' },
+    { label: 'Docker', color: 'bg-cyan-900/60 border-cyan-600 text-cyan-300', x: '70%', y: '85%', delay: 2.0, float: '-9px' },
+  ];
+
+  // --- System status ticker ---
+  const systemStats = [
+    { label: 'Supabase DB', status: 'Operational', latency: '14ms', ok: true },
+    { label: 'Gemini API', status: 'Connected', latency: '82ms', ok: true },
+    { label: 'Active Projects', status: '12', latency: '', ok: true },
+    { label: 'AI Tokens Today', status: '4.2M', latency: '', ok: true },
+    { label: 'Uptime', status: '99.97%', latency: '', ok: true },
+    { label: 'CDN', status: 'Edge 47', latency: '8ms', ok: true },
+  ];
+
   return (
     <div className="min-h-screen bg-darkbg">
       {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center overflow-hidden pt-20">
-        {/* Background Effects */}
-        <div className="absolute inset-0">
-          <div className="absolute top-1/4 left-1/4 w-[600px] h-[600px] bg-neon-indigo/20 rounded-full blur-[180px] animate-pulse" />
-          <div className="absolute bottom-1/4 right-1/4 w-[500px] h-[500px] bg-neon-violet/20 rounded-full blur-[150px] animate-pulse" style={{ animationDelay: '1s' }} />
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-neon-fuchsia/10 rounded-full blur-[120px]" />
+      <section className="relative min-h-[92vh] flex items-center overflow-hidden pt-16 pb-8">
+        {/* Layered background glows */}
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-[15%] left-[10%] w-[500px] h-[500px] bg-neon-indigo/15 rounded-full blur-[160px] animate-pulse" />
+          <div className="absolute bottom-[20%] right-[5%] w-[450px] h-[450px] bg-neon-violet/15 rounded-full blur-[140px] animate-pulse" style={{ animationDelay: '0.8s' }} />
+          <div className="absolute top-[50%] left-[50%] -translate-x-1/2 -translate-y-1/2 w-[350px] h-[350px] bg-neon-fuchsia/8 rounded-full blur-[100px]" />
+          {/* Cyberpunk grid */}
+          <div className="absolute inset-0 opacity-10" style={{
+            backgroundImage: `linear-gradient(rgba(99,102,241,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(99,102,241,0.08) 1px, transparent 1px)`,
+            backgroundSize: '48px 48px',
+          }} />
         </div>
 
-        {/* Grid Pattern */}
-        <div className="absolute inset-0 opacity-15" style={{
-          backgroundImage: `linear-gradient(rgba(99, 102, 241, 0.1) 1px, transparent 1px),
-                           linear-gradient(90deg, rgba(99, 102, 241, 0.1) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px'
-        }} />
-
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-14 items-center">
             {/* Left - Text Content */}
             <div>
-              {/* Badge */}
+              {/* Status badge */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -73,8 +164,8 @@ export default function HomePage() {
                 className="inline-flex items-center gap-2 px-4 py-2 bg-neon-violet/10 border border-neon-violet/30 rounded-full mb-6"
               >
                 <span className="relative flex h-2 w-2">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-violet opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2 w-2 bg-neon-violet"></span>
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-neon-violet opacity-75" />
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-neon-violet" />
                 </span>
                 <span className="text-sm text-neon-violet font-medium">{t('hero.badge')}</span>
               </motion.div>
@@ -115,30 +206,147 @@ export default function HomePage() {
                 {t('hero.description')}
               </motion.p>
 
-              {/* Benefit Cards - Upgraded */}
+              {/* Bento Grid - Value Props */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.4 }}
-                className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8"
+                transition={{ duration: 0.6, delay: 0.35 }}
+                className="grid grid-cols-3 gap-3 mb-6"
               >
-                {benefits.map((benefit, index) => (
-                  <BenefitCard
-                    key={benefit.titleKey}
-                    icon={benefit.icon}
-                    titleKey={benefit.titleKey}
-                    descriptionKey={benefit.descriptionKey}
-                    color={benefit.color}
-                    delay={index * 0.1}
-                  />
+                {bentoCards.map((card, idx) => (
+                  <motion.div
+                    key={card.titleKey}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.4 + idx * 0.1, duration: 0.4 }}
+                    whileHover={{ y: -4, scale: 1.03 }}
+                    className={`relative group p-4 rounded-2xl border border-darkborder/60 bg-darkcard/60 backdrop-blur-sm overflow-hidden ${card.colSpan}`}
+                    style={{ '--accent': card.accent } as React.CSSProperties}
+                  >
+                    {/* Glow on hover */}
+                    <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none"
+                      style={{ background: `radial-gradient(ellipse at center, ${card.accent}18 0%, transparent 70%)` }} />
+                    {/* Top accent line */}
+                    <div className="absolute top-0 left-0 right-0 h-[2px] opacity-60 group-hover:opacity-100 transition-opacity"
+                      style={{ background: `linear-gradient(90deg, transparent, ${card.accent}, transparent)` }} />
+
+                    <card.icon className="w-5 h-5 mb-2.5" style={{ color: card.accent }} strokeWidth={1.5} />
+
+                    {card.titleKey === 'benefits.fastDelivery.title' && (
+                      <div className="mb-2">
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="text-[10px] text-text-muted font-mono">MVP</span>
+                          <span className="text-[10px] font-mono" style={{ color: card.accent }}>2-4 wks</span>
+                        </div>
+                        <div className="h-1.5 bg-darkbg rounded-full overflow-hidden">
+                          <motion.div
+                            className="h-full rounded-full"
+                            style={{ background: `linear-gradient(90deg, ${card.accent}, #a855f7)` }}
+                            initial={{ width: '0%' }}
+                            animate={{ width: '75%' }}
+                            transition={{ delay: 1, duration: 1.5, ease: 'easeOut' }}
+                          />
+                        </div>
+                      </div>
+                    )}
+
+                    {card.titleKey === 'benefits.aiPowered.title' && (
+                      <div className="mb-2 flex items-center gap-1.5">
+                        {['Gemini', 'RAG', 'Spring'].map((n, i) => (
+                          <div key={n} className="relative flex items-center">
+                            <motion.div
+                              className="w-5 h-5 rounded-full border flex items-center justify-center text-[8px] font-mono font-bold"
+                              style={{
+                                borderColor: card.accent,
+                                color: card.accent,
+                                background: `${card.accent}15`,
+                                zIndex: 3 - i,
+                              }}
+                              animate={{ y: [-2, 2, -2] }}
+                              transition={{ duration: 2, repeat: Infinity, delay: i * 0.4 }}
+                            >
+                              {n[0]}
+                            </motion.div>
+                            {i < 2 && (
+                              <div className="absolute -right-2 w-2 h-[1px] bg-darkborder" style={{ zIndex: 2 }} />
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {card.titleKey === 'benefits.highQuality.title' && (
+                      <div className="space-y-1 mb-1">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono text-text-muted">SonarQube</span>
+                          <span className="text-[10px] font-mono font-bold text-emerald-400">A+</span>
+                        </div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-mono text-text-muted">Maintainability</span>
+                          <span className="text-[10px] font-mono font-bold text-emerald-400">99%</span>
+                        </div>
+                      </div>
+                    )}
+
+                    <h3 className="text-[11px] font-heading font-semibold text-text-primary leading-tight">
+                      {t(card.titleKey)}
+                    </h3>
+                    <p className="text-[10px] text-text-muted mt-0.5 leading-tight hidden group-hover:block">
+                      {card.desc}
+                    </p>
+                  </motion.div>
                 ))}
+              </motion.div>
+
+              {/* Omni-Command Bar */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+                className="relative group mb-8"
+              >
+                {/* Glassmorphism bar */}
+                <div className="relative flex items-center gap-3 px-5 py-3.5 rounded-2xl border border-white/[0.08]
+                  bg-white/[0.04] backdrop-blur-xl shadow-[0_8px_32px_rgba(0,0,0,0.4),inset_0_1px_0_rgba(255,255,255,0.06)]
+                  transition-all duration-300 group-focus-within:border-neon-violet/60 group-focus-within:shadow-[0_0_0_3px_rgba(139,92,246,0.15),0_8px_32px_rgba(0,0,0,0.4)]">
+                  <Search className="w-4 h-4 text-text-muted shrink-0" />
+                  <span className="w-[1px] h-5 bg-white/10 shrink-0" />
+                  <span className="text-sm text-text-muted font-mono">
+                    {placeholderText}
+                    <span className="animate-pulse text-neon-violet">|</span>
+                  </span>
+                  <div className="ml-auto flex items-center gap-1.5 shrink-0">
+                    {['/', 'p', 'r'].map((k, i) => (
+                      <kbd key={i} className="hidden sm:flex items-center justify-center w-5 h-5 rounded bg-white/10 border border-white/10 text-[10px] text-text-muted font-mono">
+                        {k}
+                      </kbd>
+                    ))}
+                  </div>
+                </div>
+                {/* Quick action pills below */}
+                <div className="flex flex-wrap gap-2 mt-3 ml-1">
+                  {[
+                    { label: '/projects', href: '/projects', icon: Code2 },
+                    { label: '/shop', href: '/shop', icon: Zap },
+                    { label: '/chat', href: '/chat', icon: Brain },
+                  ].map(({ label, href, icon: Icon }) => (
+                    <Link key={label}
+                      href={href}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-darkborder/60 bg-darkcard/40 text-xs text-text-secondary hover:text-neon-violet hover:border-neon-violet/40 hover:bg-neon-violet/5 transition-all duration-200 group/btn"
+                    >
+                      <Icon className="w-3 h-3 opacity-60 group-hover/btn:opacity-100" />
+                      {label}
+                      <ChevronRight className="w-3 h-3 opacity-40" />
+                    </Link>
+                  ))}
+                </div>
               </motion.div>
 
               {/* CTA Buttons */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.5 }}
+                transition={{ duration: 0.6, delay: 0.6 }}
                 className="flex flex-col sm:flex-row items-start gap-4"
               >
                 <Link
@@ -163,76 +371,191 @@ export default function HomePage() {
               </motion.div>
             </div>
 
-            {/* Right - Avatar */}
+            {/* Right - Cyberpunk Dev Sandbox */}
             <motion.div
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               transition={{ duration: 0.8, delay: 0.3 }}
+              ref={avatarRef}
+              onMouseMove={handleMouseMove}
               className="hidden lg:flex justify-center items-center"
             >
-              <div className="relative">
-                <div className="w-[400px] h-[400px] xl:w-[450px] xl:h-[450px] rounded-3xl bg-gradient-to-br from-neon-indigo/30 via-neon-violet/20 to-neon-fuchsia/30 border border-neon-violet/20 p-3 max-w-full max-h-full overflow-hidden">
-                  <img
-                    src="/images/avatar.png"
-                    alt="CuongHoang"
-                    className="w-full h-full rounded-2xl object-cover"
-                    style={{ maxWidth: '100%', maxHeight: '100%' }}
-                  />
-                </div>
-                {/* Decorative Elements */}
-                <div className="absolute -top-6 -right-6 w-40 h-40 bg-neon-fuchsia/20 rounded-full blur-3xl" />
-                <div className="absolute -bottom-6 -left-6 w-48 h-48 bg-neon-indigo/20 rounded-full blur-3xl" />
-                
-                {/* Floating badges */}
+              <div className="relative w-[420px] xl:w-[460px]">
+                {/* Outer glow rings */}
                 <motion.div
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.8 }}
-                  className="absolute -top-4 left-6 px-4 py-2.5 bg-darkcard/95 backdrop-blur-md border border-darkborder rounded-xl shadow-xl"
-                >
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="relative flex h-2.5 w-2.5">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-green-400"></span>
+                  className="absolute inset-0 rounded-3xl"
+                  style={{
+                    x: springX,
+                    y: springY,
+                    background: 'radial-gradient(ellipse at center, rgba(99,102,241,0.12) 0%, transparent 70%)',
+                  }}
+                  animate={{ scale: [1, 1.05, 1] }}
+                  transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                />
+
+                {/* Terminal frame */}
+                <div className="relative rounded-3xl border border-white/[0.08] bg-darkcard/80 backdrop-blur-xl overflow-hidden shadow-[0_0_60px_rgba(99,102,241,0.08)]">
+                  {/* Terminal header bar */}
+                  <div className="flex items-center gap-2 px-4 py-3 border-b border-white/[0.06] bg-black/20">
+                    <div className="flex gap-1.5">
+                      <div className="w-3 h-3 rounded-full bg-red-500/70" />
+                      <div className="w-3 h-3 rounded-full bg-yellow-500/70" />
+                      <div className="w-3 h-3 rounded-full bg-green-500/70" />
+                    </div>
+                    <div className="flex-1 flex items-center justify-center">
+                      <div className="flex items-center gap-1.5 px-3 py-1 bg-black/30 rounded-md border border-white/[0.06]">
+                        <Terminal className="w-3 h-3 text-neon-violet" />
+                        <span className="text-[11px] font-mono text-text-muted">cuong@dev ~ main</span>
+                        <span className="text-[11px] font-mono text-emerald-400">●</span>
+                      </div>
+                    </div>
+                    <div className="flex gap-1">
+                      <div className="w-3 h-3 rounded bg-neon-indigo/40" />
+                      <div className="w-3 h-3 rounded bg-neon-violet/40" />
+                    </div>
+                  </div>
+
+                  {/* Avatar area with mesh */}
+                  <div className="relative h-[380px] overflow-hidden">
+                    {/* Mesh gradient that tracks mouse */}
+                    <motion.div
+                      className="absolute inset-0 pointer-events-none"
+                      animate={{
+                        background: `radial-gradient(ellipse 200px 200px at ${50 + (mouseX.get() / 40) * 25}% ${50 + (mouseY.get() / 40) * 25}%, rgba(139,92,246,0.25) 0%, rgba(99,102,241,0.1) 40%, transparent 70%)`,
+                      }}
+                      style={{ background: `radial-gradient(ellipse 200px 200px at 50% 50%, rgba(139,92,246,0.25) 0%, rgba(99,102,241,0.1) 40%, transparent 70%)` }}
+                    />
+                    {/* Floating grid overlay */}
+                    <div className="absolute inset-0 opacity-20" style={{
+                      backgroundImage: `linear-gradient(rgba(139,92,246,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(139,92,246,0.1) 1px, transparent 1px)`,
+                      backgroundSize: '24px 24px',
+                    }} />
+
+                    <img
+                      src="/images/avatar.png"
+                      alt="CuongHoang"
+                      className="relative w-full h-full object-cover object-top"
+                    />
+
+                    {/* Scanline effect */}
+                    <div className="absolute inset-0 pointer-events-none overflow-hidden">
+                      <motion.div
+                        className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-neon-violet/40 to-transparent"
+                        animate={{ top: ['0%', '100%'] }}
+                        transition={{ duration: 6, repeat: Infinity, ease: 'linear', repeatDelay: 2 }}
+                      />
+                    </div>
+
+                    {/* Status overlays on avatar */}
+                    <motion.div
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.9 }}
+                      className="absolute top-4 left-4 flex items-center gap-2 px-3 py-2 bg-black/70 backdrop-blur-md border border-emerald-500/30 rounded-xl"
+                    >
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-400" />
+                      </span>
+                      <span className="text-xs font-mono text-emerald-400">{t('hero.experience')}</span>
+                    </motion.div>
+
+                    <motion.div
+                      initial={{ opacity: 0, x: 20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 1.0 }}
+                      className="absolute top-4 right-4 flex items-center gap-2 px-3 py-2 bg-black/70 backdrop-blur-md border border-yellow-500/30 rounded-xl"
+                    >
+                      <span className="text-yellow-400 text-xs font-mono">★★★★★</span>
+                      <span className="text-xs font-mono text-yellow-400">{t('hero.happyClients')}</span>
+                    </motion.div>
+
+                    {/* Floating tech tags */}
+                    {techTags.map((tag, i) => (
+                      <motion.div
+                        key={tag.label}
+                        initial={{ opacity: 0, scale: 0.7 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ delay: 1.1 + i * 0.15 }}
+                        className="absolute px-2.5 py-1 rounded-lg border text-[11px] font-mono font-medium backdrop-blur-md"
+                        style={{
+                          left: tag.x,
+                          top: tag.y,
+                          borderColor: 'rgba(255,255,255,0.15)',
+                          backdropFilter: 'blur(12px)',
+                        }}
+                        custom={tag.float}
+                        animate={{ y: [0, parseInt(tag.float), 0] }}
+                        transition={{ duration: 3 + i * 0.7, repeat: Infinity, ease: 'easeInOut', delay: tag.delay }}
+                      >
+                        <div className={`absolute inset-0 rounded-lg ${tag.color} opacity-90`} />
+                        <span className="relative">{tag.label}</span>
+                      </motion.div>
+                    ))}
+                  </div>
+
+                  {/* Terminal footer */}
+                  <div className="flex items-center gap-3 px-4 py-2.5 border-t border-white/[0.06] bg-black/20">
+                    <span className="text-[11px] font-mono text-text-muted">
+                      <span className="text-neon-violet">$</span> whoami
                     </span>
-                    <span className="text-text-primary font-medium">{t('hero.experience')}</span>
+                    <span className="flex-1 h-[1px] border-b border-dashed border-white/10" />
+                    <span className="text-[11px] font-mono text-neon-indigo">Cuong Hoang Dev</span>
+                    <span className="text-[11px] font-mono text-emerald-400">~ 6 yrs</span>
                   </div>
-                </motion.div>
-                
-                <motion.div
-                  initial={{ opacity: 0, x: 20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.9 }}
-                  className="absolute -bottom-4 right-6 px-4 py-2.5 bg-darkcard/95 backdrop-blur-md border border-darkborder rounded-xl shadow-xl"
-                >
-                  <div className="flex items-center gap-2 text-sm">
-                    <span className="text-yellow-400">★★★★★</span>
-                    <span className="text-text-primary font-medium">{t('hero.happyClients')}</span>
-                  </div>
-                </motion.div>
-                
-                {/* Tech stack badge */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 1 }}
-                  className="absolute -left-8 top-1/2 -translate-y-1/2 px-3 py-1.5 bg-darkcard/95 backdrop-blur-md border border-darkborder rounded-lg shadow-xl"
-                >
-                  <div className="flex items-center gap-2">
-                    <Code2 className="w-4 h-4 text-neon-indigo" />
-                    <span className="text-xs text-text-primary font-medium">Next.js</span>
-                  </div>
-                </motion.div>
+                </div>
+
+                {/* Ambient glow blobs */}
+                <div className="absolute -top-8 -right-8 w-40 h-40 bg-neon-fuchsia/15 rounded-full blur-3xl -z-10" />
+                <div className="absolute -bottom-8 -left-8 w-48 h-48 bg-neon-indigo/15 rounded-full blur-3xl -z-10" />
               </div>
             </motion.div>
           </div>
+
+          {/* System Status Ticker */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 1.2 }}
+            className="mt-8 relative"
+          >
+            <div className="flex items-center gap-4 overflow-hidden py-2">
+              {/* Left fade */}
+              <div className="w-20 h-6 bg-gradient-to-r from-darkbg to-transparent shrink-0 z-10 absolute left-0" />
+              {/* Right fade */}
+              <div className="w-20 h-6 bg-gradient-to-l from-darkbg to-transparent shrink-0 z-10 absolute right-0" />
+
+              <div className="flex items-center gap-0 animate-[marquee_30s_linear_infinite] whitespace-nowrap"
+                style={{ animation: 'marquee 30s linear infinite' }}>
+                {[...systemStats, ...systemStats].map((stat, i) => (
+                  <div key={i} className="inline-flex items-center gap-2 px-4">
+                    <span className="relative flex h-1.5 w-1.5">
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${stat.ok ? 'bg-emerald-400' : 'bg-red-400'} opacity-75`}
+                        style={{ animationDuration: '2s' }} />
+                      <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${stat.ok ? 'bg-emerald-400' : 'bg-red-400'}`} />
+                    </span>
+                    <span className="text-[11px] font-mono text-text-muted">{stat.label}:</span>
+                    <span className={`text-[11px] font-mono font-medium ${stat.ok ? 'text-emerald-400' : 'text-red-400'}`}>{stat.status}</span>
+                    {stat.latency && <span className="text-[11px] font-mono text-text-muted">({stat.latency})</span>}
+                    <span className="text-text-muted/30 mx-2">|</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <style>{`
+              @keyframes marquee {
+                0% { transform: translateX(0); }
+                100% { transform: translateX(-50%); }
+              }
+            `}</style>
+          </motion.div>
 
           {/* Scroll Indicator */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
-            transition={{ delay: 1.2 }}
-            className="absolute bottom-8 left-1/2 -translate-x-1/2"
+            transition={{ delay: 1.4 }}
+            className="absolute bottom-6 left-1/2 -translate-x-1/2"
           >
             <motion.div
               animate={{ y: [0, 10, 0] }}
