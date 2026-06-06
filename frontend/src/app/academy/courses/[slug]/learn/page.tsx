@@ -70,12 +70,21 @@ export default function AcademyLessonPage() {
         );
         setCoursesBySemester(Object.fromEntries(semesterEntries));
 
+        // Load progress; auto-enroll if not yet enrolled
         if (loadedCourse.id) {
           try {
             const progressRes = await coursesApi.getProgress(loadedCourse.id);
             setProgress(progressRes.data.data || []);
           } catch {
-            setProgress([]);
+            // Not enrolled — attempt auto-enroll so markComplete always works
+            try {
+              await coursesApi.enroll(loadedCourse.id);
+              const progressRes = await coursesApi.getProgress(loadedCourse.id);
+              setProgress(progressRes.data.data || []);
+            } catch {
+              // Free course or public — progress call will return empty list
+              setProgress([]);
+            }
           }
         }
 
@@ -420,6 +429,26 @@ export default function AcademyLessonPage() {
 
         {/* Main content */}
         <main className="space-y-6">
+          {/* Course-level intro video */}
+          {course.previewVideoUrl && (
+            <div className="rounded-2xl overflow-hidden border border-neon-violet/20 bg-darkcard">
+              <div className="px-5 pt-4 pb-2">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-mono text-neon-violet uppercase tracking-widest">
+                  <Video className="w-3 h-3" /> Video giới thiệu khóa học
+                </span>
+              </div>
+              <div className="aspect-video">
+                <iframe
+                  src={toEmbedUrl(course.previewVideoUrl)}
+                  title="Giới thiệu khóa học"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              </div>
+            </div>
+          )}
+
           {/* Video + Header */}
           <section className="rounded-3xl border border-darkborder bg-darkcard p-6">
             {/* Breadcrumb + Lesson counter */}

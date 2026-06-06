@@ -120,7 +120,7 @@ public class AcademyAdminService {
                                         b.getSortOrder() != null ? b.getSortOrder() : 0))
                                     .collect(Collectors.toList())
                                 : List.of();
-                            return CourseSectionDto.fromEntity(section, lessons, false);
+                            return CourseSectionDto.fromEntity(section, lessons, true);
                         })
                         .toList();
                     dto.setSections(uniqueSections);
@@ -152,7 +152,7 @@ public class AcademyAdminService {
                                 b.getSortOrder() != null ? b.getSortOrder() : 0))
                             .collect(Collectors.toList())
                         : List.of();
-                    return CourseSectionDto.fromEntity(section, lessons, false);
+                    return CourseSectionDto.fromEntity(section, lessons, true);
                 })
                 .toList();
             dto.setSections(uniqueSections);
